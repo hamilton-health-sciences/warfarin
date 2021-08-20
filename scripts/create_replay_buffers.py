@@ -38,6 +38,7 @@ def main(args):
             
         
     train_data, val_data, test_data = load_split_data(args.data_folder + "split_data/", suffix=args.data_suffix)
+
     events_data = get_events_data(train_data)
     remove_ids = events_data["USUBJID_O_NEW"].value_counts()[events_data["USUBJID_O_NEW"].value_counts() < 2].index.tolist()
     events_data = events_data[~events_data["USUBJID_O_NEW"].isin(remove_ids)]
@@ -98,7 +99,6 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_folder", default="./data/", type=str, required=True, help="Path to folder containing data. There should be folder called 'split_data' containing the preprocessed train, val, test data. Generated replay buffers will be stored here.")
-    
     parser.add_argument("--incl_hist", default=False, action="store_const", const=True, help="Flag to indicate whether we want to concatenate history to the state space.")
     parser.add_argument("--num_actions", default="", type=int, help="Number of actions to use in BCQ.")
     parser.add_argument("--events_reward", default=None, type=int, help="An integer reward value associated with adverse events. If not specified, the reward signal will only come from the INR value.")
