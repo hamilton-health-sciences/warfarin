@@ -1,6 +1,6 @@
 """Preprocess the COMBINE-AF files into data buffers for model development."""
 
-from utils.smdp_buffer_mod import SMDPReplayBuffer #load_data # ...
+from utils.smdp_buffer import SMDPReplayBuffer #load_data # ...
 from utils.utils import load_split_data, get_events_data
 
 import argparse
@@ -14,7 +14,7 @@ def main(args):
     print("\n----------------------------------------------")
     print("Creating replay buffers using the following parameters:")
     print(args)
-    print("\n----------------------------------------------")
+    print("----------------------------------------------")
     
     if not os.path.exists(f"{args.data_folder}split_data"):
         raise Exception(f"The specified data folder does not exist: {args.data_folder}split_data")
@@ -81,11 +81,11 @@ def main(args):
 
     print(f"\n----------------------------------------------")
     print(f"Saving all buffers to: {buffer_folder}")
-    print(f"\n----------------------------------------------")
-    train_buffer.data_path = buffer_folder
-    val_buffer.data_path = buffer_folder
-    test_buffer.data_path = buffer_folder
-    events_buffer.data_path = buffer_folder
+    print(f"----------------------------------------------")
+    train_buffer.data_path = buffer_folder + "/train_data"
+    val_buffer.data_path = buffer_folder + "/val_data"
+    test_buffer.data_path = buffer_folder + "/test_data"
+    events_buffer.data_path = buffer_folder + "/events_data"
     
     train_buffer.save()
     val_buffer.save()
