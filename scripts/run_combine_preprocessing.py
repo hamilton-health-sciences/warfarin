@@ -82,8 +82,21 @@ def main(args):
     # INR: standardized INR records across all four trials
     # Baseline, events: only contains records for Warfarin patients
     # Merged_all: merged dataframes together, imputed values
-    save_data(inr, baseline, events, merged_all, args.clean_data_path,
-              args.suffix)
+#     save_data(inr, baseline, events, merged_all, args.clean_data_path,
+#               args.suffix)
+
+    # Remove misc columns
+    for col in DROP_COLS:
+        if col in inr.columns:
+            inr = inr.drop(columns=[col])
+
+        if col in merged_data.columns:
+            merged_data = merged_data.drop(columns=[col])
+
+    feather.write_dataframe(inr, base_path + f"inr{suffix}.feather")
+    feather.write_dataframe(baseline, base_path + f"baseline{suffix}.feather")
+    feather.write_dataframe(events, base_path + f"events{suffix}.feather")
+    feather.write_dataframe(merged_data, base_path + f"merged_data{suffix}.feather")
 
     # Some preprocessing is only applied to train data
     train_data, val_data, test_data = split_data(merged_all)
