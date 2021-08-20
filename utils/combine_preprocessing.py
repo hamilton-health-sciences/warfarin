@@ -796,39 +796,6 @@ def prepare_features(merged_data):
     return merged_data
 
 
-def save_data(inr, baseline, events, merged_data, base_path, suffix):
-    """
-    Save the preprocessed INR, baseline, events, and merged datafraems.
-    
-    These are the dataframes that can be used for descriptive analyses, because these contain only Warfarin data, and 
-    the INR entries are standardized across the trials.
-    
-    The suffix exists because the data can be preprocesed in a few ways, and the suffix allows us to specify/name
-    the dataset we want to save.
-    
-    :param inr: dataframe containing preprocesed INR data
-    :param baseline: dataframe containing preprocesed INR data 
-    :param events: dataframe containing preprocesed INR data 
-    :param merged_data: dataframe containing preprocesed INR data 
-    :param base_path: path to location to store the dataframes 
-    :param suffix: suffix of the preprocessed data
-    :return: None
-    """
-    
-    # Remove misc columns
-    for col in DROP_COLS:
-        if col in inr.columns:
-            inr = inr.drop(columns=[col])
-
-        if col in merged_data.columns:
-            merged_data = merged_data.drop(columns=[col])
-
-    feather.write_dataframe(inr, base_path + f"inr{suffix}.feather")
-    feather.write_dataframe(baseline, base_path + f"baseline{suffix}.feather")
-    feather.write_dataframe(events, base_path + f"events{suffix}.feather")
-    feather.write_dataframe(merged_data, base_path + f"merged_data{suffix}.feather")
-
-
 def load_data(base_path, suffix):
     """
     Load preprocesesed data.
