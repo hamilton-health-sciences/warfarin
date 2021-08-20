@@ -20,8 +20,9 @@ from utils.combine_preprocessing import (load_raw_data, preprocess_all,
                                          remove_clinically_unintuitive,
                                          remove_phys_implausible,
                                          prepare_features,
-                                         save_data,
                                          split_data)
+
+from utils.config import DROP_COLS
 
 
 def main(args):
@@ -90,13 +91,14 @@ def main(args):
         if col in inr.columns:
             inr = inr.drop(columns=[col])
 
-        if col in merged_data.columns:
-            merged_data = merged_data.drop(columns=[col])
+        if col in merged_all.columns:
+            merged_all = merged_all.drop(columns=[col])
 
-    feather.write_dataframe(inr, base_path + f"inr{suffix}.feather")
-    feather.write_dataframe(baseline, base_path + f"baseline{suffix}.feather")
-    feather.write_dataframe(events, base_path + f"events{suffix}.feather")
-    feather.write_dataframe(merged_data, base_path + f"merged_data{suffix}.feather")
+    
+    feather.write_dataframe(inr, args.clean_data_path + f"inr{args.suffix}.feather")
+    feather.write_dataframe(baseline, args.clean_data_path + f"baseline{args.suffix}.feather")
+    feather.write_dataframe(events, args.clean_data_path + f"events{args.suffix}.feather")
+    feather.write_dataframe(merged_all, args.clean_data_path + f"merged_data{args.suffix}.feather")
 
     # Some preprocessing is only applied to train data
     train_data, val_data, test_data = split_data(merged_all)
