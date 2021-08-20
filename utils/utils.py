@@ -1,14 +1,23 @@
 """ Functions that are used across multiple scripts? """
 
+import feather
+import numpy as np
+import pandas as pd
+import time
+
+from .config import ADV_EVENTS, EVENTS_TO_KEEP, STATE_COLS_TO_FILL
+
+
+
 def load_split_data(base_path, suffix):
     """
     Load train, validation, and test data.
-    
+
     :param base_path: path to where the dataframes are stored 
     :param suffix: suffix of the split data 
     :return: train, validation, and test dataframes 
     """
-    
+
     train_data = feather.read_dataframe(base_path + f"train_data{suffix}.feather")
     val_data = feather.read_dataframe(base_path + f"val_data{suffix}.feather")
     test_data = feather.read_dataframe(base_path + f"test_data{suffix}.feather")
@@ -32,15 +41,14 @@ def get_events_data(train_data):
     return events_data
 
 
-
-def interpolate_daily(input_df, state_method, verbose=False):
-
+def interpolate_daily(input_df, verbose=False):
+    
     t0 = time.time()
     print(f"\nDropping  misc columns, if present...")
     for col in ['SUBJID_NEW_2', 'SUBJID_NEW', 'START_TRAJ_CUMU', 'END_TRAJ_CUMU', 'FIRST_DAY', 'LAST_DAY',
                 'IS_NULL_CUMU', 'REMOVE', 'CUMU_MEASUR', 'MISSING_ID', 'START_TRAJ', 'END_TRAJ']:
-        if col in df.columns:
-            df = df.drop(columns=[col])
+        if col in input_df.columns:
+            input_df = input_df.drop(columns=[col])
             print(f"Dropping col: {col}")
 
     first_days = pd.DataFrame(input_df.groupby('USUBJID_O_NEW')['STUDY_DAY'].first()).reset_index().rename(
@@ -70,13 +78,13 @@ def interpolate_daily(input_df, state_method, verbose=False):
         if verbose:
             print(f"\tFinished filling for event {ev}")
 
-#         dose_cols = [x for x in STATE_COLS_TO_FILL if "WARFARIN_DOSE" in x]
-#         state_cols = [x for x in STATE_COLS_TO_FILL if "WARFARIN_DOSE" not in x]
+    #         dose_cols = [x for x in STATE_COLS_TO_FILL if "WARFARIN_DOSE" in x]
+    #         state_cols = [x for x in STATE_COLS_TO_FILL if "WARFARIN_DOSE" not in x]
 
     state_cols = STATE_COLS_TO_FILL
     state_cols = [x for x in state_cols if not (
-                (x in ["INR_1", "INR_2", "INR_3", "INR_4"]) or ("(" in x) or (")" in x) or ("[" in x) or ("]" in x) or (
-                    "<" in x) or (">" in x))]
+            (x in ["INR_1", "INR_2", "INR_3", "INR_4"]) or ("(" in x) or (")" in x) or ("[" in x) or ("]" in x) or (
+            "<" in x) or (">" in x))]
     state_cols = [x for x in state_cols if not (("CONTINENT" in x) or ("SMOKE" in x))] + ["CONTINENT", "SMOKE"]
     dose_cols = [x for x in state_cols if "WARFARIN_DOSE" in x]
     state_cols = [x for x in state_cols if x != "WARFARIN_DOSE"]
@@ -86,7 +94,7 @@ def interpolate_daily(input_df, state_method, verbose=False):
             print(f"Filling in column: {col}")
         df_exploded_merged[col] = df_exploded_merged.groupby("USUBJID_O_NEW")[col].fillna(method="bfill")
 
-    for col in state_cols: #[x for x in state_cols if ("CONTINENT" in x) or ("SMOKE" in x)]:
+    for col in state_cols:  # [x for x in state_cols if ("CONTINENT" in x) or ("SMOKE" in x)]:
         if verbose:
             print(f"Filling in column: {col}")
         if col in df_exploded_merged.columns:
