@@ -139,7 +139,7 @@ class SMDPReplayBuffer(object):
         self.data = self.data[~mask]
         print(f"\tMasking {mask.sum()} entries that have NaN demographic features")
 
-        if self.data.isnull().values.any():
+        if self.data[["INR_VALUE", "WARFARIN_DOSE"]].isnull().values.any():
             warn("There are NaN values in the state space in INR or Warfarin dose - please investigate!")
 
         # Reward

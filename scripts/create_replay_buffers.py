@@ -11,6 +11,11 @@ import pickle
 
 def main(args):
     
+    print("\n----------------------------------------------")
+    print("Creating replay buffers using the following parameters:")
+    print(args)
+    print("\n----------------------------------------------")
+    
     if not os.path.exists(f"{args.data_folder}split_data"):
         raise Exception(f"The specified data folder does not exist: {args.data_folder}split_data")
 
@@ -97,7 +102,7 @@ if __name__ == "__main__":
     parser.add_argument("--incl_hist", default=False, action="store_const", const=True, help="Flag to indicate whether we want to concatenate history to the state space.")
     parser.add_argument("--num_actions", default="", type=int, help="Number of actions to use in BCQ.")
     parser.add_argument("--events_reward", default=None, type=int, help="An integer reward value associated with adverse events. If not specified, the reward signal will only come from the INR value.")
-    parser.add_argument("--discount_factor", default=None, type=int, help="Discount factor to use when calculating the discounted reward.")
+    parser.add_argument("--discount_factor", default=0.99, type=int, help="Discount factor to use when calculating the discounted reward.")
     parser.add_argument("--data_suffix", default="", type=str, help="Suffix to identify the preprocessed data.")
     parser.add_argument("--buffer_suffix", default="smdp", type=str, help="Suffix to identify the generated replay buffer.")
     parser.add_argument(
