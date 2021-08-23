@@ -652,33 +652,32 @@ def split_traj_by_time_elapsed(measured_inrs):
     return measured_inrs
 
 
-def remove_short_traj(measured_inrs):
+def remove_short_traj(measured_inrs, id_col="USUBJID_O_NEW"):
     """
-    Remove trajectories with fewer than MIN_INR_COUNTS of INR visits.
-
-    :param measured_inrs: dataframe containing INR data over time, where
-                          "USUBJID_O_NEW" is trajectory ID
-    :return: dataframe with short trajectories removed
+    Remove trajectories with fewer than MIN_INR_COUNTS of INR visits. 
+    
+    :param measured_inrs: dataframe containing INR data over time
+    :param id_col: the column name of the trajectory ID. Defaults to "USUBJID_O_NEW"
+    :return: dataframe with short trajectories removed 
     """
-    new_id = "USUBJID_O_NEW"
-
+    
     # Remove patients with fewer than min_inr_counts
-    weekly_counts = measured_inrs.groupby(
-        new_id
-    ).count().sort_values(by="STUDY_DAY")["STUDY_DAY"]
-    num_removed = len(weekly_counts[weekly_counts < MIN_INR_COUNTS])
-    patient_ids = weekly_counts[weekly_counts >= MIN_INR_COUNTS].index.tolist()
+#     weekly_counts = measured_inrs.groupby(new_id).count().sort_values(by="STUDY_DAY")["STUDY_DAY"]
+#     num_removed = len(weekly_counts[weekly_counts < MIN_INR_COUNTS])
+#     patient_ids = weekly_counts[weekly_counts >= MIN_INR_COUNTS].index.tolist()
 
-    measured_inrs = measured_inrs[measured_inrs[new_id].isin(patient_ids)]
+    counts = measured_inrs.groupby(id_col).size()
+    patient_ids = counts[counts >= MIN_INR_COUNTS].index.tolist()    
+    num_removed = measured_inrs[id_col].nunique() - len(patient_ids)
+    measured_inrs = measured_inrs[measured_inrs[id_col].isin(patient_ids)]
+
+    num_traj = len(patient_ids)
+    num_samples = measured_inrs.shape[0]
+    num_patients = measured_inrs['SUBJID'].nunique()
+    
+    print(f"Removing {num_removed:,.0f} trajectories with fewer than {MIN_INR_COUNTS} INR measurements..")
     print(
-        f"Removing {num_removed:,.0f} trajectories with fewer than "
-        f"{MIN_INR_COUNTS} INR measurements.."
-    )
-    print(
-        f"\tRemaining {measured_inrs['SUBJID'].nunique():,.0f} patients, "
-        f"{len(patient_ids):,.0f} trajectories, {measured_inrs.shape[0]:,.0f} "
-        "samples remaining..."
-    )
+        f"\tRemaining {num_patients:,.0f} patients, {num_traj:,.0f} trajectories, {num_samples:,.0f} samples remaining...")
 
     return measured_inrs
 
