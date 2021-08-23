@@ -32,10 +32,6 @@ def main(args):
         )
         os.makedirs(f"{args.buffer_dir}")
 
-    train_buffer = SMDPReplayBuffer()
-    val_buffer = SMDPReplayBuffer()
-    test_buffer = SMDPReplayBuffer()
-
     store_train_features = False
     if args.stored_feature_scales_path is not None:
         if not os.path.exists(f"{args.stored_feature_scales_path}"):
@@ -45,8 +41,9 @@ def main(args):
                 "using training data."
             )
             store_train_features = True
+            features_ranges = None
         else:
-            train_buffer.features_ranges = pickle.load(
+            features_ranges = pickle.load(
                 args.stored_feature_scales_path
             )
 
@@ -60,18 +57,19 @@ def main(args):
         events_data["USUBJID_O_NEW"].value_counts() < 2
     ].index.tolist()
     events_data = events_data[~events_data["USUBJID_O_NEW"].isin(remove_ids)]
-    events_buffer = SMDPReplayBuffer()
 
     ###########################################
     # Prepare replay buffers
     ###########################################
     print("\n----------------------------------------------")
     print("Training data")
-    train_buffer.prepare_data(
+    train_buffer = SMDPReplayBuffer.from_data(
         train_data,
         num_actions=args.num_actions,
         events_reward=args.events_reward,
-        discount_factor=args.discount_factor
+        discount_factor=args.discount_factor,
+        features_ranges=None,
+        training=True
     )
     if store_train_features:
         print(
@@ -83,31 +81,31 @@ def main(args):
 
     print("\n----------------------------------------------")
     print("Validation data")
-    val_buffer.features_ranges = train_buffer.features_ranges
-    val_buffer.prepare_data(
+    val_buffer = SMDPReplayBuffer.from_data(
         val_data,
         num_actions=args.num_actions,
         events_reward=args.events_reward,
-        discount_factor=args.discount_factor
+        discount_factor=args.discount_factor,
+        features_ranges=train_buffer.features_ranges
     )
 
     print("\n----------------------------------------------")
     print("Test data")
-    test_buffer.features_ranges = train_buffer.features_ranges
-    test_buffer.prepare_data(
+    test_buffer = SMDPReplayBuffer.from_data(
         test_data,
         num_actions=args.num_actions,
         events_reward=args.events_reward,
-        discount_factor=args.discount_factor
+        discount_factor=args.discount_factor,
+        features_ranges=train_buffer.features_ranges
     )
 
     print("\n----------------------------------------------")
-    events_buffer.features_ranges = train_buffer.features_ranges
-    events_buffer.prepare_data(
+    events_buffer = SMDPReplayBuffer.from_data(
         events_data,
         num_actions=args.num_actions,
         events_reward=args.events_reward,
-        discount_factor=args.discount_factor
+        discount_factor=args.discount_factor,
+        features_ranges=train_buffer.features_ranges
     )
 
     ###########################################

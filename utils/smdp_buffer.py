@@ -94,7 +94,6 @@ class SMDPReplayBuffer(object):
 
 
     def load(self, size=-1, incl_hist=True, seed=42, is_ais=False):
-
         if is_ais:
             pass
         else:
@@ -137,37 +136,43 @@ class SMDPReplayBuffer(object):
 
         return train_buffer, val_buffer, test_buffer, events_buffer
 
-    def prepare_data(self,
-                     data,
-                     num_actions=7,
-                     events_reward=None,
-                     discount_factor=0.99):
-        is_training = not self.features_ranges
-        # self.features_ranges = features_ranges
-        self.data = data
+    @staticmethod
+    def from_data(data,
+                  num_actions=7,
+                  events_reward=None,
+                  discount_factor=0.99,
+                  training=False,
+                  features_ranges=None):
+        buf = SMDPReplayBuffer()
 
+        # self.features_ranges = features_ranges
+        buf.data = data
+        if features_ranges is not None:
+            buf.features_ranges = features_ranges
+
+        num_patients = buf.data[buf.id_col].nunique()
+        num_entries = buf.data.shape[0]
         print("Preparing data for replay buffer...")
         print(
-            f"\t{self.data[self.id_col].nunique():,.0f} patients and "
-            f"{self.data.shape[0]:,.0f} entries"
+            f"\t{num_patients:,.0f} patients and {num_entries:,.0f} entries"
         )
         t0 = time.time()
 
         # Remove NaN entries
-        state_cols = SMDPReplayBuffer.get_state_features(self.data,
+        state_cols = SMDPReplayBuffer.get_state_features(buf.data,
                                                          incl_flags=True)
         dem_state_cols = [
             x for x in state_cols
             if ("INR_VALUE" not in x) and ("WARFARIN_DOSE" not in x)
         ]
-        state_entries = self.data.loc[:, dem_state_cols]
+        state_entries = buf.data.loc[:, dem_state_cols]
         mask = state_entries.isnull().any(axis=1)
-        self.data = self.data[~mask]
+        buf.data = buf.data[~mask]
         print(
             f"\tMasking {mask.sum()} entries that have NaN demographic features"
         )
 
-        if self.data[["INR_VALUE", "WARFARIN_DOSE"]].isnull().values.any():
+        if buf.data[["INR_VALUE", "WARFARIN_DOSE"]].isnull().values.any():
             warn(
                 "There are NaN values in the state space in INR or Warfarin "
                 "dose - please investigate!"
@@ -175,25 +180,27 @@ class SMDPReplayBuffer(object):
 
         # Reward
         print("Determining rewards at each option decision...")
-        self.data.loc[:, "REWARD"] = SMDPReplayBuffer.get_reward(
-            self.data,
+        buf.data.loc[:, "REWARD"] = SMDPReplayBuffer.get_reward(
+            buf.data,
             discount_factor=discount_factor,
             events_reward=events_reward
         )
 
         # k (time elapsed)
         print("Determining k for each option decision...")
-        self.data.loc[:, "k"] = SMDPReplayBuffer.get_k(self.data,
-                                                       id_col=self.id_col)
+        buf.data.loc[:, "k"] = SMDPReplayBuffer.get_k(
+            buf.data,
+            id_col=buf.id_col
+        )
 
         # Action
         print("Determining (clinician) action at option decision...")
-        self.data.loc[:, "WARFARIN_DOSE_MULT"] = self.data.groupby(
-            self.id_col
-        )["WARFARIN_DOSE"].shift(-1) / np.maximum(self.data["WARFARIN_DOSE"],
+        buf.data.loc[:, "WARFARIN_DOSE_MULT"] = buf.data.groupby(
+            buf.id_col
+        )["WARFARIN_DOSE"].shift(-1) / np.maximum(buf.data["WARFARIN_DOSE"],
                                                   0.0001)
-        self.data.loc[:, "ACTION"] = SMDPReplayBuffer.get_action(
-            self.data,
+        buf.data.loc[:, "ACTION"] = SMDPReplayBuffer.get_action(
+            buf.data,
             num_actions=num_actions
         )
 
@@ -201,54 +208,59 @@ class SMDPReplayBuffer(object):
         print("Preparing state features at each option decision...")
 
         # Rankin_score is not used in the state space
-        if "RANKIN_SCORE" in self.data.columns:
-            self.data = self.data.drop(columns="RANKIN_SCORE")
+        if "RANKIN_SCORE" in buf.data.columns:
+            buf.data = buf.data.drop(columns="RANKIN_SCORE")
 
-        self.data = SMDPReplayBuffer.get_encodings(
-            self.data.drop(columns="SUBJID")
+        buf.data = SMDPReplayBuffer.get_encodings(
+            buf.data.drop(columns="SUBJID")
         )
 
-        if is_training:
-            features_ranges, self.data = SMDPReplayBuffer.normalize_features(
-                self.data,
-                self.features_to_norm,
+        if training:
+            features_ranges, buf.data = SMDPReplayBuffer.normalize_features(
+                buf.data,
+                buf.features_to_norm,
                 features_ranges={}
             )
-            self.features_ranges = features_ranges
-            self.data = self.data.reset_index()
+            buf.features_ranges = features_ranges
+            buf.data = buf.data.reset_index()
         else:
-            self.data = SMDPReplayBuffer.normalize_features(
-                self.data,
-                self.features_to_norm,
-                self.features_ranges
+            buf.data = SMDPReplayBuffer.normalize_features(
+                buf.data,
+                buf.features_to_norm,
+                buf.features_ranges
             ).reset_index()
 
         # Done flag
-        last_entries = self.data.groupby("USUBJID_O_NEW").apply(
+        last_entries = buf.data.groupby("USUBJID_O_NEW").apply(
             pd.DataFrame.last_valid_index
         ).values
-        self.data["IS_LAST"] = 0
-        self.data.loc[last_entries, "IS_LAST"] = 1
-        self.data["DONE_FLAG"] = self.data["IS_LAST"].shift(-1)
-        self.data = self.data.drop(columns="IS_LAST")
+        buf.data["IS_LAST"] = 0
+        buf.data.loc[last_entries, "IS_LAST"] = 1
+        buf.data["DONE_FLAG"] = buf.data["IS_LAST"].shift(-1)
+        buf.data = buf.data.drop(columns="IS_LAST")
 
         # Event flag
-        self.data["EVENT_OCCUR"] = self.data[ADV_EVENTS].sum(axis=1)
-        self.data["EVENT_FLAG"] = self.data.groupby(
+        buf.data["EVENT_OCCUR"] = buf.data[ADV_EVENTS].sum(axis=1)
+        buf.data["EVENT_FLAG"] = buf.data.groupby(
             "USUBJID_O_NEW"
         )["EVENT_OCCUR"].shift(-1).fillna(0)
-        self.data = self.data.drop(columns="EVENT_OCCUR")
+        buf.data = buf.data.drop(columns="EVENT_OCCUR")
 
+        num_nan_entries = buf.data.dropna().shape[0]
+        num_entries = buf.data.shape[0]
+        num_samples = buf.data.dropna().shape[0]
         print(
-            f"There are {self.data.dropna().shape[0]:,.0f} entries with NaN "
-            f"values (out of {self.data.shape[0]} entries)... \n\t "
-            f"{self.data.dropna().shape[0]:,.0f} samples"
+            f"There are {num_nan_entries:,.0f} entries with NaN "
+            f"values (out of {num_entries} entries)... \n\t "
+            f"{num_samples:,.0f} samples"
         )
 
-        self.data = SMDPReplayBuffer.get_ttr(self.data)
+        buf.data = SMDPReplayBuffer.get_ttr(buf.data)
 
         t1 = time.time()
         print(f"DONE preparing buffer data! Took {t1 - t0:,.2f} seconds.")
+
+        return buf
 
     @staticmethod
     def get_k(df, id_col="SUBJID"):
@@ -602,4 +614,3 @@ class SMDPReplayBuffer(object):
         else:
             return (sample_k, sample_state, sample_reward, sample_action,
                     sample_next_state, sample_not_done)
-
