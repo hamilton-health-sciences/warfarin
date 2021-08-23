@@ -27,7 +27,6 @@ class SMDPReplayBuffer(object):
     def __init__(self,
                  data_path=None,
                  id_col="USUBJID_O_NEW",
-                 state_dim=None,
                  batch_size=None,
                  buffer_size=1e6,
                  device=None):
@@ -561,7 +560,7 @@ class SMDPReplayBuffer(object):
                                       keep_entries3)
 
         if sum(keep_entries2) > 0:
-            warn(f"\tThere are NaNs in the state space - please investigate.")
+            warn("\tThere are NaNs in the state space - please investigate.")
 
         sample_k = sample_k[keep_entries]
         sample_state = sample_state[keep_entries]
@@ -578,15 +577,22 @@ class SMDPReplayBuffer(object):
         if shuffle:
             np.random.seed(seed)
             np.random.shuffle(indices)
-        
-        #TODO: This would not work if k, not_done, reward, action, or event_flag has more than 1 dimension or if state/next state only has 1 dimension
+
+        # TODO: This would not work if k, not_done, reward, action, or
+        # event_flag has more than 1 dimension or if state/next state only has 1
+        # dimension
         sample_k = np.expand_dims(sample_k[:max_length][indices], axis=1)
-        sample_not_done = np.expand_dims(sample_not_done[:max_length][indices], axis=1)
+        sample_not_done = np.expand_dims(sample_not_done[:max_length][indices],
+                                         axis=1)
         sample_state = sample_state[:max_length][indices]
-        sample_reward = np.expand_dims(sample_reward[:max_length][indices], axis=1)
-        sample_action = np.expand_dims(sample_action[:max_length][indices], axis=1)
+        sample_reward = np.expand_dims(sample_reward[:max_length][indices],
+                                       axis=1)
+        sample_action = np.expand_dims(sample_action[:max_length][indices],
+                                       axis=1)
         sample_next_state = sample_next_state[:max_length][indices]
-        sample_event_flag = np.expand_dims(sample_event_flag[:max_length][indices], axis=1)
+        sample_event_flag = np.expand_dims(
+            sample_event_flag[:max_length][indices], axis=1
+        )
 
         print(f"\tCreated buffer. {len(sample_state):,.0f} samples")
 

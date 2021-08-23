@@ -8,7 +8,7 @@ from warnings import warn
 
 import pickle
 
-from utils.smdp_buffer import SMDPReplayBuffer #load_data # ...
+from utils.smdp_buffer import SMDPReplayBuffer
 from utils.utils import load_split_data, get_events_data
 
 
