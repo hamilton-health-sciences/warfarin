@@ -39,8 +39,8 @@ from torch.utils.data import TensorDataset, DataLoader
 import torch.nn.functional as F
 import torch.nn as nn
 
-from utils.smdp_dBCQ import discrete_BCQ, FC_Q
-from utils.behav_cloning import FC_BC
+from models.smdp_dBCQ import discrete_BCQ, FC_Q
+from models.behav_cloning import FC_BC
 from utils.smdp_buffer import SMDPReplayBuffer
 import time
 
@@ -145,7 +145,6 @@ def train_BCQ(train_replay_buffer, valid_replay_buffer, events_replay_buffer, nu
 
         training_iters += int(parameters["eval_freq"])
         print(f"Training iterations: {training_iters}")
-        
         
         checkpoint_state = {"Q_state_dict": policy.Q.state_dict(),
                             "training_iters": training_iters}
@@ -337,21 +336,22 @@ if __name__ == "__main__":
 
     # Load parameters
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
-    parser.add_argument("--data_folder", default="./data")  # Sets Gym, PyTorch and Numpy seeds
-    parser.add_argument("--save_folder", default="./output/bcq")  # Sets Gym, PyTorch and Numpy seeds
+    parser.add_argument("--seed", default=0, type=int)
+    parser.add_argument("--data_folder", default="./data")
+    parser.add_argument("--save_folder", default="./output/bcq")
     parser.add_argument("--buffer_folder", default="./data/replay_buffers")
     parser.add_argument("--num_actions", default=5, type=int)
     parser.add_argument("--state_dim", default=18, type=int)
     parser.add_argument("--batch_size", default=64, type=int)
     parser.add_argument("--suffix", type=str)
     parser.add_argument("--resume", default=False)
-    parser.add_argument("--max_timesteps", default=1e5, type=int)  # Max time steps to run environment or train for
+    parser.add_argument("--max_timesteps", default=1e5, type=int)
     parser.add_argument("--lr", default=1e-4, type=float)  # Learning rate
     parser.add_argument("--BCQ_threshold", default=0.3, type=float)  # Threshold hyper-parameter for BCQ
     parser.add_argument("--hidden_states", default=25, type=int)  # Threshold hyper-parameter for BCQ
     parser.add_argument("--num_layers", default=3, type=int)
     parser.add_argument("--events_batch_size", default=2, type=int)
+    
     # TODO: These should NOT be the defaults
     parser.add_argument("--wandb_key", default="251aff8dbc2297dad3c63077733a310a5c166e0d", type=str)
     parser.add_argument("--project", default="warfarin_semi_dbcq", type=str)
