@@ -213,7 +213,8 @@ class SMDPReplayBuffer(object):
             f"{num_samples:,.0f} samples"
         )
 
-        buf.data = SMDPReplayBuffer.get_ttr(buf.data)
+        # Fill in time in range stats
+        buf.get_ttr()
 
         t1 = time.time()
         print(f"DONE preparing buffer data! Took {t1 - t0:,.2f} seconds.")
@@ -299,8 +300,9 @@ class SMDPReplayBuffer(object):
 
         self.data.loc[:, "REWARD"] = df["DISC_REWARD"].values
 
-    @staticmethod
-    def get_ttr(df, colname="INR_VALUE"):
+    def get_ttr(self, colname="INR_VALUE"):
+        df = self.data
+
         df["BELOW_RANGE"] = np.where((df[colname] < 2), 1, 0)
         df["IN_RANGE"] = np.where((df[colname] >= 2) & (df[colname] <= 3), 1, 0)
         df["ABOVE_RANGE"] = np.where((df[colname] > 3), 1, 0)
@@ -311,7 +313,7 @@ class SMDPReplayBuffer(object):
         df["CHANGE_IN_TTR"] = df.groupby("USUBJID_O_NEW")["TTR"].diff()
         df["CHANGE_IN_TTR_ADJ"] = - df["CHANGE_IN_TTR"]
 
-        return df
+        self.data = df
 
     @staticmethod
     def get_action(df, colname="WARFARIN_DOSE_MULT", num_actions=3):
