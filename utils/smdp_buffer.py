@@ -156,6 +156,7 @@ class SMDPReplayBuffer(object):
             f"{num_samples:,.0f} samples"
         )
 
+        # TODO called too late
         # Fill in time in range stats
         buf.get_ttr()
 
