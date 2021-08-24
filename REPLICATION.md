@@ -21,7 +21,8 @@ RL model:
     $ python3 scripts/create_replay_buffer.py \
           --input_fn ./data/split_data/train_data.feather \
           --num_actions 7 --incl_hist \
-          --output_fn ./data/replay_buffers/train_data_buffer.feather \
+          --output_fn ./data/replay_buffers/train_data \
+          --output_events_fn ./data/replay_buffers/events_data \
           --output_normalization ./output/normalization_params.pkl
 
     $ python3 scripts/create_replay_buffer.py \
