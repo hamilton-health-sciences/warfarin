@@ -110,23 +110,6 @@ class SMDPReplayBuffer(object):
         print(f"Replay Buffer loaded with {self.crt_size} elements.")
 
     @staticmethod
-    def load_buffers(data_dir, is_ais=False):
-        train_buffer = SMDPReplayBuffer(data_path=data_dir + "train_data")
-        val_buffer = SMDPReplayBuffer(data_path=data_dir + "train_data")
-        test_buffer = SMDPReplayBuffer(data_path=data_dir + "train_data")
-        events_buffer = SMDPReplayBuffer(data_path=data_dir + "train_data")
-
-        ###########################################
-        # Load buffers
-        ###########################################
-        train_buffer.load(is_ais=is_ais)
-        val_buffer.load(is_ais=is_ais)
-        test_buffer.load(is_ais=is_ais)
-        events_buffer.load(is_ais=is_ais)
-
-        return train_buffer, val_buffer, test_buffer, events_buffer
-
-    @staticmethod
     def from_data(data,
                   num_actions=7,
                   events_reward=None,
@@ -202,6 +185,7 @@ class SMDPReplayBuffer(object):
         # One hot encode the data
         buf.one_hot_encode()
 
+        # Normalize features in [0, 1]
         buf.normalize_features()
 
         # Done flag
