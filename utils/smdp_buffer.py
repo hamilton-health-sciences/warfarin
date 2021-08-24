@@ -49,15 +49,6 @@ class SMDPReplayBuffer(object):
         self.ptr = 0
         self.crt_size = 0
 
-#         self.k = np.zeros((self.max_size, 1))
-#         self.state = np.zeros((self.max_size, state_dim))
-#         self.action = np.zeros((self.max_size, 1))
-#         self.next_state = np.array(self.state)
-#         self.reward = np.zeros((self.max_size, 1))
-#         self.not_done = np.zeros((self.max_size, 1))
-#         self.event_flag = np.zeros((self.max_size, 1))
-
-
     def sample(self, ind=None, return_flag=False):
         ind = np.random.randint(
             0, self.crt_size, size=self.batch_size
@@ -82,16 +73,15 @@ class SMDPReplayBuffer(object):
                 torch.FloatTensor(self.not_done[ind]).to(self.device)
             )
 
-    def save(self):
-        print(f"\nSaving buffer: {self.data_path}...")
+    def save(self, data_path):
+        print(f"\nSaving buffer: {data_path}...")
         t0 = time.time()
-        feather.write_dataframe(self.data, self.data_path)
+        feather.write_dataframe(self.data, data_path)
         t1 = time.time()
         print(
             f"Done saving buffer! Took {t1 - t0:,.2f} seconds. Data stored "
-            f"at: {self.data_path}"
+            f"at: {data_path}"
         )
-
 
     def load(self, size=-1, incl_hist=True, seed=42, is_ais=False):
         if is_ais:

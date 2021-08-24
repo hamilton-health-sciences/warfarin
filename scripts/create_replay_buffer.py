@@ -44,7 +44,6 @@ def main(args):
         features_ranges=features_ranges,
         training=(features_ranges is None)
     )
-    buf.data_path = args.output_fn
 
     # Store normalizations if given
     if args.output_normalization:
@@ -68,14 +67,13 @@ def main(args):
             discount_factor=args.discount_factor,
             features_ranges=buf.features_ranges
         )
-        events_buf.data_path = args.output_events_fn
-        
+
         # Save
-        events_buf.save()
+        events_buf.save(args.output_events_fn)
 
     # Save buffer
-    print("Saving buffer to: {args.output_fn}")
-    buf.save()
+    print(f"Saving buffer to: {args.output_fn}")
+    buf.save(args.output_fn)
 
 
 if __name__ == "__main__":
