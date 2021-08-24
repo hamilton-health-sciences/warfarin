@@ -521,19 +521,19 @@ if __name__ == "__main__":
     t0 = time.time()
     if torch.cuda.is_available():
         device = torch.device("cuda")
-        train_replay_buffer = SMDPReplayBuffer(
+        train_replay_buffer = SMDPReplayBuffer.from_filename(
             data_path=folder_paths["buffers"] + "/train_data",
             batch_size=parameters["batch_size"] - args.events_batch_size,
             buffer_size=warfarin_parameters["train_buffer_size"],
             device=device
         )
-        valid_replay_buffer = SMDPReplayBuffer(
+        valid_replay_buffer = SMDPReplayBuffer.from_filename(
             data_path=folder_paths["buffers"] + "/val_data",
             batch_size=parameters["batch_size"],
             buffer_size=warfarin_parameters["valid_buffer_size"],
             device=device
         )
-        events_replay_buffer = SMDPReplayBuffer(
+        events_replay_buffer = SMDPReplayBuffer.from_filename(
             data_path=folder_paths["buffers"] + "/events_data",
             batch_size=args.events_batch_size,
             buffer_size=warfarin_parameters["events_buffer_size"],

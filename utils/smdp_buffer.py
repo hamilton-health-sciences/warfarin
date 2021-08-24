@@ -24,90 +24,33 @@ class SMDPReplayBuffer(object):
     sampling this replay buffer.
     """
 
-    def __init__(self,
-                 data_path=None,
-                 id_col="USUBJID_O_NEW",
-                 batch_size=None,
-                 buffer_size=1e6,
-                 device=None):
+    @staticmethod
+    def from_filename(data_path=None,
+                      id_col="USUBJID_O_NEW",
+                      batch_size=None,
+                      buffer_size=1e6,
+                      device=None):
         """
         The batch size, buffer size, etc are only used when sampling from the
         replay buffer. They are not needed when creating the buffers.
         """
+        buf = SMDPReplayBuffer()
 
-        self.batch_size = batch_size
-        self.max_size = int(buffer_size)
-        self.device = device
-        self.data_path = data_path
-        self.id_col = id_col
+        buf.batch_size = batch_size
+        buf.max_size = int(buffer_size)
+        buf.device = device
+        buf.data_path = data_path
+        buf.id_col = id_col
 
-        self.features_to_norm = ["WARFARIN_DOSE", "INR_VALUE",
-                                 "AGE_DEIDENTIFIED", "WEIGHT"]
-        self.features_ranges = {}
-        self.data = None
+        buf.features_to_norm = ["WARFARIN_DOSE", "INR_VALUE",
+                                "AGE_DEIDENTIFIED", "WEIGHT"]
+        buf.features_ranges = {}
+        buf.data = None
 
-        self.ptr = 0
-        self.crt_size = 0
+        buf.ptr = 0
+        buf.crt_size = 0
 
-    def sample(self, ind=None, return_flag=False):
-        ind = np.random.randint(
-            0, self.crt_size, size=self.batch_size
-        ) if ind is None else ind
-        if return_flag:
-            return (
-                torch.FloatTensor(self.k[ind]).to(self.device),
-                torch.FloatTensor(self.state[ind]).to(self.device),
-                torch.LongTensor(self.action[ind]).to(self.device),
-                torch.FloatTensor(self.next_state[ind]).to(self.device),
-                torch.FloatTensor(self.reward[ind]).to(self.device),
-                torch.FloatTensor(self.not_done[ind]).to(self.device),
-                torch.FloatTensor(self.event_flag[ind]).to(self.device)
-            )
-        else:
-            return (
-                torch.FloatTensor(self.k[ind]).to(self.device),
-                torch.FloatTensor(self.state[ind]).to(self.device),
-                torch.LongTensor(self.action[ind]).to(self.device),
-                torch.FloatTensor(self.next_state[ind]).to(self.device),
-                torch.FloatTensor(self.reward[ind]).to(self.device),
-                torch.FloatTensor(self.not_done[ind]).to(self.device)
-            )
-
-    def save(self, data_path):
-        print(f"\nSaving buffer: {data_path}...")
-        t0 = time.time()
-        feather.write_dataframe(self.data, data_path)
-        t1 = time.time()
-        print(
-            f"Done saving buffer! Took {t1 - t0:,.2f} seconds. Data stored "
-            f"at: {data_path}"
-        )
-
-    def load(self, size=-1, incl_hist=True, seed=42, is_ais=False):
-        if is_ais:
-            pass
-        else:
-            # Load the dataframe from the feather format
-            t0 = time.time()
-            self.data = feather.read_dataframe(self.data_path)
-            t1 = time.time()
-            print(f"Retrieved saved data. Took {(t1 - t0):,.2f} seconds")
-            print(
-                f"Buffer data: {self.data.shape}, "
-                f"{self.data[self.id_col].nunique()}"
-            )
-
-            # Convert from dataframe to replay buffer features
-            (self.k, self.state, self.reward, self.action, self.next_state,
-             self.not_done) = self.create_buffer(
-                incl_hist=incl_hist, seed=seed
-            )
-
-            # Adjust crt_size if we"re using a custom size
-            size = min(int(size), self.max_size) if size > 0 else self.max_size
-            self.crt_size = min(self.reward.shape[0], size)
-
-        print(f"Replay Buffer loaded with {self.crt_size} elements.")
+        return buf
 
     @staticmethod
     def from_data(data,
@@ -220,6 +163,42 @@ class SMDPReplayBuffer(object):
         print(f"DONE preparing buffer data! Took {t1 - t0:,.2f} seconds.")
 
         return buf
+
+    def save(self, data_path):
+        print(f"\nSaving buffer: {data_path}...")
+        t0 = time.time()
+        feather.write_dataframe(self.data, data_path)
+        t1 = time.time()
+        print(
+            f"Done saving buffer! Took {t1 - t0:,.2f} seconds. Data stored "
+            f"at: {data_path}"
+        )
+
+    def load(self, size=-1, incl_hist=True, seed=42, is_ais=False):
+        if is_ais:
+            pass
+        else:
+            # Load the dataframe from the feather format
+            t0 = time.time()
+            self.data = feather.read_dataframe(self.data_path)
+            t1 = time.time()
+            print(f"Retrieved saved data. Took {(t1 - t0):,.2f} seconds")
+            print(
+                f"Buffer data: {self.data.shape}, "
+                f"{self.data[self.id_col].nunique()}"
+            )
+
+            # Convert from dataframe to replay buffer features
+            (self.k, self.state, self.reward, self.action, self.next_state,
+             self.not_done) = self.create_buffer(
+                incl_hist=incl_hist, seed=seed
+            )
+
+            # Adjust crt_size if we"re using a custom size
+            size = min(int(size), self.max_size) if size > 0 else self.max_size
+            self.crt_size = min(self.reward.shape[0], size)
+
+        print(f"Replay Buffer loaded with {self.crt_size} elements.")
 
     def compute_k(self):
         df = self.data
@@ -578,3 +557,27 @@ class SMDPReplayBuffer(object):
         else:
             return (sample_k, sample_state, sample_reward, sample_action,
                     sample_next_state, sample_not_done)
+
+    def sample(self, ind=None, return_flag=False):
+        ind = np.random.randint(
+            0, self.crt_size, size=self.batch_size
+        ) if ind is None else ind
+        if return_flag:
+            return (
+                torch.FloatTensor(self.k[ind]).to(self.device),
+                torch.FloatTensor(self.state[ind]).to(self.device),
+                torch.LongTensor(self.action[ind]).to(self.device),
+                torch.FloatTensor(self.next_state[ind]).to(self.device),
+                torch.FloatTensor(self.reward[ind]).to(self.device),
+                torch.FloatTensor(self.not_done[ind]).to(self.device),
+                torch.FloatTensor(self.event_flag[ind]).to(self.device)
+            )
+        else:
+            return (
+                torch.FloatTensor(self.k[ind]).to(self.device),
+                torch.FloatTensor(self.state[ind]).to(self.device),
+                torch.LongTensor(self.action[ind]).to(self.device),
+                torch.FloatTensor(self.next_state[ind]).to(self.device),
+                torch.FloatTensor(self.reward[ind]).to(self.device),
+                torch.FloatTensor(self.not_done[ind]).to(self.device)
+            )
