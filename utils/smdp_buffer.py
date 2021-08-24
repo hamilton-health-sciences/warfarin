@@ -542,11 +542,10 @@ class SMDPReplayBuffer(object):
         sample_k = sample_k[keep_entries]
         sample_state = sample_state[keep_entries]
         sample_next_state = sample_next_state[keep_entries]
-        sample_reward = np.expand_dims(sample_reward[keep_entries], axis=1)
-        sample_action = np.expand_dims(sample_action[keep_entries], axis=1)
+        sample_reward = sample_reward[keep_entries]
+        sample_action = sample_action[keep_entries]
         sample_not_done = sample_not_done[keep_entries]
-        sample_event_flag = np.expand_dims(sample_event_flag[keep_entries],
-                                           axis=1)
+        sample_event_flag = sample_event_flag[keep_entries]
 
         max_length = len(sample_next_state)
         indices = np.arange(max_length)
