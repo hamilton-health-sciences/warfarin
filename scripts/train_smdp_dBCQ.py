@@ -52,9 +52,16 @@ import matplotlib.ticker as mtick
 from scipy import stats
 
 
-def train_BCQ(train_replay_buffer, valid_replay_buffer, events_replay_buffer, num_actions, state_dim, device, args,
-              parameters, folder_paths, resume):
-    
+def train_BCQ(train_replay_buffer,
+              valid_replay_buffer,
+              events_replay_buffer,
+              num_actions,
+              state_dim,
+              device,
+              args,
+              parameters,
+              folder_paths,
+              resume):
     # Initialize and load policy
     policy = discrete_BCQ(
         num_actions,
@@ -414,13 +421,13 @@ if __name__ == "__main__":
     t0 = time.time()
     if torch.cuda.is_available():
         device = torch.device("cuda")
-        train_replay_buffer = SMDPReplayBuffer(data_path=folder_paths["buffers"] + "/train_data", state_dim=state_dim, 
+        train_replay_buffer = SMDPReplayBuffer(data_path=folder_paths["buffers"] + "/train_data",
                                        batch_size=parameters["batch_size"] - args.events_batch_size,
                                        buffer_size=warfarin_parameters["train_buffer_size"], device=device)
-        valid_replay_buffer = SMDPReplayBuffer(data_path=folder_paths["buffers"] + "/val_data", state_dim=state_dim, 
+        valid_replay_buffer = SMDPReplayBuffer(data_path=folder_paths["buffers"] + "/val_data",
                                        batch_size=parameters["batch_size"],
                                        buffer_size=warfarin_parameters["valid_buffer_size"], device=device)
-        events_replay_buffer = SMDPReplayBuffer(data_path=folder_paths["buffers"] + "/events_data", state_dim=state_dim, 
+        events_replay_buffer = SMDPReplayBuffer(data_path=folder_paths["buffers"] + "/events_data",
                                        batch_size=args.events_batch_size,
                                        buffer_size=warfarin_parameters["events_buffer_size"], device=device)
 
