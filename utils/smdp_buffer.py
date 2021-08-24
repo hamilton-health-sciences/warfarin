@@ -170,18 +170,12 @@ class SMDPReplayBuffer(object):
 
         # Reward
         print("Determining rewards at each option decision...")
-        buf.data.loc[:, "REWARD"] = SMDPReplayBuffer.get_reward(
-            buf.data,
-            discount_factor=discount_factor,
-            events_reward=events_reward
-        )
+        buf.compute_reward(discount_factor=discount_factor,
+                           events_reward=events_reward)
 
         # k (time elapsed)
         print("Determining k for each option decision...")
-        buf.data.loc[:, "k"] = SMDPReplayBuffer.get_k(
-            buf.data,
-            id_col=buf.id_col
-        )
+        buf.compute_k()
 
         # Action
         print("Determining (clinician) action at option decision...")
@@ -189,6 +183,7 @@ class SMDPReplayBuffer(object):
             buf.id_col
         )["WARFARIN_DOSE"].shift(-1) / np.maximum(buf.data["WARFARIN_DOSE"],
                                                   0.0001)
+        # TODO change to instance method, but dependency in graphs
         buf.data.loc[:, "ACTION"] = SMDPReplayBuffer.get_action(
             buf.data,
             num_actions=num_actions
@@ -201,24 +196,13 @@ class SMDPReplayBuffer(object):
         if "RANKIN_SCORE" in buf.data.columns:
             buf.data = buf.data.drop(columns="RANKIN_SCORE")
 
-        buf.data = SMDPReplayBuffer.get_encodings(
-            buf.data.drop(columns="SUBJID")
-        )
+        # TODO extraneous?
+        buf.data = buf.data.drop(columns="SUBJID")
 
-        if training:
-            features_ranges, buf.data = SMDPReplayBuffer.normalize_features(
-                buf.data,
-                buf.features_to_norm,
-                features_ranges={}
-            )
-            buf.features_ranges = features_ranges
-            buf.data = buf.data.reset_index()
-        else:
-            buf.data = SMDPReplayBuffer.normalize_features(
-                buf.data,
-                buf.features_to_norm,
-                buf.features_ranges
-            ).reset_index()
+        # One hot encode the data
+        buf.one_hot_encode()
+
+        buf.normalize_features()
 
         # Done flag
         last_entries = buf.data.groupby("USUBJID_O_NEW").apply(
@@ -252,25 +236,24 @@ class SMDPReplayBuffer(object):
 
         return buf
 
-    @staticmethod
-    def get_k(df, id_col="SUBJID"):
-        k = df.groupby(id_col)["STUDY_DAY"].diff(-1).abs()
+    def compute_k(self):
+        df = self.data
+        # TODO why abs?
+        k = df.groupby(self.id_col)["STUDY_DAY"].diff(-1).abs()
+        self.data.loc[:, "k"] = k
 
-        return k.values
-
-    @staticmethod
-    def get_reward(df, discount_factor, events_reward=None):
+    def compute_reward(self, discount_factor, events_reward=None):
         """
         In the SMDP framework, we need the cumulative return of each underlying
         time step, discounted to each option decision.
 
-        :param df:
-        :param adverse_events:
         :param discount_factor:
         :param event_reward:
         :return:
         """
         print("\tInterpolating daily values...")
+        df = self.data
+
         df_exploded_merged = interpolate_daily(df)
 
         df_exploded_merged["INR_MEASURED"] = ~df_exploded_merged[
@@ -330,7 +313,7 @@ class SMDPReplayBuffer(object):
                       how="left",
                       on=["USUBJID_O_NEW", "CUMU_INR_MEASURED"])
 
-        return df["DISC_REWARD"].values
+        self.data.loc[:, "REWARD"] = df["DISC_REWARD"].values
 
     @staticmethod
     def get_ttr(df, colname="INR_VALUE"):
@@ -401,15 +384,22 @@ class SMDPReplayBuffer(object):
         values = np.arange(0, len(conditions))
         return np.select(conditions, values)
 
-    @staticmethod
-    def get_encodings(df):
+    def one_hot_encode(self):
+        df = self.data
         for col in df.columns:
             if ("Y" in df[col].unique()) or ("N" in df[col].unique()):
                 df[col] = np.where(df[col] == "Y", 1, 0)
-        return pd.get_dummies(df.set_index("USUBJID_O_NEW"))
 
-    @staticmethod
-    def normalize_features(df, cols=None, features_ranges={}):
+        # TODO important
+        # Is `get_dummies` guaranteed to give the same output when applied
+        # separately to train and val?
+        self.data = pd.get_dummies(df.set_index("USUBJID_O_NEW"))
+
+    def normalize_features(self):
+        df = self.data
+        cols = self.features_to_norm
+        features_ranges = self.features_ranges
+
         cols_to_norm = cols if cols is not None else df.columns
         is_training = not features_ranges
 
@@ -423,8 +413,7 @@ class SMDPReplayBuffer(object):
                     df[col] = (
                         df[col] - df[col].min()
                     ) / (df[col].max() - df[col].min())
-            return features_ranges, df
-
+            self.features_ranges = features_ranges
         else:
             print("Normalizing using training feature ranges...")
             for col in cols_to_norm:
@@ -437,7 +426,7 @@ class SMDPReplayBuffer(object):
                         ),
                         1
                     )
-            return df
+        self.data = df.reset_index()
 
     @staticmethod
     def get_state_features(sample, incl_flags):
