@@ -8,11 +8,9 @@ import numpy as np
 
 import torch
 
-import feather
-
 import pandas as pd
 
-from .config import INR_REWARD, ADV_EVENTS
+from warfarin.config import INR_REWARD, ADV_EVENTS
 from .utils import interpolate_daily
 
 
@@ -49,6 +47,8 @@ class SMDPReplayBuffer(object):
 
         buf.ptr = 0
         buf.crt_size = 0
+
+        buf.load()
 
         return buf
 
@@ -181,7 +181,7 @@ class SMDPReplayBuffer(object):
         else:
             # Load the dataframe from the feather format
             t0 = time.time()
-            self.data = feather.read_dataframe(self.data_path)
+            self.data = pd.read_feather(self.data_path)
             t1 = time.time()
             print(f"Retrieved saved data. Took {(t1 - t0):,.2f} seconds")
             print(

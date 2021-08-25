@@ -70,3 +70,14 @@ DROP_COLS = ['CUMU_MEASUR',
              'USUBJID_O_NEW_NEW',
              'WARFARIN_DOSE_CHANGE_BIN',
              'WARFARIN_DOSE_CHANGE_SIGN']
+
+# Hyperparameter search options
+NUM_HYPERPARAMETER_SAMPLES = 10
+
+# 1 epoch = 1_000 steps
+# TODO is this meaningful?
+STEPS_PER_EPOCH = 1_000
+
+MIN_TRAINING_EPOCHS = 50
+
+MAX_TRAINING_EPOCHS = 1_000

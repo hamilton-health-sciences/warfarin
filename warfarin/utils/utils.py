@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import time
 
-from .config import ADV_EVENTS, EVENTS_TO_KEEP, STATE_COLS_TO_FILL
+from warfarin.config import ADV_EVENTS, EVENTS_TO_KEEP, STATE_COLS_TO_FILL
 
 
 

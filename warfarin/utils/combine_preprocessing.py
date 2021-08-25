@@ -12,8 +12,8 @@ import numpy as np
 
 import feather
 
-from .config import (DOSE_OUTLIER_THRESHOLD, MAX_TIME_ELAPSED, MIN_INR_COUNTS,
-                     EVENTS_TO_KEEP, STATIC_STATE_COLS)
+from warfarin.config import (DOSE_OUTLIER_THRESHOLD, MAX_TIME_ELAPSED,
+                             MIN_INR_COUNTS, EVENTS_TO_KEEP, STATIC_STATE_COLS)
 
 
 def decode(df):
