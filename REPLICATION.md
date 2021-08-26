@@ -23,19 +23,19 @@ RL model:
           --num_actions 7 --incl_hist \
           --output_fn ./data/replay_buffers/train_data \
           --output_events_fn ./data/replay_buffers/events_data \
-          --output_normalization ./output/normalization_params.pkl
+          --output_normalization ./output/normalization.json
 
     $ python3 scripts/create_replay_buffer.py \
           --input_fn ./data/split_data/val_data.feather \
           --num_actions 7 --incl_hist \
-          --output_fn ./data/replay_buffers/val_data_buffer.feather \
-          --normalization ./output/normalization_params.pkl
+          --output_fn ./data/replay_buffers/val_data \
+          --normalization ./output/normalization.json
 
     $ python3 scripts/create_replay_buffer.py \
           --input_fn ./data/split_data/test_data.feather \
           --num_actions 7 --incl_hist \
-          --output_fn ./data/replay_buffers/test_data_buffer.feather \
-          --normalization ./output/normalization_params.pkl
+          --output_fn ./data/replay_buffers/test_data \
+          --normalization ./output/normalization.json
 
 ## Model development
 

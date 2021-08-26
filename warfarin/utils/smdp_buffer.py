@@ -389,8 +389,8 @@ class SMDPReplayBuffer(object):
                 if ((df[col].dtype.kind in "biufc") and
                     (col != "STUDY_WEEK") and
                     (df[col].max() != df[col].min())):
-                    features_ranges[col] = {"min": df[col].min(),
-                                            "max": df[col].max()}
+                    features_ranges[col] = {"min": float(df[col].min()),
+                                            "max": float(df[col].max())}
                     df[col] = (
                         df[col] - df[col].min()
                     ) / (df[col].max() - df[col].min())

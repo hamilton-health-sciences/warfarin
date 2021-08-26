@@ -53,14 +53,14 @@ def eval_policy(policy,
         both_actions["DIFF_ACTIONS"] == 0
     ]["ADV_EVENTS"].mean()
 
-    print("---------------------------------------")
-    print(
-        f"Evaluation over {eval_episodes} episodes: Validation % Reasonable "
-        f"Actions: {avg_reward:.3%}" +
-        (f" | Training % Reasonable Actions: {avg_reward_train:.3%}"
-         if train_replay_buffer is not None else "")
-    )
-    print("---------------------------------------")
+    # print("---------------------------------------")
+    # print(
+    #     f"Evaluation over {eval_episodes} episodes: Validation % Reasonable "
+    #     f"Actions: {avg_reward:.3%}" +
+    #     (f" | Training % Reasonable Actions: {avg_reward_train:.3%}"
+    #      if train_replay_buffer is not None else "")
+    # )
+    # print("---------------------------------------")
 
     if train_replay_buffer is not None:
         return avg_reward_train, events_rate, avg_reward, pred_action

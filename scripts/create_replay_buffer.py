@@ -6,7 +6,7 @@ import os
 
 from warnings import warn
 
-import pickle
+import json
 
 import pandas as pd
 
@@ -30,7 +30,7 @@ def main(args):
     if args.normalization is None:
         features_ranges = None
     else:
-        features_ranges = pickle.load(open(args.normalization, "rb"))
+        features_ranges = json.load(open(args.normalization, "r"))
 
     # Load the data
     data = pd.read_feather(args.input_fn)
@@ -48,8 +48,8 @@ def main(args):
     # Store normalizations if given
     if args.output_normalization:
         print("Storing train buffer results in: {args.output_normalization}")
-        pickle.dump(
-            buf.features_ranges, open(args.output_normalization, "wb")
+        json.dump(
+            buf.features_ranges, open(args.output_normalization, "w")
         )
 
     # Generate events buffer and save, if given output path
