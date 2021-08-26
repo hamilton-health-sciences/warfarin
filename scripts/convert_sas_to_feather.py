@@ -4,7 +4,7 @@ import os
 
 import feather
 
-from utils.combine_preprocessing import load_raw_data_sas
+from warfarin.utils.combine_preprocessing import load_raw_data_sas
 
 
 def main(args):

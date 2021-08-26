@@ -4,25 +4,23 @@ import os
 
 import time
 
-import feather
-
 import pandas as pd
 
-from utils.combine_preprocessing import (load_raw_data, preprocess_all,
-                                         preprocess_engage_rocket,
-                                         preprocess_rely, preprocess_aristotle,
-                                         merge_inr_events,
-                                         split_traj_along_events,
-                                         impute_inr_and_dose,
-                                         split_traj_by_time_elapsed,
-                                         merge_inr_base,
-                                         remove_short_traj,
-                                         remove_clinically_unintuitive,
-                                         remove_phys_implausible,
-                                         prepare_features,
-                                         split_data)
-
-from utils.config import DROP_COLS
+from warfarin.utils.combine_preprocessing import (load_raw_data, preprocess_all,
+                                                  preprocess_engage_rocket,
+                                                  preprocess_rely,
+                                                  preprocess_aristotle,
+                                                  merge_inr_events,
+                                                  split_traj_along_events,
+                                                  impute_inr_and_dose,
+                                                  split_traj_by_time_elapsed,
+                                                  merge_inr_base,
+                                                  remove_short_traj,
+                                                  remove_clinically_unintuitive,
+                                                  remove_phys_implausible,
+                                                  prepare_features,
+                                                  split_data)
+from warfarin import config
 
 
 def main(args):
@@ -83,22 +81,29 @@ def main(args):
     # INR: standardized INR records across all four trials
     # Baseline, events: only contains records for Warfarin patients
     # Merged_all: merged dataframes together, imputed values
-#     save_data(inr, baseline, events, merged_all, args.clean_data_path,
-#               args.suffix)
+    #     save_data(inr, baseline, events, merged_all, args.clean_data_path,
+    #               args.suffix)
 
     # Remove misc columns
-    for col in DROP_COLS:
+    for col in config.DROP_COLS:
         if col in inr.columns:
             inr = inr.drop(columns=[col])
 
         if col in merged_all.columns:
             merged_all = merged_all.drop(columns=[col])
 
-    
-    feather.write_dataframe(inr, args.clean_data_path + f"inr{args.suffix}.feather")
-    feather.write_dataframe(baseline, args.clean_data_path + f"baseline{args.suffix}.feather")
-    feather.write_dataframe(events, args.clean_data_path + f"events{args.suffix}.feather")
-    feather.write_dataframe(merged_all, args.clean_data_path + f"merged_data{args.suffix}.feather")
+    inr.reset_index(drop=True).to_feather(
+        args.clean_data_path + f"inr{args.suffix}.feather"
+    )
+    baseline.reset_index(drop=True).to_feather(
+        args.clean_data_path + f"baseline{args.suffix}.feather"
+    )
+    events.reset_index(drop=True).to_feather(
+        args.clean_data_path + f"events{args.suffix}.feather"
+    )
+    merged_all.reset_index(drop=True).to_feather(
+        args.clean_data_path + f"merged_data{args.suffix}.feather"
+    )
 
     # Some preprocessing is only applied to train data
     train_data, val_data, test_data = split_data(merged_all)
@@ -115,16 +120,13 @@ def main(args):
     val_data = prepare_features(val_data)
     test_data = prepare_features(test_data)
 
-    feather.write_dataframe(
-        train_data,
+    train_data.reset_index(drop=True).to_feather(
         f"{args.split_data_path}train_data{args.suffix}.feather"
     )
-    feather.write_dataframe(
-        val_data,
+    val_data.reset_index(drop=True).to_feather(
         f"{args.split_data_path}val_data{args.suffix}.feather"
     )
-    feather.write_dataframe(
-        test_data,
+    test_data.reset_index(drop=True).to_feather(
         f"{args.split_data_path}test_data{args.suffix}.feather"
     )
     print(
@@ -133,7 +135,6 @@ def main(args):
 
     t1 = time.time()
     print(f"DONE preprocessing! Took {t1 - t0:,.2f} seconds")
-
 
 
 if __name__ == "__main__":

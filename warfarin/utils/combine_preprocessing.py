@@ -10,10 +10,21 @@ import pandas as pd
 
 import numpy as np
 
-import feather
+from warfarin import config
 
-from warfarin.config import (DOSE_OUTLIER_THRESHOLD, MAX_TIME_ELAPSED,
-                             MIN_INR_COUNTS, EVENTS_TO_KEEP, STATIC_STATE_COLS)
+
+### TODO REMOVE THIS -- FOR GETTING RID OF WARNINGS
+import traceback
+import warnings
+import sys
+
+def warn_with_traceback(message, category, filename, lineno, file=None, line=None):
+
+    log = file if hasattr(file,'write') else sys.stderr
+    traceback.print_stack(file=log)
+    log.write(warnings.formatwarning(message, category, filename, lineno, line))
+
+warnings.showwarning = warn_with_traceback
 
 
 def decode(df):
@@ -147,15 +158,15 @@ def load_raw_data(base_path):
     print("Loading raw data...")
 
     # Baseline
-    baseline = feather.read_dataframe(base_path + "baseline_raw.feather")
+    baseline = pd.read_feather(base_path + "baseline_raw.feather")
     print(f"\tLoaded baseline with shape: {baseline.shape}")
 
     # Events
-    events = feather.read_dataframe(base_path + "events_raw.feather")
+    events = pd.read_feather(base_path + "events_raw.feather")
     print(f"\tLoaded events with shape: {events.shape}")
 
     # INR
-    inr = feather.read_dataframe(base_path + "inr_raw.feather")
+    inr = pd.read_feather(base_path + "inr_raw.feather")
     print(f"\tLoaded INR with shape: {inr.shape}")
 
     t1 = time.time()
@@ -184,8 +195,8 @@ def preprocess_all(inr, events, baseline):
         inr_ids = [x.strip() for x in inr["SUBJID"].unique().tolist()]
     except AttributeError:
         inr_ids = inr["SUBJID"].unique().tolist()
-    baseline = baseline[baseline["SUBJID"].isin(inr_ids)]
-    events = events[events["SUBJID"].isin(inr_ids)]
+    baseline = baseline[baseline["SUBJID"].isin(inr_ids)].copy()
+    events = events[events["SUBJID"].isin(inr_ids)].copy()
 
     print(
         "After filtering ... \n\t"
@@ -219,11 +230,11 @@ def preprocess_all(inr, events, baseline):
         events["EVENT_NAME"] == "Hospitalization"
     ).astype(int)
 
-    print(events[EVENTS_TO_KEEP].sum())
+    print(events[config.EVENTS_TO_KEEP].sum())
 
     # Drop negative days, and add study week
     inr.loc[:, "STUDY_WEEK"] = inr["STUDY_DAY"].apply(lambda x: x // 7)
-    inr = inr[inr["STUDY_DAY"] >= 0]
+    inr = inr[inr["STUDY_DAY"] >= 0].copy()
 
     # Remove entries before first dose and after last dose
     first_days = pd.DataFrame(
@@ -260,7 +271,7 @@ def preprocess_engage_rocket(inr, baseline):
     subset_ids = baseline[
         (baseline["TRIAL"].isin(["ROCKET_AF", "ENGAGE"]))
     ]["SUBJID"].unique()
-    subset_data = inr[inr["SUBJID"].isin(subset_ids)]
+    subset_data = inr[inr["SUBJID"].isin(subset_ids)].copy()
 
     # Removed doses that are not multiples of 0.5 or are 99 (these represent
     # missing values)
@@ -273,7 +284,7 @@ def preprocess_engage_rocket(inr, baseline):
 
     warfarin_dose_avg = subset_data.groupby(
         "SUBJID"
-    )["WARFARIN_DOSE"].rolling(3, min_period=1).mean()
+    )["WARFARIN_DOSE"].rolling(3, min_periods=1).mean()
     subset_data["WARFARIN_DOSE_AVG"] = warfarin_dose_avg.reset_index()[
         "WARFARIN_DOSE"
     ].values
@@ -328,7 +339,7 @@ def preprocess_rely(inr, baseline):
     print("\nPreprocessing RELY data...")
 
     subset_ids = baseline[(baseline["TRIAL"] == "RELY")]["SUBJID"].unique()
-    rely_data = inr[inr["SUBJID"].isin(subset_ids)]
+    rely_data = inr[inr["SUBJID"].isin(subset_ids)].copy()
 
     rely_data["WARFARIN_DOSE"] = rely_data["WARFARIN_DOSE"] * 7
 
@@ -365,7 +376,7 @@ def preprocess_aristotle(inr, baseline):
     print("\nPreprocessing ARISTOTLE data...")
 
     subset_ids = baseline[(baseline["TRIAL"] == "ARISTOTLE")]["SUBJID"].unique()
-    aristotle_data = inr[inr["SUBJID"].isin(subset_ids)]
+    aristotle_data = inr[inr["SUBJID"].isin(subset_ids)].copy()
 
     # For ARISTOTLE patients, there are 2 negative doses that were manually
     # converted to positive doses
@@ -440,11 +451,11 @@ def merge_inr_events(inr, events):
     # Removed patients who have outliers. The assumption is that these patients
     # have data entry issues
     drop_ids = inr[
-        inr["WARFARIN_DOSE"] >= DOSE_OUTLIER_THRESHOLD
+        inr["WARFARIN_DOSE"] >= config.DOSE_OUTLIER_THRESHOLD
     ]["SUBJID"].unique()
     print(
         f"\tDropping {len(drop_ids)} patients with outlier doses exceeding "
-        f"{DOSE_OUTLIER_THRESHOLD}mg weekly..."
+        f"{config.DOSE_OUTLIER_THRESHOLD}mg weekly..."
     )
     inr = inr[~inr["SUBJID"].isin(drop_ids)]  # ["WARFARIN_DOSE"].max()
     inr = inr[inr["INR_TYPE"] == "Y"]
@@ -473,12 +484,12 @@ def merge_inr_events(inr, events):
          "RANKIN_SCORE": "max"}
     ).reset_index()
 
-    events["ADV_EVENTS_SUM"] = events[EVENTS_TO_KEEP].sum(axis=1)
+    events["ADV_EVENTS_SUM"] = events[config.EVENTS_TO_KEEP].sum(axis=1)
     events = events[events["ADV_EVENTS_SUM"] >= 1]
     inr = inr.groupby(["SUBJID", "TIMESTEP"]).last().reset_index()
 
     inr_merged = pd.concat(
-        [inr, events[["SUBJID", "TIMESTEP", "RANKIN_SCORE"] + EVENTS_TO_KEEP]]
+        [inr, events[["SUBJID", "TIMESTEP", "RANKIN_SCORE"] + config.EVENTS_TO_KEEP]]
     )
     inr_merged = inr_merged.groupby(
         ["SUBJID", "TIMESTEP"]
@@ -492,7 +503,7 @@ def merge_inr_events(inr, events):
                                   how="left",
                                   on="SUBJID")
 
-    for ev in EVENTS_TO_KEEP:
+    for ev in config.EVENTS_TO_KEEP:
         inr_merged.loc[:, ev] = inr_merged[ev].fillna(0)
 
     print(
@@ -514,7 +525,7 @@ def merge_inr_events(inr, events):
 
     prev_inr_measured = temp.groupby("SUBJID")["INR_MEASURED"].shift().fillna(0)
     mask = np.logical_or(prev_inr_measured, temp["INR_MEASURED"])
-    inr_merged = temp[mask]
+    inr_merged = temp[mask].copy()
     print(
         "\tMasking events that do not occur after an INR measurement. This "
         f"removes: {temp.shape[0] - inr_merged.shape[0]} entries."
@@ -558,7 +569,7 @@ def split_traj_along_events(inr_merged):
         f"{inr_merged['SUBJID_NEW_2'].nunique()} trajectories."
     )
     print("\tEvents in merged df:")
-    print(inr_merged[EVENTS_TO_KEEP].sum())
+    print(inr_merged[config.EVENTS_TO_KEEP].sum())
 
     return inr_merged
 
@@ -632,7 +643,7 @@ def split_traj_by_time_elapsed(measured_inrs):
         how="left",
         on=[id_col, "STUDY_DAY"]
     )
-    measured_inrs.loc[measured_inrs["TIME_DIFF"] > MAX_TIME_ELAPSED,
+    measured_inrs.loc[measured_inrs["TIME_DIFF"] > config.MAX_TIME_ELAPSED,
                       "IS_FIRST"] = 1
     measured_inrs.loc[:, "IS_FIRST"] = measured_inrs["IS_FIRST"].fillna(0)
 
@@ -666,13 +677,13 @@ def remove_short_traj(measured_inrs):
     weekly_counts = measured_inrs.groupby(
         new_id
     ).count().sort_values(by="STUDY_DAY")["STUDY_DAY"]
-    num_removed = len(weekly_counts[weekly_counts < MIN_INR_COUNTS])
-    patient_ids = weekly_counts[weekly_counts >= MIN_INR_COUNTS].index.tolist()
+    num_removed = len(weekly_counts[weekly_counts < config.MIN_INR_COUNTS])
+    patient_ids = weekly_counts[weekly_counts >= config.MIN_INR_COUNTS].index.tolist()
 
     measured_inrs = measured_inrs[measured_inrs[new_id].isin(patient_ids)]
     print(
         f"Removing {num_removed:,.0f} trajectories with fewer than "
-        f"{MIN_INR_COUNTS} INR measurements.."
+        f"{config.MIN_INR_COUNTS} INR measurements.."
     )
     print(
         f"\tRemaining {measured_inrs['SUBJID'].nunique():,.0f} patients, "
@@ -924,7 +935,7 @@ def merge_inr_base(inr_merged, baseline):
     :param baseline: dataframe with patient baseline features
     :return:
     """
-    merged_data = inr_merged.merge(baseline[STATIC_STATE_COLS + ["SUBJID"]],
+    merged_data = inr_merged.merge(baseline[config.STATIC_STATE_COLS + ["SUBJID"]],
                                    on="SUBJID", how="left")
     print(
         "Merged with baseline data... \n\t"
@@ -1027,12 +1038,10 @@ def load_data(base_path, suffix):
     :param suffix: suffix of the dataset
     :return: INR, baseline, events, and merged data dataframes
     """
-    inr = feather.read_dataframe(base_path + f"inr{suffix}.feather")
-    baseline = feather.read_dataframe(base_path + f"baseline{suffix}.feather")
-    events = feather.read_dataframe(base_path + f"events{suffix}.feather")
-    merged_data = feather.read_dataframe(
-        base_path + f"merged_data{suffix}.feather"
-    )
+    inr = pd.read_feather(base_path + f"inr{suffix}.feather")
+    baseline = pd.read_feather(base_path + f"baseline{suffix}.feather")
+    events = pd.read_feather(base_path + f"events{suffix}.feather")
+    merged_data = pd.read_feather(base_path + f"merged_data{suffix}.feather")
 
     return inr, baseline, events, merged_data
 
@@ -1054,7 +1063,7 @@ def split_data(inr_merged):
     print("Creating test dataset from ARISTOTLE data...")
     aristotle_data = inr_merged[inr_merged["TRIAL"] == "ARISTOTLE"]
     test_ids, other_ids = split_data_ids(aristotle_data, split_perc=0.65)
-    test_data = inr_merged[inr_merged["SUBJID"].isin(test_ids)]
+    test_data = inr_merged[inr_merged["SUBJID"].isin(test_ids)].copy()
 
     other_patient_ids = inr_merged[
         inr_merged["TRIAL"] != "ARISTOTLE"
@@ -1068,10 +1077,10 @@ def split_data(inr_merged):
         inr_merged["SUBJID"].isin(other_patient_ids)
     ]
     val_ids, other_ids = split_data_ids(arist_rely_data, split_perc=0.2)
-    val_data = inr_merged[inr_merged["SUBJID"].isin(val_ids)]
+    val_data = inr_merged[inr_merged["SUBJID"].isin(val_ids)].copy()
 
     train_sel = ~inr_merged["SUBJID"].isin(np.append(val_ids, test_ids))
-    train_data = inr_merged[train_sel]
+    train_data = inr_merged[train_sel].copy()
     # train_data, val_data = ReplayBuffer.split_data(
     #     inr_merged[inr_merged["SUBJID"].isin(other_patient_ids)],
     #     split=[0.94, 0.06]
