@@ -6,6 +6,8 @@ from uuid import uuid4
 
 import argparse
 
+import numpy as np
+
 from ray import tune
 from ray.tune import CLIReporter
 from ray.tune.suggest.hyperopt import HyperOptSearch
@@ -79,8 +81,14 @@ def train_run(config: dict,
             start = state["step"] + 1
 
     # Train
-    for step in range(start, global_config.MAX_TRAINING_EPOCHS):
-        for _ in range(global_config.STEPS_PER_EPOCH):
+    for epoch in range(start, global_config.MAX_TRAINING_EPOCHS):
+        # Number of batches for approximate coverage of the full buffer
+        num_batches = int(
+            np.ceil(len(train_buffer.data) / config["batch_size"])
+        )
+
+        # Train on the full buffer approximately once
+        for _ in range(num_batches):
             qloss = policy.train(train_buffer, events_buffer)
 
         # TODO Checkpoint
