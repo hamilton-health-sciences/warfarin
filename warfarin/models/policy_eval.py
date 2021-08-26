@@ -4,69 +4,105 @@ import torch
 
 import pandas as pd
 
+from sklearn.metrics import classification_report
 
-def eval_policy(policy,
-                valid_replay_buffer,
-                eval_episodes=10,
-                train_replay_buffer=None):
+
+# TODO get the device from the policy object?
+device = "cuda"
+
+
+def eval_policy(policy, replay_buffer):
     """
-    Runs policy for X episodes and returns average rewardnroon
-    A fixed seed is used for the eval environment
+    Evaluate a policy.
+
+    Computes the following metrics:
+
+        (1) Proportion of actions that are "reasonable" (defined as choosing to
+            lower the dose when the INR is high, and raising it when the INR is
+            low).
+        (2) Sensitivity and specificity of the detection of "immediately good"
+            actions. Specifically, the "positive class" is defined as the next
+            INR being in range. An action is predicted to be "good" when it is
+            selected by the model. We also compute Youden's J statistic from
+            these two statistics.
     """
-    device = "cuda:0"
+    prop_reasonable = eval_reasonable_actions(policy, replay_buffer)
+    sens, spec, jstat = eval_classification(policy, replay_buffer)
+    stats = {
+        "proportion_reasonable_actions": prop_reasonable,
+        "sensitivity_good_actions": sens,
+        "specificity_good_actions": spec,
+        "jindex_good_actions": jstat
+    }
 
-    if train_replay_buffer is not None:
-        train_correct, train_counts = 0, 0
-        state = torch.FloatTensor(train_replay_buffer.state).to(device)
-        train_correct += eval_good_actions(
-            policy,
-            state,
-            num_actions=policy.num_actions
-        )
-        train_counts += len(state)
-        avg_reward_train = train_correct / train_counts
+    return stats
 
-    # Calculate number of "reasonable" actions
-    correct, counts = 0, 0
-    buffer_size = valid_replay_buffer.crt_size
-    ind = np.arange(buffer_size)
-    k, state, action, next_state, reward, done = valid_replay_buffer.sample(
-        ind,
+
+def eval_reasonable_actions(policy, replay_buffer):
+    state = torch.FloatTensor(replay_buffer.state).to(device)
+    reasonable = eval_good_actions(
+        policy,
+        state,
+        num_actions=policy.num_actions
+    )
+    total = len(state)
+
+    return reasonable / total
+
+def eval_classification(policy, replay_buffer):
+    buffer_size = replay_buffer.crt_size
+    _, state, obs_action, next_state, reward, _ = replay_buffer.sample(
+        np.arange(buffer_size),
         return_flag=False
     )
-    pred_action = policy.select_action(np.array(state.to("cpu")), eval=True)
-    correct += eval_good_actions(policy, state, num_actions=policy.num_actions)
-    counts += len(action)
-    avg_reward = correct / counts
+    policy_action = policy.select_action(state.cpu().numpy(), eval=True)
+    # TODO parameterize clamped range in config so we dont need magic #s
+    next_inr = next_state[:, 0].cpu().numpy() * 4 + 0.5
+    actions_reward = pd.DataFrame({
+        "OBSERVED_ACTION": obs_action.cpu().numpy()[:, 0],
+        "POLICY_ACTION": policy_action[:, 0],
+        "OBSERVED_ACTION_GOOD": (next_inr >= 2.) & (next_inr <= 3.)
+    })
 
-    # Calculate rate of events
-    reward_np = np.array(reward.to("cpu")).transpose()[0]
-    event_flag = np.where(reward_np <= -10, 1, 0)
-    both_actions = pd.DataFrame(
-        {"CLINICIAN_ACTION": np.array(action.to("cpu")).transpose()[0],
-         "POLICY_ACTION": pred_action.transpose()[0],
-         "ADV_EVENTS": event_flag}
+    # Compute stats
+    stats = classification_report(
+        actions_reward["OBSERVED_ACTION_GOOD"].astype(int),
+        actions_reward["OBSERVED_ACTION"] == actions_reward["POLICY_ACTION"],
+        output_dict=True
     )
-    both_actions.loc[:, "DIFF_ACTIONS"] = (both_actions["POLICY_ACTION"] -
-                                           both_actions["CLINICIAN_ACTION"])
-    events_rate = both_actions[
-        both_actions["DIFF_ACTIONS"] == 0
-    ]["ADV_EVENTS"].mean()
+    sens, spec = stats["1"]["recall"], stats["0"]["recall"]
+    jindex = sens + spec - 1.
 
-    # print("---------------------------------------")
-    # print(
-    #     f"Evaluation over {eval_episodes} episodes: Validation % Reasonable "
-    #     f"Actions: {avg_reward:.3%}" +
-    #     (f" | Training % Reasonable Actions: {avg_reward_train:.3%}"
-    #      if train_replay_buffer is not None else "")
-    # )
-    # print("---------------------------------------")
+    return sens, spec, jindex
 
-    if train_replay_buffer is not None:
-        return avg_reward_train, events_rate, avg_reward, pred_action
-
-    else:
-        return events_rate, avg_reward, pred_action
+#     # Calculate rate of events
+#     reward_np = np.array(reward.to("cpu")).transpose()[0]
+#     event_flag = np.where(reward_np <= -10, 1, 0)
+#     both_actions = pd.DataFrame(
+#         {"CLINICIAN_ACTION": np.array(action.to("cpu")).transpose()[0],
+#          "POLICY_ACTION": pred_action.transpose()[0],
+#          "ADV_EVENTS": event_flag}
+#     )
+#     both_actions.loc[:, "DIFF_ACTIONS"] = (both_actions["POLICY_ACTION"] -
+#                                            both_actions["CLINICIAN_ACTION"])
+#     events_rate = both_actions[
+#         both_actions["DIFF_ACTIONS"] == 0
+#     ]["ADV_EVENTS"].mean()
+# 
+#     # print("---------------------------------------")
+#     # print(
+#     #     f"Evaluation over {eval_episodes} episodes: Validation % Reasonable "
+#     #     f"Actions: {avg_reward:.3%}" +
+#     #     (f" | Training % Reasonable Actions: {avg_reward_train:.3%}"
+#     #      if train_replay_buffer is not None else "")
+#     # )
+#     # print("---------------------------------------")
+# 
+#     if train_replay_buffer is not None:
+#         return avg_reward_train, events_rate, avg_reward, pred_action
+# 
+#     else:
+#         return events_rate, avg_reward, pred_action
 
 
 def eval_good_actions(policy, state, num_actions):

@@ -93,19 +93,12 @@ def train_run(config: dict,
 
         # TODO Checkpoint
         # Evaluate the policy
-        avg_reward_train, events_rate, reward, actions = eval_policy(
-            policy,
-            val_buffer,
-            1,
-            train_buffer
-        )
+        train_results = eval_policy(policy, train_buffer)
+        val_results = eval_policy(policy, val_buffer)
+        # TODO: implement WIS ?
         tune.report(
-            train_loss=qloss.item(),
-            train_percent_reasonable_actions=avg_reward_train,
-            val_percent_reasonable_actions=reward,
-            val_events_rate=events_rate,
-            # TODO: implement WIS
-            wis=None
+            **{f"{k}_train": v for k, v in train_results.items()},
+            **{f"{k}_val": v for k, v in val_results.items()}
         )
 
 
