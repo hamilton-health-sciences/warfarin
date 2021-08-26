@@ -14,6 +14,20 @@ from warfarin.config import INR_REWARD, ADV_EVENTS
 from .utils import interpolate_daily
 
 
+### TODO REMOVE THIS -- FOR GETTING RID OF WARNINGS
+import traceback
+import warnings
+import sys
+
+def warn_with_traceback(message, category, filename, lineno, file=None, line=None):
+
+    log = file if hasattr(file,'write') else sys.stderr
+    traceback.print_stack(file=log)
+    log.write(warnings.formatwarning(message, category, filename, lineno, line))
+
+warnings.showwarning = warn_with_traceback
+
+
 class SMDPReplayBuffer(object):
     """
     SMDP Replay Buffer
@@ -21,6 +35,11 @@ class SMDPReplayBuffer(object):
     This class has all the code related to creating, storing, loading, and
     sampling this replay buffer.
     """
+    def __init__(self, id_col="USUBJID_O_NEW"):
+        self.id_col = id_col
+        self.features_to_norm = ["WARFARIN_DOSE", "INR_VALUE",
+                                 "AGE_DEIDENTIFIED", "WEIGHT"]
+        self.features_ranges = {}
 
     @staticmethod
     def from_filename(data_path=None,
@@ -32,17 +51,13 @@ class SMDPReplayBuffer(object):
         The batch size, buffer size, etc are only used when sampling from the
         replay buffer. They are not needed when creating the buffers.
         """
-        buf = SMDPReplayBuffer()
+        buf = SMDPReplayBuffer(id_col=id_col)
 
         buf.batch_size = batch_size
         buf.max_size = int(buffer_size)
         buf.device = device
         buf.data_path = data_path
-        buf.id_col = id_col
 
-        buf.features_to_norm = ["WARFARIN_DOSE", "INR_VALUE",
-                                "AGE_DEIDENTIFIED", "WEIGHT"]
-        buf.features_ranges = {}
         buf.data = None
 
         buf.ptr = 0
@@ -83,7 +98,7 @@ class SMDPReplayBuffer(object):
         ]
         state_entries = buf.data.loc[:, dem_state_cols]
         mask = state_entries.isnull().any(axis=1)
-        buf.data = buf.data[~mask]
+        buf.data = buf.data[~mask].copy()
         print(
             f"\tMasking {mask.sum()} entries that have NaN demographic features"
         )
@@ -168,7 +183,7 @@ class SMDPReplayBuffer(object):
     def save(self, data_path):
         print(f"\nSaving buffer: {data_path}...")
         t0 = time.time()
-        feather.write_dataframe(self.data, data_path)
+        self.data.to_feather(data_path)
         t1 = time.time()
         print(
             f"Done saving buffer! Took {t1 - t0:,.2f} seconds. Data stored "
@@ -217,7 +232,7 @@ class SMDPReplayBuffer(object):
         :return:
         """
         print("\tInterpolating daily values...")
-        df = self.data
+        df = self.data.copy()
 
         df_exploded_merged = interpolate_daily(df)
 
@@ -351,9 +366,9 @@ class SMDPReplayBuffer(object):
         return np.select(conditions, values)
 
     def one_hot_encode(self):
-        df = self.data
+        df = self.data.copy()
         for col in df.columns:
-            if ("Y" in df[col].unique()) or ("N" in df[col].unique()):
+            if ("Y" in list(df[col].unique())) or ("N" in list(df[col].unique())):
                 df[col] = np.where(df[col] == "Y", 1, 0)
 
         # TODO important

@@ -10,8 +10,8 @@ import pickle
 
 import pandas as pd
 
-from utils.smdp_buffer import SMDPReplayBuffer
-from utils.utils import load_split_data, get_events_data
+from warfarin.utils.smdp_buffer import SMDPReplayBuffer
+from warfarin.utils.utils import load_split_data, get_events_data
 
 
 def main(args):
