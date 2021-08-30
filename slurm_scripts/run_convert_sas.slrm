@@ -1,0 +1,10 @@
+#!/bin/bash
+#SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=22G
+#SBATCH --job-name=ml4h_data_cleaning
+#SBATCH --output=/dhi_work/wum/warfarin/slurm_logs/ml4h_job_%j.out
+#SBATCH --error=/dhi_work/wum/warfarin/slurm_logs/ml4h_job_%j.err
+
+bash run_convert_sas.sh
+

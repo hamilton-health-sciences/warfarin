@@ -1,0 +1,131 @@
+
+----------------------------------------------
+Running preprocessing code for COMBINE data with the following parameters.
+Namespace(clean_data_folder='clean_data/', data_folder='./data/', raw_data_folder='raw_data/', remove_clin=False, remove_phys=False, seed=42, suffix='')
+
+----------------------------------------------
+Loading raw data...
+	Loaded baseline with shape: (77282, 135)
+	Loaded events with shape: (164792, 20)
+	Loaded INR with shape: (23808483, 6)
+DONE retrieving raw data. Took 2.90 seconds 
+
+Preliminary data preprocessing to remove non-Warfarin patients...
+After filtering ... 
+	INR: --------- 28,819 patients, 23808483 entries 
+	Baseline: ---- 28,819 patients, 28819 entries 
+	Events: ------ 17,672 patients, 64281 entries
+DEATH           2642
+STROKE           755
+MAJOR_BLEED     2270
+MINOR_BLEED     8663
+HEM_STROKE       286
+HOSP           16385
+dtype: int64
+
+Preprocessing ENGAGE and ROCKET data...
+	ENGAGE, ROCKET_AF: 17770 of 469110 (3.79%) entries are NaN
+	13,889 patients, 14,225 trajectories after splitting along dose interruptions
+
+Preprocessing RELY data...
+	5,791 patients, 9,848 trajectories after splitting along dose interruptions
+
+Preprocessing ARISTOTLE data...
+	There are 2 entries with negative entries. Taking absolute value...
+	Identified 9842 potential lags
+	8,882 patients, 9,241 trajectories after splitting along dose interruptions
+
+Merging INR data with adverse events...
+	Dropping 87 patients with outlier doses exceeding 140mg weekly...
+	Merging data...
+	Num stroke occurrences: 
+TRIAL      STROKE
+ARISTOTLE  0.0       264866
+           1.0          142
+ENGAGE     0.0       276026
+           1.0          248
+RELY       0.0       174511
+           1.0          131
+ROCKET_AF  0.0       190712
+           1.0          221
+Name: STROKE, dtype: int64
+	Num hem strokes: 
+TRIAL      HEM_STROKE
+ARISTOTLE  0.0           264933
+           1.0               75
+ENGAGE     0.0           276182
+           1.0               92
+RELY       0.0           174598
+           1.0               44
+ROCKET_AF  0.0           190862
+           1.0               71
+Name: HEM_STROKE, dtype: int64
+	Masking events that do not occur after an INR measurement. This removes: 5332 entries.
+	Done merging. Took 13.398470163345337 seconds
+	Done splitting along adverse events. Went from 32529 trajectories to 44731 trajectories.
+	Events in merged df:
+DEATH            29.0
+STROKE           42.0
+MAJOR_BLEED     160.0
+MINOR_BLEED     782.0
+HEM_STROKE       18.0
+HOSP           1537.0
+dtype: float64
+After imputing, there are still 183 null entries, from 15 patients
+Removed 183 entries with NaN Warfarin doses
+There are 28419 patients, 44713 trajectories
+
+
+ENGAGE       266967
+ARISTOTLE    259569
+ROCKET_AF    185608
+RELY         165814
+Name: TRIAL, dtype: int64
+
+
+After splitting... 
+	46,452 trajectories, 877,958 samples
+Merged with baseline data... 
+	28,419 patients, 877,958 weekly entries
+
+ENGAGE       266967
+ARISTOTLE    259569
+ROCKET_AF    185608
+RELY         165814
+Name: TRIAL, dtype: int64 
+
+
+TRIAL
+ARISTOTLE    8823
+ENGAGE       6906
+RELY         5755
+ROCKET_AF    6935
+Name: SUBJID, dtype: int64 
+
+----------------------------------------------
+Creating test dataset from ARISTOTLE data...
+	First group: 5734 patients (64.99%), Second group: 3089 patients (35.01%)
+----------------------------------------------
+Creating valid dataset from ARISTOTLE and RELY data...
+	First group: 1768 patients (19.99%), Second group: 7076 patients (80.01%)
+----------------------------------------------
+Total patients: 28,419, total samples: 877,958
+	 Train patients: 20917 (73.60%), total samples: 658,132 (74.96%)
+	 Validation patients: 1768 (6.22%), total samples: 50,226 (5.72%)
+	 Test patients: 5734 (20.18%), total samples: 169,600 (19.32%)
+Removing 12,802 trajectories with fewer than 10 INR measurements..
+	Remaining 18,361 patients, 22,511 trajectories, 596,069 samples remaining...
+
+Discretizing some features...
+	4457 (0.75%) entries have Warfarin weekly dosage of 0mg
+	55.01% of entries are within range
+
+Discretizing some features...
+	311 (0.62%) entries have Warfarin weekly dosage of 0mg
+	56.47% of entries are within range
+
+Discretizing some features...
+	655 (0.39%) entries have Warfarin weekly dosage of 0mg
+	51.47% of entries are within range
+Stored the train, val, test data in directory: ./data/split_data/
+DONE preprocessing! Took 205.15 seconds
