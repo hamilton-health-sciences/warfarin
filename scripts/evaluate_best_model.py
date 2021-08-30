@@ -1,10 +1,15 @@
 import os
 
+import json
+
 import torch
 
 from ray.tune import Analysis
 
+from warfarin.utils.smdp_buffer import SMDPReplayBuffer
 from warfarin.models.smdp_dBCQ import discrete_BCQ
+from warfarin.models.policy_eval import eval_policy
+from warfarin.models.policy_plotting import plot_policy
 
 
 def main(args):
@@ -58,13 +63,46 @@ def main(args):
     state = torch.load(state_dict_path)
     policy.Q.load_state_dict(state)
 
-    import pdb; pdb.set_trace()
+    # TODO don't hardcode device
+    # Load the buffer we're evaluating on
+    if "test" in args.buffer_path:
+        raise ValueError("We're not testing on the test set yet.")
+    buf = SMDPReplayBuffer.from_filename(
+        data_path=args.buffer_path,
+        batch_size=config["batch_size"],
+        buffer_size=1e7,
+        device="cuda"
+    )
+    buf.max_size = len(buf.data)
+
+    # Compute evaluation metrics on the buffer
+    metrics = eval_policy(policy, buf)
+    plots = plot_policy(policy, buf)
+
+    # Create output directories
+    plots_dir = os.path.join(args.output_prefix, "plots")
+    os.makedirs(plots_dir, exist_ok=True)
+
+    # Write quantitative metrics
+    metrics_output = os.path.join(args.output_prefix, "metrics.json")
+    json.dump(metrics, open(metrics_output, "w"))
+
+    # Output plots
+    for plot_name, plot in plots.items():
+        plot_fn = os.path.join(plots_dir, f"{plot_name}.tiff")
+        plot.save(plot_fn)
 
 
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--buffer_path",
+        type=str,
+        required=True,
+        help="Path to the buffer to evaluate on"
+    )
     parser.add_argument(
         "--target_metric",
         type=str,
@@ -77,6 +115,12 @@ if __name__ == "__main__":
         required=True,
         choices=["min", "max"],
         help="Whether to maximize or minimize the target metric"
+    )
+    parser.add_argument(
+        "--output_prefix",
+        type=str,
+        required=True,
+        help="The output directory for metrics and plots, need not exist"
     )
     parsed_args = parser.parse_args()
 
