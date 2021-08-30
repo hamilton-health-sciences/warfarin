@@ -25,6 +25,18 @@ def train_run(config: dict,
               events_buffer_path: str,
               val_buffer_path: str,
               init_seed: int):
+    """
+    Train a model given a set of hyperparameters.
+
+    Args:
+        config: The hyperparameters of interest.
+        checkpoint_dir: The checkpointing directory path created by Ray Tune.
+        train_buffer_path: The path to the training buffer.
+        events_buffer_path: The path to the events buffer.
+        val_buffer_path: The path to the validation buffer.
+        init_seed: Random seed for reproducibility within a set of
+                   hyperparameters.
+    """
     # Load the data
     train_buffer = SMDPReplayBuffer.from_filename(
         data_path=train_buffer_path,
@@ -74,11 +86,16 @@ def train_run(config: dict,
 
     start = 0
 
-    # Load Tune state from checkpoint if given
+    # Load state from checkpoint if given
     if checkpoint_dir:
+        # Tune state
         with open(os.path.join(checkpoint_dir, "checkpoint")) as f:
             state = json.loads(f.read())
             start = state["step"] + 1
+
+        # Model
+        state_dict = torch.load(os.path.join(checkpoint_dir, "model.pt"))
+        policy.Q.load_state_dict(state_dict)
 
     # Train
     for epoch in range(start, global_config.MAX_TRAINING_EPOCHS):
@@ -91,14 +108,19 @@ def train_run(config: dict,
         for _ in range(num_batches):
             qloss = policy.train(train_buffer, events_buffer)
 
-        # TODO Checkpoint
+        # Checkpoint the model
+        with tune.checkpoint_dir(step=epoch) as ckpt_dir_write:
+            ckpt_fn = os.path.join(ckpt_dir_write, "model.pt")
+            # TODO do we also need to store the target Q network of the policy?
+            torch.save(policy.Q.state_dict(), ckpt_fn)
+
         # Evaluate the policy
         train_results = eval_policy(policy, train_buffer)
         val_results = eval_policy(policy, val_buffer)
         # TODO: implement WIS ?
         tune.report(
-            **{f"{k}_train": v for k, v in train_results.items()},
-            **{f"{k}_val": v for k, v in val_results.items()}
+            **{f"train_{k}": v for k, v in train_results.items()},
+            **{f"val_{k}": v for k, v in val_results.items()}
         )
 
 
