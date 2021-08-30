@@ -1,3 +1,34 @@
+#TODO: Update this description
+
+"""
+This module defines the Experiment class that intializes, trains, and evaluates a Recurrent autoencoder.
+
+The central focus of this class is to develop representations of sequential patient states in acute clinical settings.
+These representations are learned through an auxiliary task of predicting the subsequent physiological observation but 
+are also used to train a treatment policy via offline RL. The specific policy learning algorithm implemented through this
+module is the discretized form of Batch Constrained Q-learning [Fujimoto, et al (2019)]
+
+This module was designed and tested for use with a Septic patient cohort extracted from the MIMIC-III (v1.4) database. It is
+assumed that the data used to create the Dataloaders in lines 174, 180 and 186 is patient and time aligned separate sequences 
+of:
+    (1) patient demographics
+    (2) observations of patient vitals, labs and other relevant tests
+    (3) assigned treatments or interventions
+    (4) how long each patient trajectory is
+    (5) corresponding patient acuity scores, and
+    (6) patient outcomes (here, binary - death vs. survival)
+
+The cohort used and evaluated in the study this code was built for is defined at: https://github.com/microsoft/mimic_sepsis
+============================================================================================================================
+This code is provided under the MIT License and is meant to be helpful, but WITHOUT ANY WARRANTY;
+
+November 2020 by Taylor Killian and Haoran Zhang; University of Toronto + Vector Institute
+============================================================================================================================
+Notes:
+ - The code for the AIS approach and general framework we build from was developed by Jayakumar Subramanian
+
+"""
+
 import argparse
 import os
 
@@ -8,11 +39,9 @@ from torch.utils.data import TensorDataset, DataLoader
 import torch.nn.functional as F
 import torch.nn as nn
 
-from semi_discrete_BCQ import semi_discrete_BCQ
-from utils import utils
-from utils.helper_functions import *
-from utils.helper_functions.network_architecture import FC_Q
-from behav_cloning.behav_cloning import FC_BC
+from models.smdp_dBCQ import discrete_BCQ, FC_Q
+from models.behav_cloning import FC_BC
+from utils.smdp_buffer import SMDPReplayBuffer
 import time
 
 import sys
@@ -27,7 +56,7 @@ def train_BCQ(train_replay_buffer, valid_replay_buffer, events_replay_buffer, nu
               parameters, folder_paths, resume):
     
     # Initialize and load policy
-    policy = semi_discrete_BCQ.discrete_BCQ(
+    policy = discrete_BCQ(
         num_actions,
         state_dim,
         device,
@@ -45,46 +74,36 @@ def train_BCQ(train_replay_buffer, valid_replay_buffer, events_replay_buffer, nu
         args.hidden_states,
         args.num_layers
     )
-    
+
     if resume:
-        #TODO: This is not necessarily the latest iteration
-        state = torch.load(folder_paths["models"] + f"/QN_500000")
-        policy.Q.load_state_dict(state)
-        print(f"Resuming training...")
+        checkpoint_file = folder_paths["models"] + f"/checkpoint"
+#         if os.path.exists(checkpoint_file):
+        try:
+            state = torch.load(folder_paths["models"] + f"/checkpoint")
+            policy.Q.load_state_dict(state["Q_state_dict"])
+            training_iters = state["training_iters"]
+            args.max_timesteps += training_iters
+            print(f"Resuming training at iteration: {training_iters}, to iteration: {args.max_timesteps}...")
+        except Exception as e:
+            print(f"Failed to resume training. Starting at epoch 0.")
+    
+    else:
+        training_iters = 0
+         
 
     # Load replay buffer
     use_rep = args.suffix.split("_")[0] == "ais"
-        
-    train_replay_buffer.load(folder_paths["buffers"] + f"/train")
-    valid_replay_buffer.load(folder_paths["buffers"] + f"/valid")
-    events_replay_buffer.load(folder_paths["buffers"] + f"/events")
 
-    # Initialize a dataloader for policy evaluation (will need representations, observations, demographics, rewards and actions from the test dataset)
-    test_representations = torch.load(args.test_representations_file)  # Load the test representations
-    obs, dem, actions, rewards = torch.load(args.test_data_file)
-    pol_eval_dataset = TensorDataset(test_representations, obs, dem, actions, rewards)
-    pol_eval_dataloader = DataLoader(pol_eval_dataset, batch_size=parameters['batch_size'], shuffle=False)
-
-    # Load the pretrained policy for whether or not the demographic context was used to train the representations 
-    behav_input = 32 #args.state_dim
-    num_nodes = 64
-    behav_pol = FC_BC(state_dim=behav_input, num_actions=args.num_actions, num_nodes=num_nodes).to(device)
-    behav_pol.load_state_dict(torch.load(args.behav_policy_file))
-    behav_pol.eval()
-
+    train_replay_buffer.load()
+    valid_replay_buffer.load()
+    events_replay_buffer.load()
+    
     evaluations, policy_actions, loss = [], [], []
     episode_num = 0
     done = True
-    
-    if not resume:
-        training_iters = 0
-    else:
-        #TOOD: This is not accurate 
-        training_iters = 500000
-        args.max_timesteps += 500000
-        
+
     min_events_rate = float('inf')
-    
+
     while training_iters < args.max_timesteps:
 
         for _ in range(int(parameters["eval_freq"])):
@@ -98,8 +117,24 @@ def train_BCQ(train_replay_buffer, valid_replay_buffer, events_replay_buffer, nu
                                                                      train_replay_buffer)
 
         if use_rep:
-#             wis = eval_wis(policy, behav_pol, pol_eval_dataloader, parameters["discount"], is_demog=1,
-#                        device=device, use_rep=use_rep)  # TODO Run weighted importance sampling with learned policy and behavior policy
+            
+                # Initialize a dataloader for policy evaluation (will need representations, observations, demographics, rewards and actions from the test dataset)
+#             test_representations = torch.load(args.test_representations_file)  # Load the test representations
+#             obs, dem, actions, rewards = torch.load(args.test_data_file)
+#             pol_eval_dataset = TensorDataset(test_representations, obs, dem, actions, rewards)
+#             pol_eval_dataloader = DataLoader(pol_eval_dataset, batch_size=parameters["batch_size"], shuffle=False)
+
+
+            # Load the pretrained policy for whether or not the demographic context was used to train the representations
+#             behav_input = 32  # args.state_dim
+#             num_nodes = 64
+#             behav_pol = FC_BC(state_dim=behav_input, num_actions=args.num_actions, num_nodes=num_nodes).to(device)
+#             behav_pol.load_state_dict(torch.load(args.behav_policy_file))
+#             behav_pol.eval()
+            
+#            wis = eval_wis(policy, behav_pol, pol_eval_dataloader, parameters["discount"], is_demog=1,
+#            device=device, use_rep=use_rep)  # TODO Run weighted importance sampling with learned policy and behavior policy
+
             wis = None
         else:
             wis = None
@@ -110,15 +145,19 @@ def train_BCQ(train_replay_buffer, valid_replay_buffer, events_replay_buffer, nu
 
         training_iters += int(parameters["eval_freq"])
         print(f"Training iterations: {training_iters}")
-
+        
+        checkpoint_state = {"Q_state_dict": policy.Q.state_dict(),
+                            "training_iters": training_iters}
+        torch.save(checkpoint_state, folder_paths["models"] + f"/checkpoint")
+        
         if (events_rate <= min_events_rate):
             print(f"Saving policy....")
-            torch.save(policy.Q.state_dict(), folder_paths["models"] + f"/QN_{training_iters}")
+            torch.save(checkpoint_state, folder_paths["models"] + f"/checkpoint_{training_iters}")
             fig = None
             min_events_rate = events_rate
         if ((training_iters % 100000) == 0):
             print(f"Saving policy....")
-            torch.save(policy.Q.state_dict(), folder_paths["models"] + f"/QN_{training_iters}")
+            torch.save(checkpoint_state, folder_paths["models"] + f"/checkpoint_{training_iters}")
             fig = None
 
         wandb.log({
@@ -132,7 +171,9 @@ def train_BCQ(train_replay_buffer, valid_replay_buffer, events_replay_buffer, nu
         })
 
     print(f"Saving policy....")
-    torch.save(policy.Q.state_dict(), folder_paths["models"] + f"/QN_{training_iters}")
+    checkpoint_state = {"Q_state_dict": policy.Q.state_dict(),
+                       "training_iters": training_iters}
+    torch.save(checkpoint_state, folder_paths["models"] + f"/checkpoint")
 
 
 # Runs policy for X episodes and returns average rewardnroon
@@ -149,7 +190,7 @@ def eval_policy(policy, valid_replay_buffer, eval_episodes=10, train_replay_buff
 
     # Calculate number of "reasonable" actions
     correct, counts = 0, 0
-    buffer_size = valid_replay_buffer.max_size
+    buffer_size = valid_replay_buffer.crt_size
     ind = np.arange(buffer_size)
     k, state, action, next_state, reward, done = valid_replay_buffer.sample(ind, return_flag=False)
     pred_action = policy.select_action(np.array(state.to("cpu")), eval=True)
@@ -187,12 +228,12 @@ def eval_good_actions(policy, state, num_actions):
         sum(np.where(np.logical_and(np.logical_and(inr_state >= 0.375, inr_state <= 0.625), pred_action == 3), 1,
                      0)),
         sum(np.where(np.logical_and(inr_state < 0.375, pred_action >= 4), 1, 0)),
-    ])    
+    ])
 
     return num_good_actions
 
 
-'''The following is the original dBCQ's evaluation script that we'll need to replace 
+'''The following is the original dBCQ's evaluation script that we'll need to replace
 with weighted importance sampling between the learned `policy` and the observed policy'''
 
 
@@ -214,24 +255,28 @@ def eval_wis(policy, behav_policy, pol_dataloader, discount, is_demog, device, u
         cur_demog, cur_rewards = demog[:, :-2, :][:, 1:, :], rewards[:, :-2]
 
         cur_rep = representations[:, :-2, :]
-        
+
         # Mask out the data corresponding to the padded observations
         mask = (cur_obs == 0).all(dim=2)
 
         # Compute the discounted rewards for each trajectory in the minibatch
         discount_array = torch.Tensor(discount ** np.arange(cur_rewards.shape[1]))[None, :]
         discounted_rewards = (discount_array * cur_rewards).sum(dim=-1).squeeze().sum(dim=-1)
-        
-        print(f"rewards: {rewards[:, :-2].shape}, behav policy output: {behav_policy(cur_rep.flatten(end_dim=1)).shape}, actions: {cur_actions.flatten()[:, None].shape}")
+
+        print(
+            f"rewards: {rewards[:, :-2].shape}, behav policy output: {behav_policy(cur_rep.flatten(end_dim=1)).shape}, actions: {cur_actions.flatten()[:, None].shape}")
 
         # Evaluate the probabilities of the observed action according to the trained policy and the behavior policy
         with torch.no_grad():
             print(f"is_demog: {is_demog}")
             if is_demog:  # Gather the probability from the observed behavior policy
-                p_obs = F.softmax(behav_policy(cur_rep.flatten(end_dim=1)), dim=-1).gather(1, cur_actions.flatten()[:, None]).reshape(cur_rep.shape[:2])
+                p_obs = F.softmax(behav_policy(cur_rep.flatten(end_dim=1)), dim=-1).gather(1, cur_actions.flatten()[:,
+                                                                                              None]).reshape(
+                    cur_rep.shape[:2])
             else:
                 p_obs = F.softmax(behav_policy(cur_obs.flatten(end_dim=1)), dim=-1).gather(1, cur_actions.flatten()[:,
-                                                                                              None]).reshape(cur_obs.shape[:2])
+                                                                                              None]).reshape(
+                    cur_obs.shape[:2])
             if use_rep:
                 q_val, _, _ = policy.Q(representations)  # Compute the Q values of the dBCQ policy
             else:
@@ -243,7 +288,7 @@ def eval_wis(policy, behav_policy, pol_dataloader, discount, is_demog, device, u
         if not (p_obs > 0).all():
             p_obs[p_obs == 0] = 0.1
 
-        # Eliminate spurious probabilities due to padded observations after trajectories have concluded 
+        # Eliminate spurious probabilities due to padded observations after trajectories have concluded
         # We do this by forcing the probabilities for these observations to be 1 so they don't affect the product
         p_obs[mask] = 1.
         p_new[mask] = 1.
@@ -265,9 +310,9 @@ if __name__ == "__main__":
 
     # Warfarin data
     warfarin_parameters = {
-        "train_buffer_size": 869240,
-        "valid_buffer_size": 55836,
-        "events_buffer_size": 2000
+        "train_buffer_size": 1e7,
+        "valid_buffer_size": 1e6,
+        "events_buffer_size": 1e6
     }
 
     parameters = {
@@ -291,44 +336,48 @@ if __name__ == "__main__":
 
     # Load parameters
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
-    parser.add_argument("--save_folder", default="./output/bcq")  # Sets Gym, PyTorch and Numpy seeds
-    parser.add_argument("--buffer_folder", default="./data/buffers")
+    parser.add_argument("--seed", default=0, type=int)
+    parser.add_argument("--data_folder", default="./data")
+    parser.add_argument("--save_folder", default="./output/bcq")
+    parser.add_argument("--buffer_folder", default="./data/replay_buffers")
     parser.add_argument("--num_actions", default=5, type=int)
-    parser.add_argument("--state_method", default=18, type=int)
+    parser.add_argument("--state_dim", default=18, type=int)
     parser.add_argument("--batch_size", default=64, type=int)
     parser.add_argument("--suffix", type=str)
     parser.add_argument("--resume", default=False)
-    parser.add_argument("--max_timesteps", default=1e5, type=int)  # Max time steps to run environment or train for
+    parser.add_argument("--max_timesteps", default=1e5, type=int)
     parser.add_argument("--lr", default=1e-4, type=float)  # Learning rate
     parser.add_argument("--BCQ_threshold", default=0.3, type=float)  # Threshold hyper-parameter for BCQ
     parser.add_argument("--hidden_states", default=25, type=int)  # Threshold hyper-parameter for BCQ
     parser.add_argument("--num_layers", default=3, type=int)
     parser.add_argument("--events_batch_size", default=2, type=int)
-    #TODO: These should NOT be the defaults 
+    
+    # TODO: These should NOT be the defaults
     parser.add_argument("--wandb_key", default="251aff8dbc2297dad3c63077733a310a5c166e0d", type=str)
     parser.add_argument("--project", default="warfarin_semi_dbcq", type=str)
 
     args = parser.parse_args()
-    
+
     parameters["batch_size"] = args.batch_size
     parameters['optimizer_parameters'] = {"lr": args.lr}
 
-    args.state_dim = METHOD_TO_STATE_DIM[args.state_method]
-
     args.buffer_name = f"actions_{args.num_actions}_state_{args.state_dim}_{args.suffix}"
-    args.buffer_df_file = f"buffer_data_{args.suffix}"
+    #     args.buffer_df_file = f"buffer_data_{args.suffix}"
     args.savename = f"lr{args.lr}_bcq{args.BCQ_threshold}_hstates{args.hidden_states}_evBatchsize{args.events_batch_size}_seed{args.seed}"
 
-    args.test_representations_file = f"{args.save_folder}/data/test_representations.pt"
-    args.test_data_file = f"{args.save_folder}/data/test_tuples"
-    args.behav_policy_file = f"{args.save_folder}/data/BC_model.pt"
+    args.test_representations_file = f"{args.data_folder}/test_representations.pt"
+    args.test_data_file = f"{args.data_folder}/test_tuples"
+    args.behav_policy_file = f"{args.data_folder}/BC_model.pt"
 
     folder_paths = {
         "results": f"{args.save_folder}/results/{args.buffer_name}/{args.savename}",
         "models": f"{args.save_folder}/models/{args.buffer_name}/{args.savename}",
         "buffers": f"{args.buffer_folder}/{args.buffer_name}"
     }
+    
+#     if not os.path.exists(args.save_folder):
+#         print(f"Creating folder to save results...")
+#         os.makedirs(args.save_folder)
 
     if not os.path.exists(folder_paths["results"]):
         print(f"Creating results folder...")
@@ -352,9 +401,9 @@ if __name__ == "__main__":
     wandb.config.update(args)
 
     print("---------------------------------------")
-    print(f"Setting: Training Seed: {args.seed}, Max timesteps: {args.max_timesteps}, Learning rate: {args.lr}, Hidden states: {args.hidden_states}, Number of hidden layers: {args.num_layers - 1}")
+    print(
+        f"Setting: Training Seed: {args.seed}, Max timesteps: {args.max_timesteps}, Learning rate: {args.lr}, Hidden states: {args.hidden_states}, Number of hidden layers: {args.num_layers - 1}")
     print("---------------------------------------")
-
 
     # Make env and determine properties
     state_dim, num_actions = args.state_dim, args.num_actions
@@ -365,23 +414,20 @@ if __name__ == "__main__":
     t0 = time.time()
     if torch.cuda.is_available():
         device = torch.device("cuda")
-        print("Using CUDA...")
-        print(f"Torch version: {torch.__version__}")
-
-        train_replay_buffer = utils.ReplayBuffer(state_dim, parameters["batch_size"] - args.events_batch_size,
-                                                 warfarin_parameters["train_buffer_size"], device,
-                                                 filename=args.buffer_df_file + "_train", SMDP=True)
-        valid_replay_buffer = utils.ReplayBuffer(state_dim, parameters["batch_size"],
-                                                 warfarin_parameters["valid_buffer_size"], device,
-                                                 filename=args.buffer_df_file + "_valid", SMDP=True)
-        events_replay_buffer = utils.ReplayBuffer(state_dim, args.events_batch_size,
-                                                  warfarin_parameters["events_buffer_size"], device,
-                                                  filename=args.buffer_df_file + "_events", SMDP=True)
+        train_replay_buffer = SMDPReplayBuffer(data_path=folder_paths["buffers"] + "/train_data", state_dim=state_dim, 
+                                       batch_size=parameters["batch_size"] - args.events_batch_size,
+                                       buffer_size=warfarin_parameters["train_buffer_size"], device=device)
+        valid_replay_buffer = SMDPReplayBuffer(data_path=folder_paths["buffers"] + "/val_data", state_dim=state_dim, 
+                                       batch_size=parameters["batch_size"],
+                                       buffer_size=warfarin_parameters["valid_buffer_size"], device=device)
+        events_replay_buffer = SMDPReplayBuffer(data_path=folder_paths["buffers"] + "/events_data", state_dim=state_dim, 
+                                       batch_size=args.events_batch_size,
+                                       buffer_size=warfarin_parameters["events_buffer_size"], device=device)
 
         train_BCQ(train_replay_buffer, valid_replay_buffer, events_replay_buffer, num_actions, state_dim, device, args,
                   parameters, folder_paths, args.resume)
     else:
-        #TODO: Add support for CPU 
+        # TODO: Add support for CPU
         print("Could not find GPU. Please try again...")
 
     t1 = time.time()
