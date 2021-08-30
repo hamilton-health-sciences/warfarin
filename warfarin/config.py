@@ -1,9 +1,4 @@
-
-# coding: utf-8
-
-"""
-Defining constants.
-"""
+"""Defining constants."""
 
 # Patients with weekly mg doses above this will be removed
 DOSE_OUTLIER_THRESHOLD = 140
@@ -100,3 +95,20 @@ NUM_HYPERPARAMETER_SAMPLES = 10
 MIN_TRAINING_EPOCHS = 50
 
 MAX_TRAINING_EPOCHS = 500
+
+# Evaluation constants
+
+# For INR binning in evaluations. In practice, the closedness of the endpoints
+# are not prescribed here, so will need to be modified in the evaluations code
+# if changed.
+INR_BIN_BOUNDARIES = [-float("inf"), 1., 2., 3., 4., float("inf")]
+INR_BIN_LABELS = ["< 1", "1 - 2", "2 - 3", "3 - 4", "> 4"]
+
+# Dose change labels
+ACTION_LABELS = ["Decrease > 20%",
+                 "Decrease 10-20%",
+                 "Decrease < 10%",
+                 "Maintain",
+                 "Increase < 10%",
+                 "Increase 10-20%",
+                 "Increase > 20%"]

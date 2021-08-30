@@ -17,7 +17,7 @@ def main(args):
     analysis = Analysis("./ray_logs/dbcq")
     dfs = analysis.trial_dataframes
     # TODO remove this line:
-    dfs = {k: df for k, df in dfs.items() if "val_jindex_good_actions" in df}
+    dfs = {k: df for k, df in dfs.items() if args.target_metric in df}
 
     # Get best model according to the chosen metric
     if args.mode == "max":
@@ -27,7 +27,10 @@ def main(args):
         min_metric = lambda k: dfs[k][args.target_metric].min()
         best_trial_name = min(dfs, key=max_metric)
     df = dfs[best_trial_name]
-    idx = df["val_jindex_good_actions"].idxmax()
+    if args.mode == "max":
+        idx = df[args.target_metric].idxmax()
+    elif args.mode == "min":
+        idx = df[args.target_metric].idxmin()
     best_trial_iter = df.iloc[idx]["training_iteration"]
 
     # Load the checkpointed model for evaluation
@@ -83,13 +86,17 @@ def main(args):
     plots_dir = os.path.join(args.output_prefix, "plots")
     os.makedirs(plots_dir, exist_ok=True)
 
+    # Write config options (best hyperparameters)
+    config_output = os.path.join(args.output_prefix, "config.json")
+    json.dump(config, open(config_output, "w"))
+
     # Write quantitative metrics
     metrics_output = os.path.join(args.output_prefix, "metrics.json")
     json.dump(metrics, open(metrics_output, "w"))
 
     # Output plots
     for plot_name, plot in plots.items():
-        plot_fn = os.path.join(plots_dir, f"{plot_name}.tiff")
+        plot_fn = os.path.join(plots_dir, f"{plot_name}.jpg")
         plot.save(plot_fn)
 
 
