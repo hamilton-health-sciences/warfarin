@@ -37,9 +37,13 @@ RL model:
           --output_fn ./data/replay_buffers/test_data \
           --normalization ./output/normalization.json
 
-## Model development
+## Model training
 
-    $ python3 script/train # ....
+With a GPU available, train the dBCQ model:
+
+    $ python3 scripts/train_smdp_dBCQ.py --suffix=smdp --num_actions=7 --state_dim=56 \
+        --hidden_states=64 --events_batch_size=0 --BCQ_threshold=0.2 --events_batch_size=0 \
+        --lr=0.00005 --max_timesteps=1_000_000 --save_folder="./output/dbcq"
 
 ## Evaluations and figures
 
