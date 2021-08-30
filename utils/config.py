@@ -14,6 +14,9 @@ MAX_TIME_ELAPSED = 90
 # Trajectories with fewer than MIN_INR_COUNTS entries will be removed
 MIN_INR_COUNTS = 10
 
+# The reward associated with INRs that are in therapeutic range 
+INR_REWARD = 1
+
 # These are the adverse events that are extracted from the events data and merged with the rest of the data
 # Note that STROKE indicates ischemic stroke
 EVENTS_TO_KEEP = ['DEATH', 'STROKE', 'MAJOR_BLEED', 'MINOR_BLEED', 'HEM_STROKE', 'HOSP']
