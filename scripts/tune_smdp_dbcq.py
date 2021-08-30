@@ -8,6 +8,8 @@ import argparse
 
 import numpy as np
 
+import torch
+
 from ray import tune
 from ray.tune import CLIReporter
 from ray.tune.suggest.hyperopt import HyperOptSearch
