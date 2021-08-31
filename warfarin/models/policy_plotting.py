@@ -94,10 +94,13 @@ def plot_agreement_ttr_curve(df):
     df["NEXT_INR"] = df["INR"].shift(-1)
     df["NEXT_IN_RANGE"] = (df["NEXT_INR"] >= 2.) & (df["NEXT_INR"] <= 3.)
 
+    # Drop transitions where threshold model does not provide prediction
+    # df = df.loc[~pd.isnull(df["THRESHOLD_ACTION"])]
+
     # Drop trajectories where one of the models does not provide a prediction
-    df = df.loc[
-        pd.isnull(df["THRESHOLD_ACTION"]).groupby("USUBJID_O_NEW").sum() == 0
-    ]
+    # df = df.loc[
+    #     pd.isnull(df["THRESHOLD_ACTION"]).groupby("USUBJID_O_NEW").sum() == 0
+    # ]
     # df = df.dropna()
 
     # Plot absolute agreement vs. TTR
@@ -116,6 +119,12 @@ def plot_agreement_ttr_curve(df):
                        "TRAJECTORY_LENGTH",
                        "MODEL",
                        "MEAN_ABSOLUTE_AGREEMENT"]
+    plot_df["MODEL"] = plot_df["MODEL"].map({
+        "MEAN_RL_AGREEMENT": "RL Algorithm",
+        "MEAN_THRESHOLD_AGREEMENT": "Benchmark Algorithm"
+    })
+    plot_df["APPROXIMATE_TTR"] *= 100.
+    plot_df["MEAN_ABSOLUTE_AGREEMENT"] *= 100.
     agreement_ttr = (
         ggplot(plot_df,
                aes(x="MEAN_ABSOLUTE_AGREEMENT",
@@ -123,8 +132,12 @@ def plot_agreement_ttr_curve(df):
                    weight="TRAJECTORY_LENGTH",
                    group="MODEL",
                    color="MODEL")) +
-        # geom_point(aes(size="TRAJECTORY_LENGTH")) +
-        geom_smooth(method="loess")#, color="#4682B4")
+        geom_smooth(method="loess") +
+        ylim([0., 100.]) +
+        xlab("Mean Absolute Difference Between Algorithm & Observed Dose "
+             "Change (%)") +
+        ylab("TTR (%)") +
+        scale_color_discrete(name="Algorithm")
     )
 
     # Plot histogram of agreement
