@@ -131,6 +131,8 @@ def plot_agreement_ttr_curve(df):
     plot_df["APPROXIMATE_TTR"] *= 100.
     plot_df["MEAN_ABSOLUTE_AGREEMENT"] *= 100.
     # TODO figure out why loess segfaults or add CIs manually
+    mean_abs_diff_label = ("Mean Absolute Difference Between Algorithm & "
+                           "Observed Dose Change (%)")
     agreement_ttr = (
         ggplot(plot_df,
                aes(x="MEAN_ABSOLUTE_AGREEMENT",
@@ -142,8 +144,7 @@ def plot_agreement_ttr_curve(df):
         # geom_point() +
         xlim([0., 50.]) +
         ylim([0., 100.]) +
-        xlab("Mean Absolute Difference Between Algorithm & Observed Dose "
-             "Change (%)") +
+        xlab(mean_abs_diff_label) +
         ylab("TTR (%)") +
         scale_color_discrete(name="Algorithm")
     )
@@ -153,9 +154,13 @@ def plot_agreement_ttr_curve(df):
         ggplot(plot_df,
                aes(x="MEAN_ABSOLUTE_AGREEMENT",
                    group="MODEL",
-                   color="MODEL",
+                   # color="MODEL",
                    fill="MODEL")) +
-        geom_histogram()
+        geom_histogram(binwidth=1.) +
+        xlim([0., 50.]) +
+        xlab(mean_abs_diff_label) +
+        ylab("Count") +
+        scale_fill_discrete(name="Algorithm")
     )
 
     return agreement_ttr, agreement_histogram
