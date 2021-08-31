@@ -100,6 +100,8 @@ def train_run(config: dict,
         policy.Q.load_state_dict(state_dict)
 
     # Train
+    prev_train_selected_actions = None
+    prev_val_selected_actions = None
     for epoch in range(start, global_config.MAX_TRAINING_EPOCHS):
         # Number of batches for approximate coverage of the full buffer
         num_batches = int(
@@ -117,8 +119,22 @@ def train_run(config: dict,
             torch.save(policy.Q.state_dict(), ckpt_fn)
 
         # Evaluate the policy
-        train_results = eval_policy(policy, train_buffer)
-        val_results = eval_policy(policy, val_buffer)
+        train_results, train_selected_actions = eval_policy(policy,
+                                                            train_buffer)
+        val_results, val_selected_actions = eval_policy(policy, val_buffer)
+
+        # Compute the change in the policy's chosen actions as a possible
+        # convergence criteria
+        if prev_train_selected_actions is not None:
+            train_results["mean_abs_change_selected_actions"] = np.mean(
+                np.abs(prev_train_selected_actions - train_selected_actions)
+            )
+            val_results["mean_abs_change_selected_actions"] = np.mean(
+                np.abs(prev_val_selected_actions - val_selected_actions)
+            )
+        prev_train_selected_actions = train_selected_actions
+        prev_val_selected_actions = val_selected_actions
+
         # TODO: implement WIS ?
         tune.report(
             **{f"train_{k}": v for k, v in train_results.items()},

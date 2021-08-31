@@ -114,9 +114,14 @@ def plot_agreement_ttr_curve(df):
         "NEXT_IN_RANGE"
     ].count()
 
-    plot_df = plot_df.melt(id_vars=["APPROXIMATE_TTR", "TRAJECTORY_LENGTH"])
+    plot_df = plot_df.join(df[["CONTINENT"]])
+
+    plot_df = plot_df.melt(id_vars=["APPROXIMATE_TTR",
+                                    "TRAJECTORY_LENGTH",
+                                    "CONTINENT"])
     plot_df.columns = ["APPROXIMATE_TTR",
                        "TRAJECTORY_LENGTH",
+                       "CONTINENT",
                        "MODEL",
                        "MEAN_ABSOLUTE_AGREEMENT"]
     plot_df["MODEL"] = plot_df["MODEL"].map({
@@ -125,6 +130,7 @@ def plot_agreement_ttr_curve(df):
     })
     plot_df["APPROXIMATE_TTR"] *= 100.
     plot_df["MEAN_ABSOLUTE_AGREEMENT"] *= 100.
+    # TODO figure out why loess segfaults or add CIs manually
     agreement_ttr = (
         ggplot(plot_df,
                aes(x="MEAN_ABSOLUTE_AGREEMENT",
@@ -132,7 +138,9 @@ def plot_agreement_ttr_curve(df):
                    weight="TRAJECTORY_LENGTH",
                    group="MODEL",
                    color="MODEL")) +
-        geom_smooth(method="loess") +
+        geom_smooth(method="lowess") +
+        # geom_point() +
+        xlim([0., 50.]) +
         ylim([0., 100.]) +
         xlab("Mean Absolute Difference Between Algorithm & Observed Dose "
              "Change (%)") +
@@ -177,6 +185,14 @@ def plot_policy(policy, replay_buffer):
         index=replay_buffer.data["USUBJID_O_NEW"]
     )
 
+    # Extract continent
+    continent_cols = [c for c in replay_buffer.data.columns if "CONTINENT" in c]
+    df["CONTINENT"] = pd.Categorical(
+        replay_buffer.data[continent_cols].idxmax(axis=1).apply(
+            lambda s: s.split("_")[1]
+        )
+    )
+
     # Extract threshold policy decisions
     tm = ThresholdModel()
     df["PREVIOUS_INR"] = df.groupby("USUBJID_O_NEW")["INR"].shift(1)
@@ -185,10 +201,12 @@ def plot_policy(policy, replay_buffer):
         np.array(df["INR"])
     )
 
+    plots = {}
+
     # Observed policy heatmap
     obs_df = df[["OBSERVED_ACTION", "INR"]].copy()
     obs_df.columns = ["ACTION", "INR"]
-    obs_heatmap = (
+    plots["observed_policy_heatmap"] = (
         plot_policy_heatmap(obs_df) +
         ggtitle("Observed Policy")
     )
@@ -196,21 +214,22 @@ def plot_policy(policy, replay_buffer):
     # RL policy heatmap
     rl_df = df[["POLICY_ACTION", "INR"]].copy()
     rl_df.columns = ["ACTION", "INR"]
-    rl_heatmap = (
+    plots["learned_policy_heatmap"] = (
         plot_policy_heatmap(rl_df) +
         ggtitle("RL Policy")
     )
 
-    # Agreement histogram
+    # Agreement curves and histograms
     agreement_curve, agreement_histogram = plot_agreement_ttr_curve(
         df.copy()
     )
-
-    plots = {
-        "observed_policy_heatmap": obs_heatmap,
-        "learned_policy_heatmap": rl_heatmap,
-        "absolute_agreement_curve": agreement_curve,
-        "absolute_agreement_histogram": agreement_histogram
-    }
-
+    plots["absolute_agreement_curve"] = agreement_curve
+    plots["absolute_agreement_histogram"] = agreement_histogram
+    plots["absolute_agreement_curve_continent"] = (
+        agreement_curve + facet_wrap("CONTINENT")
+    )
+    plots["absolute_agreement_histogram_continent"] = (
+        agreement_histogram + facet_wrap("CONTINENT")
+    )
+ 
     return plots

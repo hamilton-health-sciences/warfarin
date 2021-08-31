@@ -14,8 +14,11 @@ from warfarin.models.policy_plotting import plot_policy
 
 
 def main(args):
+    config.MIN_TRAINING_EPOCHS = 50
+
     # Load up the metrics for models trained as part of the grid search
-    analysis = Analysis("./ray_logs/dbcq")
+    # TODO do not use backup
+    analysis = Analysis("./ray_logs_backup/dbcq")
     dfs = analysis.trial_dataframes
     # TODO remove this line:
     dfs = {k: df for k, df in dfs.items() if args.target_metric in df}
@@ -93,7 +96,7 @@ def main(args):
     buf.max_size = len(buf.data)
 
     # Compute evaluation metrics on the buffer
-    metrics = eval_policy(policy, buf)
+    metrics, _ = eval_policy(policy, buf)
     plots = plot_policy(policy, buf)
 
     # Create output directories
@@ -110,6 +113,7 @@ def main(args):
 
     # Output plots
     for plot_name, plot in plots.items():
+        print(f"Saving {plot_name}...")
         plot_fn = os.path.join(plots_dir, f"{plot_name}.jpg")
         plot.save(plot_fn)
 

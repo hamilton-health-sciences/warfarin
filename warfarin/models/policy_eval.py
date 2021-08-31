@@ -26,6 +26,8 @@ def eval_policy(policy, replay_buffer):
             selected by the model. We also compute Youden's J statistic from
             these two statistics.
     """
+    state = np.array(replay_buffer.state)
+    pred_action = policy.select_action(state, eval=True)[:, 0]
     prop_reasonable = eval_reasonable_actions(policy, replay_buffer)
     sens, spec, jstat = eval_classification(policy, replay_buffer)
     stats = {
@@ -35,7 +37,7 @@ def eval_policy(policy, replay_buffer):
         "jindex_good_actions": jstat
     }
 
-    return stats
+    return stats, pred_action
 
 
 def eval_reasonable_actions(policy, replay_buffer):
