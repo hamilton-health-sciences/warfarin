@@ -6,6 +6,7 @@ import torch
 
 from ray.tune import Analysis
 
+from warfarin import config
 from warfarin.utils.smdp_buffer import SMDPReplayBuffer
 from warfarin.models.smdp_dBCQ import discrete_BCQ
 from warfarin.models.policy_eval import eval_policy
@@ -21,20 +22,33 @@ def main(args):
 
     # Get best model according to the chosen metric
     if args.mode == "max":
-        max_metric = lambda k: dfs[k][args.target_metric].max()
+        max_metric = lambda k: dfs[k].loc[
+            dfs[k]["training_iteration"] >= (config.MIN_TRAINING_EPOCHS - 1),
+            args.target_metric
+        ].max()
         best_trial_name = max(dfs, key=max_metric)
     elif args.mode == "min":
-        min_metric = lambda k: dfs[k][args.target_metric].min()
+        min_metric = lambda k: dfs[k].loc[
+            dfs[k]["training_iteration"] >= (config.MIN_TRAINING_EPOCHS - 1),
+            args.target_metric
+        ].min()
         best_trial_name = min(dfs, key=max_metric)
     df = dfs[best_trial_name]
     if args.mode == "max":
-        idx = df[args.target_metric].idxmax()
+        idx = df.loc[
+            df["training_iteration"] >= (config.MIN_TRAINING_EPOCHS - 1),
+            args.target_metric
+        ].idxmax()
     elif args.mode == "min":
-        idx = df[args.target_metric].idxmin()
-    best_trial_iter = df.iloc[idx]["training_iteration"]
+        idx = df.loc[
+            df["training_iteration"] >= (config.MIN_TRAINING_EPOCHS - 1),
+            args.target_metric
+        ].idxmin()
+    # best_trial_iter = df.iloc[idx]["training_iteration"]
+    best_trial_iter = 450
 
     # Load the checkpointed model for evaluation
-    config = analysis.get_all_configs()[best_trial_name]
+    trial_config = analysis.get_all_configs()[best_trial_name]
 
     # TODO probably refactor this as it's duplicated from the tuning script rn
     # Data dimensionality from buffers
@@ -46,19 +60,19 @@ def main(args):
         num_actions,
         state_dim,
         "cuda",
-        config["bcq_threshold"],
-        config["discount"],
-        config["optimizer"],
-        {"lr": config["learning_rate"]},
-        config["polyak_target_update"],
-        config["target_update_freq"],
-        config["tau"],
+        trial_config["bcq_threshold"],
+        trial_config["discount"],
+        trial_config["optimizer"],
+        {"lr": trial_config["learning_rate"]},
+        trial_config["polyak_target_update"],
+        trial_config["target_update_freq"],
+        trial_config["tau"],
         0.1,
         0.1,
         1,
         0.,
-        config["hidden_dim"],
-        config["num_layers"]
+        trial_config["hidden_dim"],
+        trial_config["num_layers"]
     )
     state_dict_path = os.path.join(best_trial_name,
                                    f"checkpoint_{best_trial_iter:06d}",
@@ -72,7 +86,7 @@ def main(args):
         raise ValueError("We're not testing on the test set yet.")
     buf = SMDPReplayBuffer.from_filename(
         data_path=args.buffer_path,
-        batch_size=config["batch_size"],
+        batch_size=trial_config["batch_size"],
         buffer_size=1e7,
         device="cuda"
     )
@@ -88,7 +102,7 @@ def main(args):
 
     # Write config options (best hyperparameters)
     config_output = os.path.join(args.output_prefix, "config.json")
-    json.dump(config, open(config_output, "w"))
+    json.dump(trial_config, open(config_output, "w"))
 
     # Write quantitative metrics
     metrics_output = os.path.join(args.output_prefix, "metrics.json")

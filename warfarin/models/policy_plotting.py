@@ -5,6 +5,7 @@ import pandas as pd
 from plotnine import *
 
 from warfarin import config
+from warfarin.models.threshold_model import ThresholdModel
 
 
 def plot_policy_heatmap(df):
@@ -83,12 +84,60 @@ def plot_agreement_ttr_curve(df):
     }
     df["OBSERVED_ACTION"] = df["OBSERVED_ACTION"].map(action_map)
     df["POLICY_ACTION"] = df["POLICY_ACTION"].map(action_map)
-    df["ABSOLUTE_AGREEMENT"] = np.abs(
+    df["THRESHOLD_ACTION"] = df["THRESHOLD_ACTION"].map(action_map)
+    df["RL_AGREEMENT"] = np.abs(
         df["POLICY_ACTION"] - df["OBSERVED_ACTION"]
     )
-    df["IN_RANGE"] = ((df["NEXT_INR"] >= 2.) &
-                      (df["NEXT_INR"] <= 3.)).astype(int)
-    import pdb; pdb.set_trace()
+    df["THRESHOLD_AGREEMENT"] = np.abs(
+        df["THRESHOLD_ACTION"] - df["OBSERVED_ACTION"]
+    )
+    df["NEXT_INR"] = df["INR"].shift(-1)
+    df["NEXT_IN_RANGE"] = (df["NEXT_INR"] >= 2.) & (df["NEXT_INR"] <= 3.)
+
+    # Drop trajectories where one of the models does not provide a prediction
+    df = df.loc[
+        pd.isnull(df["THRESHOLD_ACTION"]).groupby("USUBJID_O_NEW").sum() == 0
+    ]
+    # df = df.dropna()
+
+    # Plot absolute agreement vs. TTR
+    plot_df = df.groupby("USUBJID_O_NEW")[
+        ["RL_AGREEMENT", "THRESHOLD_AGREEMENT", "NEXT_IN_RANGE"]
+    ].mean()
+    plot_df.columns = ["MEAN_RL_AGREEMENT",
+                       "MEAN_THRESHOLD_AGREEMENT",
+                       "APPROXIMATE_TTR"]
+    plot_df["TRAJECTORY_LENGTH"] = df.groupby("USUBJID_O_NEW")[
+        "NEXT_IN_RANGE"
+    ].count()
+
+    plot_df = plot_df.melt(id_vars=["APPROXIMATE_TTR", "TRAJECTORY_LENGTH"])
+    plot_df.columns = ["APPROXIMATE_TTR",
+                       "TRAJECTORY_LENGTH",
+                       "MODEL",
+                       "MEAN_ABSOLUTE_AGREEMENT"]
+    agreement_ttr = (
+        ggplot(plot_df,
+               aes(x="MEAN_ABSOLUTE_AGREEMENT",
+                   y="APPROXIMATE_TTR",
+                   weight="TRAJECTORY_LENGTH",
+                   group="MODEL",
+                   color="MODEL")) +
+        # geom_point(aes(size="TRAJECTORY_LENGTH")) +
+        geom_smooth(method="loess")#, color="#4682B4")
+    )
+
+    # Plot histogram of agreement
+    agreement_histogram = (
+        ggplot(plot_df,
+               aes(x="MEAN_ABSOLUTE_AGREEMENT",
+                   group="MODEL",
+                   color="MODEL",
+                   fill="MODEL")) +
+        geom_histogram()
+    )
+
+    return agreement_ttr, agreement_histogram
 
 
 def plot_policy(policy, replay_buffer):
@@ -104,20 +153,23 @@ def plot_policy(policy, replay_buffer):
     """
     # Extract policy decisions, observed decisions, and INR into dataframe
     buffer_size = replay_buffer.crt_size
-    _, state, obs_action, next_state, reward, _ = replay_buffer.sample(
-        np.arange(buffer_size),
-        return_flag=False
-    )
-    import pdb; pdb.set_trace()
-    policy_action = policy.select_action(state.cpu().numpy(), eval=True)
-    inr = state[:, 0].cpu().numpy() * 4 + 0.5
-    next_inr = next_state[:, 0].cpu().numpy() * 4 + 0.5
+    state = np.array(replay_buffer.get_state(replay_buffer.data))
+    obs_action = np.array(replay_buffer.data["ACTION"])
+    policy_action = policy.select_action(state, eval=True)
+    inr = state[:, 0] * 4 + 0.5
     df = pd.DataFrame(
-        {"OBSERVED_ACTION": obs_action.cpu().numpy()[:, 0],
+        {"OBSERVED_ACTION": obs_action,
          "POLICY_ACTION": policy_action[:, 0],
-         "INR": inr,
-         "NEXT_INR": next_inr},
+         "INR": inr},
         index=replay_buffer.data["USUBJID_O_NEW"]
+    )
+
+    # Extract threshold policy decisions
+    tm = ThresholdModel()
+    df["PREVIOUS_INR"] = df.groupby("USUBJID_O_NEW")["INR"].shift(1)
+    df["THRESHOLD_ACTION"] = tm.select_action(
+        np.array(df["PREVIOUS_INR"]),
+        np.array(df["INR"])
     )
 
     # Observed policy heatmap
