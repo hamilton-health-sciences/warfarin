@@ -2,6 +2,10 @@ from functools import partial
 
 import os
 
+import io
+
+from plotnine.exceptions import PlotnineError
+
 from uuid import uuid4
 
 import argparse
@@ -15,10 +19,39 @@ from ray.tune import CLIReporter
 from ray.tune.suggest.hyperopt import HyperOptSearch
 from ray.tune.schedulers import AsyncHyperBandScheduler
 
+import tensorflow as tf
+
 from warfarin import config as global_config
 from warfarin.utils.smdp_buffer import SMDPReplayBuffer
 from warfarin.models.smdp_dBCQ import discrete_BCQ
 from warfarin.evaluation import evaluate_and_plot_policy
+
+
+def store_plot_tensorboard(plot_name, plot, step, output_dir):
+    """
+    Store a plot so that it's visible in Tensorboard
+
+    Args:
+        plot_name: The name of the plot.
+        plot: The plotnine plot object.
+        step: The corresponding step (epoch).
+        output_dir: The output directory for the FileWriter.
+
+    Raises:
+        PlotnineError if the plot could not be drawn.
+    """
+    buf = io.BytesIO()
+    fig = plot.draw()
+    fig.savefig(buf, format="png")
+    buf.seek(0)
+    image = tf.image.decode_png(buf.getvalue(), channels=4)
+    image = tf.expand_dims(image, 0)
+    summary_op = tf.summary.image(plot_name, image)
+    with tf.compat.v1.Session() as sess:
+        summary = sess.run(summary_op)
+        writer = tf.compat.v1.summary.FileWriter(output_dir)
+        writer.add_summary(summary, global_step=step)
+        writer.close()
 
 
 def train_run(config: dict,
@@ -28,7 +61,7 @@ def train_run(config: dict,
               val_buffer_path: str,
               init_seed: int):
     """
-    Train a model given a set of hyperparameters.
+    Train a model with a given set of hyperparameters.
 
     Args:
         config: The hyperparameters of interest.
@@ -111,24 +144,43 @@ def train_run(config: dict,
         for _ in range(num_batches):
             qloss = policy.train(train_buffer, events_buffer)
 
-        # Checkpoint the model
-        with tune.checkpoint_dir(step=epoch) as ckpt_dir_write:
-            ckpt_fn = os.path.join(ckpt_dir_write, "model.pt")
-            # TODO do we also need to store the target Q network of the policy?
-            torch.save(policy.Q.state_dict(), ckpt_fn)
-
         # Evaluate the policy
-        train_metrics, train_plots, running_state = eval_and_plot_policy(
+        train_metrics, train_plots, running_state = evaluate_and_plot_policy(
             policy, train_buffer, running_state
         )
-        val_metrics, val_plots, running_state = eval_and_plot_policy(
+        val_metrics, val_plots, running_state = evaluate_and_plot_policy(
             policy, val_buffer, running_state
         )
 
+        with tune.checkpoint_dir(step=epoch) as ckpt_dir_write:
+            # Checkpoint the model
+            # TODO do we also need to store the target Q network of the policy?
+            ckpt_fn = os.path.join(ckpt_dir_write, "model.pt")
+            torch.save(policy.Q.state_dict(), ckpt_fn)
+
+            # Store plots for Tensorboard
+            if epoch % global_config.PLOT_EVERY == 0:
+                for plot_name, plot in train_plots.items():
+                    try:
+                        store_plot_tensorboard(f"train_{plot_name}",
+                                               plot,
+                                               epoch,
+                                               ckpt_dir_write)
+                    except PlotnineError:
+                        pass
+                for plot_name, plot in val_plots.items():
+                    try:
+                        store_plot_tensorboard(f"val_{plot_name}",
+                                               plot,
+                                               epoch,
+                                               ckpt_dir_write)
+                    except PlotnineError:
+                        pass
+
         # TODO: implement WIS ?
         tune.report(
-            **{f"train_{k}": v for k, v in train_results.items()},
-            **{f"val_{k}": v for k, v in val_results.items()}
+            **{f"train_{k}": v for k, v in train_metrics.items()},
+            **{f"val_{k}": v for k, v in val_metrics.items()}
         )
 
 

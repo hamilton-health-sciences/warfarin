@@ -90,11 +90,18 @@ DROP_COLS = ["CUMU_MEASUR",
              "WARFARIN_DOSE_CHANGE_SIGN"]
 
 # Hyperparameter search options
+
+# Number of hyperparameter combinations to try.
 NUM_HYPERPARAMETER_SAMPLES = 100
 
+# Minimum number of training epochs before early termination of the model.
 MIN_TRAINING_EPOCHS = 250
 
+# Maximum number of training epochs for each combination of hyperparameters.
 MAX_TRAINING_EPOCHS = 1_000
+
+# How often to plot in epochs.
+PLOT_EVERY = 5
 
 # Evaluation constants
 
