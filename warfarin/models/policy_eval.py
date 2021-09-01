@@ -25,17 +25,34 @@ def eval_policy(policy, replay_buffer):
             INR being in range. An action is predicted to be "good" when it is
             selected by the model. We also compute Youden's J statistic from
             these two statistics.
+        (3) TTR (%) estimated in trajectories at agree with the model, at the
+            thresholds prescribed in `warfarin.config.AGREEMENT_THRESHOLDS`.
+            This is to assess sensitivity to the threshold.
     """
+    stats = {}
+
+    # Predicted action (for computing convergence)
     state = np.array(replay_buffer.state)
     pred_action = policy.select_action(state, eval=True)[:, 0]
+
+    # Reasonable-ness
     prop_reasonable = eval_reasonable_actions(policy, replay_buffer)
+    stats["proportion_reasonable_actions"] = prop_reasonable
+
+    # Classification metrics
     sens, spec, jstat = eval_classification(policy, replay_buffer)
-    stats = {
-        "proportion_reasonable_actions": prop_reasonable,
-        "sensitivity_good_actions": sens,
-        "specificity_good_actions": spec,
-        "jindex_good_actions": jstat
-    }
+    stats["sensitivity_good_actions"] = sens
+    stats["specificity_good_actions"] = spec
+    stats["jindex_good_actions"] = jstat
+
+    # # TTR at agreement
+    # for thresh in config.AGREEMENT_THRESHOLDS:
+    #     num_traj_agree, num_trans_agree, ttr = eval_ttr_at_agreement(
+    #         policy, replay_buffer, thresh
+    #     )
+    #     stats[f"number_trajectories_agree_{thresh}"] = num_traj_agree
+    #     stats[f"number_transitions_agree_{thresh}"] = num_trans_agree
+    #     stats[f"ttr_agreement_{thresh}"] = ttr
 
     return stats, pred_action
 
@@ -50,6 +67,7 @@ def eval_reasonable_actions(policy, replay_buffer):
     total = len(state)
 
     return reasonable / total
+
 
 def eval_classification(policy, replay_buffer):
     buffer_size = replay_buffer.crt_size
@@ -76,6 +94,27 @@ def eval_classification(policy, replay_buffer):
     jindex = sens + spec - 1.
 
     return sens, spec, jindex
+
+
+def eval_ttr_at_agreement(policy, replay_buffer, threshold):
+    """
+    Estimate the TTR in the trajectories which agree with the policy decisions.
+
+    Args:
+        policy: The policy object.
+        replay_buffer: The replay buffer to evaluate on.
+        threshold: The agreement threshold. Trajectories with mean absolute
+                   disagreement less than this threshold will be selected.
+
+    Returns:
+        num_traj: The number of trajectories the policy agrees with at the given
+                  threshold.
+        num_trans: The number of transitions the policy agrees with at the given
+                   threshold.
+        ttr: The estimated time in therapeutic range of the trajectories.
+    """
+    pass
+
 
 #     # Calculate rate of events
 #     reward_np = np.array(reward.to("cpu")).transpose()[0]
@@ -135,110 +174,3 @@ def eval_good_actions(policy, state, num_actions):
     ])
 
     return num_good_actions
-
-
-# Runs policy for X episodes and returns average reward
-# A fixed seed is used for the eval environment
-def eval_wis(policy,
-             behav_policy,
-             pol_dataloader,
-             discount,
-             is_demog,
-             device,
-             use_rep=True):
-    """
-    The following is the original dBCQ's evaluation script that we'll need to
-    replace with weighted importance sampling between the learned `policy` and
-    the observed policy.
-    """
-    wis_returns = 0
-    wis_weighting = 0
-
-    # Loop through the dataloader (representations, observations, actions,
-    # demographics, rewards)
-    for representations, obs_state, demog, actions, rewards in pol_dataloader:
-        representations = representations.to(device)
-        obs_state = obs_state.to(device)
-        actions = actions.to(device)
-        demog = demog.to(device)
-
-        cur_obs, cur_actions = (obs_state[:, :-2, :][:, 1:, :],
-                                actions[:, :-2, :][:, 1:, :].argmax(dim=-1))
-        cur_demog, cur_rewards = demog[:, :-2, :][:, 1:, :], rewards[:, :-2]
-
-        cur_rep = representations[:, :-2, :]
-
-        # Mask out the data corresponding to the padded observations
-        mask = (cur_obs == 0).all(dim=2)
-
-        # Compute the discounted rewards for each trajectory in the minibatch
-        discount_array = torch.Tensor(
-            discount ** np.arange(cur_rewards.shape[1])
-        )[None, :]
-        discounted_rewards = (discount_array * cur_rewards).sum(
-            dim=-1
-        ).squeeze().sum(dim=-1)
-
-        print(
-            f"rewards: {rewards[:, :-2].shape}, behav policy output: "
-            f"{behav_policy(cur_rep.flatten(end_dim=1)).shape}, actions: "
-            f"{cur_actions.flatten()[:, None].shape}"
-        )
-
-        # Evaluate the probabilities of the observed action according to the
-        # trained policy and the behavior policy
-        with torch.no_grad():
-            print(f"is_demog: {is_demog}")
-            # Gather the probability from the observed behavior policy
-            if is_demog:
-                p_obs = F.softmax(
-                    behav_policy(cur_rep.flatten(end_dim=1)), dim=-1
-                ).gather(
-                    1, cur_actions.flatten()[:, None]
-                ).reshape(
-                    cur_rep.shape[:2]
-                )
-            else:
-                p_obs = F.softmax(
-                    behav_policy(cur_obs.flatten(end_dim=1)), dim=-1
-                ).gather(1, cur_actions.flatten()[:, None]).reshape(
-                    cur_obs.shape[:2]
-                )
-            if use_rep:
-                # Compute the Q values of the dBCQ policy
-                q_val, _, _ = policy.Q(representations)
-            else:
-                q_val, _, _ = policy.Q(
-                    torch.cat((cur_obs.flatten(end_dim=1),
-                               cur_demog.flatten(end_dim=1)),
-                              dim=-1)
-                )
-            p_new = F.softmax(q_val, dim=-1).gather(
-                2, cur_actions[:, :, None]
-            ).squeeze()  # Gather the probabilities from the trained policy
-
-        # Check for whether there are any zero probabilities in p_obs and
-        # replace with small probability since behav_pol may mispredict actual
-        # actions...
-        if not (p_obs > 0).all():
-            p_obs[p_obs == 0] = 0.1
-
-        # Eliminate spurious probabilities due to padded observations after
-        # trajectories have concluded. We do this by forcing the probabilities
-        # for these observations to be 1 so they don't affect the product
-        p_obs[mask] = 1.
-        p_new[mask] = 1.
-
-        cum_ir = torch.clamp((p_new / p_obs).prod(axis=1), 1e-30, 1e4)
-
-        wis_rewards = cum_ir.cpu() * discounted_rewards
-        wis_returns += wis_rewards.sum().item()
-        wis_weighting += cum_ir.cpu().sum().item()
-
-    wis_eval = (wis_returns / wis_weighting)
-    print("---------------------------------------")
-    print(f"Evaluation over the test set: {wis_eval:.3f}")
-    print("---------------------------------------")
-    return wis_eval
-
-
