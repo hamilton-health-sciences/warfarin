@@ -167,7 +167,7 @@ def train_run(config: dict,
             if epoch % global_config.PLOT_EVERY == 0:
                 for plot_name, plot in plots.items():
                     try:
-                        store_plot_tensorboard(plot_name
+                        store_plot_tensorboard(plot_name,
                                                plot,
                                                epoch,
                                                ckpt_dir_write)
