@@ -3,6 +3,20 @@
 Given access to the COMBINE-AF database, the findings of this study are
 end-to-end reproducible.
 
+## Environment and setup
+
+The pipeline and modeling was run in Python 3.9.2.
+
+    $ python3 --version
+    Python 3.9.2
+    $ git clone git@github.com:hamilton-health-sciences/warfarin.git
+    $ cd warfarin
+    $ python3 -m pip install -r requirements.txt
+
+Point Python at the cloned directory:
+
+    $ export PYTHONPATH=.
+
 ## Preprocessing
 
 First, rename the input SAS files to `baseline_raw.sas7bdat`, and
