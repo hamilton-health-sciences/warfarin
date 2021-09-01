@@ -101,7 +101,7 @@ MIN_TRAINING_EPOCHS = 250
 MAX_TRAINING_EPOCHS = 1_000
 
 # How often to plot in epochs.
-PLOT_EVERY = 5
+PLOT_EVERY = 25
 
 # Evaluation constants
 
