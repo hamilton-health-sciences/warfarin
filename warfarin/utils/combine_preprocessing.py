@@ -660,7 +660,7 @@ def remove_short_traj(measured_inrs, id_col="USUBJID_O_NEW"):
     """
     # Remove patients with fewer than min_inr_counts
     counts = measured_inrs.groupby(id_col).size()
-    patient_ids = counts[counts >= MIN_INR_COUNTS].index.tolist()    
+    patient_ids = counts[counts >= config.MIN_INR_COUNTS].index.tolist()    
     num_removed = measured_inrs[id_col].nunique() - len(patient_ids)
     measured_inrs = measured_inrs[measured_inrs[id_col].isin(patient_ids)]
 
@@ -670,7 +670,7 @@ def remove_short_traj(measured_inrs, id_col="USUBJID_O_NEW"):
 
     print(
         f"Removing {num_removed:,.0f} trajectories with fewer than "
-        f"{MIN_INR_COUNTS} INR measurements.."
+        f"{config.MIN_INR_COUNTS} INR measurements.."
     )
     print(
         f"\tRemaining {num_patients:,.0f} patients, {num_traj:,.0f} "
