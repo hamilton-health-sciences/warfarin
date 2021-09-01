@@ -1,8 +1,9 @@
 """ Functions that are used across multiple scripts? """
 
-import feather
 import numpy as np
+
 import pandas as pd
+
 import time
 
 from warfarin.config import ADV_EVENTS, EVENTS_TO_KEEP, STATE_COLS_TO_FILL
@@ -17,10 +18,9 @@ def load_split_data(base_path, suffix):
     :param suffix: suffix of the split data 
     :return: train, validation, and test dataframes 
     """
-
-    train_data = feather.read_dataframe(base_path + f"train_data{suffix}.feather")
-    val_data = feather.read_dataframe(base_path + f"val_data{suffix}.feather")
-    test_data = feather.read_dataframe(base_path + f"test_data{suffix}.feather")
+    train_data = pd.read_feather(base_path + f"train_data{suffix}.feather")
+    val_data = pd.read_feather(base_path + f"val_data{suffix}.feather")
+    test_data = pd.read_feather(base_path + f"test_data{suffix}.feather")
     return train_data, val_data, test_data
 
 

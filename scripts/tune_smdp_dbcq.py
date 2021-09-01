@@ -29,7 +29,7 @@ from warfarin.evaluation import evaluate_and_plot_policy
 
 def store_plot_tensorboard(plot_name, plot, step, output_dir):
     """
-    Store a plot so that it's visible in Tensorboard
+    Store a plot so that it's visible in Tensorboard.
 
     Args:
         plot_name: The name of the plot.
@@ -40,18 +40,19 @@ def store_plot_tensorboard(plot_name, plot, step, output_dir):
     Raises:
         PlotnineError if the plot could not be drawn.
     """
+    # Put the figure in a TF image object
     buf = io.BytesIO()
     fig = plot.draw()
     fig.savefig(buf, format="png")
     buf.seek(0)
     image = tf.image.decode_png(buf.getvalue(), channels=4)
     image = tf.expand_dims(image, 0)
-    summary_op = tf.summary.image(plot_name, image)
-    with tf.compat.v1.Session() as sess:
-        summary = sess.run(summary_op)
-        writer = tf.compat.v1.summary.FileWriter(output_dir)
-        writer.add_summary(summary, global_step=step)
-        writer.close()
+
+    # Write the image
+    writer = tf.summary.create_file_writer(output_dir)
+    with writer.as_default():
+        tf.summary.image(plot_name, image, step=step)
+        writer.flush()
 
 
 def train_run(config: dict,
@@ -151,6 +152,10 @@ def train_run(config: dict,
         val_metrics, val_plots, running_state = evaluate_and_plot_policy(
             policy, val_buffer, running_state
         )
+        metrics = {**{f"train_{k}": v for k, v in train_metrics.items()},
+                   **{f"val_{k}": v for k, v in val_metrics.items()}}
+        plots = {**{f"train_{k}": v for k, v in train_plots.items()},
+                 **{f"val_{k}": v for k, v in val_plots.items()}}
 
         with tune.checkpoint_dir(step=epoch) as ckpt_dir_write:
             # Checkpoint the model
@@ -160,17 +165,9 @@ def train_run(config: dict,
 
             # Store plots for Tensorboard
             if epoch % global_config.PLOT_EVERY == 0:
-                for plot_name, plot in train_plots.items():
+                for plot_name, plot in plots.items():
                     try:
-                        store_plot_tensorboard(f"train_{plot_name}",
-                                               plot,
-                                               epoch,
-                                               ckpt_dir_write)
-                    except PlotnineError:
-                        pass
-                for plot_name, plot in val_plots.items():
-                    try:
-                        store_plot_tensorboard(f"val_{plot_name}",
+                        store_plot_tensorboard(plot_name
                                                plot,
                                                epoch,
                                                ckpt_dir_write)
@@ -178,10 +175,7 @@ def train_run(config: dict,
                         pass
 
         # TODO: implement WIS ?
-        tune.report(
-            **{f"train_{k}": v for k, v in train_metrics.items()},
-            **{f"val_{k}": v for k, v in val_metrics.items()}
-        )
+        tune.report(**metrics)
 
 
 def trial_namer(trial):
