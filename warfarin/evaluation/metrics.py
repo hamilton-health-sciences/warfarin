@@ -90,24 +90,20 @@ def eval_classification(df):
     return sens, spec, jindex, sens_dir, spec_dir, jindex_dir
 
 
-def eval_ttr_at_agreement(df):
+def eval_ttr_at_agreement(disagreement_ttr):
     """
     Estimate the TTR in the trajectories which agree with the policy decisions.
 
     Args:
-        threshold: The agreement threshold. Trajectories with mean absolute
-                   disagreement less than this threshold will be selected.
+        disagreement_ttr: Dataframe indexed by trajectory containing columns
+                          containing "ACTION_DIFF" and "NEXT_INR_IN_RANGE".
 
     Returns:
         ttr_stats: The dictionary of metrics.
     """
-    action_diff_cols = [c for c in df.columns if "ACTION_DIFF" in c]
-
-    traj_length = df.groupby("USUBJID_O_NEW")["NEXT_INR_IN_RANGE"].count()
-    traj_length.name = "TRAJECTORY_LENGTH"
-    disagreement_ttr = np.abs(df[action_diff_cols + ["NEXT_INR_IN_RANGE"]])
-    disagreement_ttr = disagreement_ttr.groupby("USUBJID_O_NEW").mean()
-    disagreement_ttr = disagreement_ttr.join(traj_length)
+    action_diff_cols = [
+        c for c in disagreement_ttr.columns if "ACTION_DIFF" in c
+    ]
 
     ttr_stats = {}
     for algo_diff_col in action_diff_cols:
@@ -124,64 +120,5 @@ def eval_ttr_at_agreement(df):
                 disagreement_ttr["TRAJECTORY_LENGTH"][sel]
             ).sum()
             ttr_stats[f"{threshold}_{algo}_prop_traj"] = sel.sum() / len(sel)
-    import pdb; pdb.set_trace()
 
-
-#     # Calculate rate of events
-#     reward_np = np.array(reward.to("cpu")).transpose()[0]
-#     event_flag = np.where(reward_np <= -10, 1, 0)
-#     both_actions = pd.DataFrame(
-#         {"CLINICIAN_ACTION": np.array(action.to("cpu")).transpose()[0],
-#          "POLICY_ACTION": pred_action.transpose()[0],
-#          "ADV_EVENTS": event_flag}
-#     )
-#     both_actions.loc[:, "DIFF_ACTIONS"] = (both_actions["POLICY_ACTION"] -
-#                                            both_actions["CLINICIAN_ACTION"])
-#     events_rate = both_actions[
-#         both_actions["DIFF_ACTIONS"] == 0
-#     ]["ADV_EVENTS"].mean()
-# 
-#     # print("---------------------------------------")
-#     # print(
-#     #     f"Evaluation over {eval_episodes} episodes: Validation % Reasonable "
-#     #     f"Actions: {avg_reward:.3%}" +
-#     #     (f" | Training % Reasonable Actions: {avg_reward_train:.3%}"
-#     #      if train_replay_buffer is not None else "")
-#     # )
-#     # print("---------------------------------------")
-# 
-#     if train_replay_buffer is not None:
-#         return avg_reward_train, events_rate, avg_reward, pred_action
-# 
-#     else:
-#         return events_rate, avg_reward, pred_action
-
-
-def eval_good_actions(policy, state, num_actions):
-    pred_action = policy.select_action(
-        np.array(state.to("cpu")),
-        eval=True
-    ).transpose()[0]
-    inr_state = state[:, 0].cpu().detach().numpy()
-
-    num_good_actions = sum([
-        sum(
-            np.where(np.logical_and(inr_state > 0.625, pred_action <= 2), 1, 0)
-        ),
-        sum(
-            np.where(
-                np.logical_and(
-                    np.logical_and(inr_state >= 0.375, inr_state <= 0.625),
-                    pred_action == 3
-                ),
-                1,
-                0
-            )
-        ),
-        sum(
-            np.where(
-                np.logical_and(inr_state < 0.375, pred_action >= 4), 1, 0)
-        ),
-    ])
-
-    return num_good_actions
+    return ttr_stats

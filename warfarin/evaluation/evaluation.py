@@ -1,13 +1,19 @@
 """Entry point for evaluation metric and plots for a given learned policy."""
 
+from warnings import warn
+
 import numpy as np
 
 import pandas as pd
+
+from plotnine import ggtitle, facet_wrap
 
 from warfarin.models.baselines import ThresholdModel
 from warfarin.evaluation.metrics import (eval_reasonable_actions,
                                          eval_classification,
                                          eval_ttr_at_agreement)
+from warfarin.evaluation.plotting import (plot_policy_heatmap,
+                                          plot_agreement_ttr_curve)
 
 
 def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None):
@@ -107,15 +113,24 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None):
     df["THRESHOLD_ACTION_DIFF"] = (df["THRESHOLD_ACTION_QUANT"] -
                                    df["OBSERVED_ACTION_QUANT"])
 
+    # Compute algorithm-observed differences
+    action_diff_cols = [c for c in df.columns if "ACTION_DIFF" in c]
+
+    traj_length = df.groupby("USUBJID_O_NEW")["NEXT_INR_IN_RANGE"].count()
+    traj_length.name = "TRAJECTORY_LENGTH"
+    disagreement_ttr = np.abs(df[action_diff_cols + ["NEXT_INR_IN_RANGE"]])
+    disagreement_ttr = disagreement_ttr.groupby("USUBJID_O_NEW").mean()
+    disagreement_ttr = disagreement_ttr.join(traj_length)
+
     # Compute results
-    metrics = compute_metrics(df)
-    plots = compute_plots(df)
+    metrics = compute_metrics(df, disagreement_ttr)
+    plots = compute_plots(df, disagreement_ttr)
     eval_state = {"prev_selected_actions": policy_action}
 
     return metrics, plots, eval_state
 
 
-def compute_metrics(df):
+def compute_metrics(df, disagreement_ttr):
     stats = {}
 
     # Reasonable-ness
@@ -134,19 +149,24 @@ def compute_metrics(df):
     stats["jindex_good_actions_dir"] = jstat_dir
 
     # TTR at agreement
-    agreement_ttr_stats = eval_ttr_at_agreement(df)
+    agreement_ttr_stats = eval_ttr_at_agreement(disagreement_ttr)
     stats = {**stats, **agreement_ttr_stats}
+
+    # Ensure integer types are correct
+    for k, v in stats.items():
+        stats[k] = np.array(v).astype(int).item()
 
     return stats
 
 
-def plot_policy(policy, replay_buffer):
+def compute_plots(df, disagreement_ttr):
     """
     Plot a policy using all available plots.
 
     Args:
-        policy: The BCQ policy.
-        replay_buffer: The replay buffer of data to evaluate on.
+        df: Dataframe of model decisions, baseline model decisions, and relevant
+            statistics for evaluation and plotting.
+        disagreement_ttr: Dataframe of trajectory-level disagreements and TTR.
 
     Returns:
         plots: Dictionary mapping the name of the plot to the plot object.
@@ -180,7 +200,7 @@ def plot_policy(policy, replay_buffer):
     plots_all = {}
     for plot_name, plot in plots.items():
         plots_all[plot_name] = plot
-        # for subvar in ["CONTINENT"]:
-        #     plots_all[f"{plot_name}_{subvar}"] = plot + facet_wrap(subvar)
+        for subvar in ["CONTINENT"]:
+            plots_all[f"{plot_name}_{subvar}"] = plot + facet_wrap(subvar)
  
     return plots_all

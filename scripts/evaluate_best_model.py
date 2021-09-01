@@ -1,10 +1,14 @@
 import os
 
+from warnings import warn
+
 import json
 
 import torch
 
 from ray.tune import Analysis
+
+from plotnine.exceptions import PlotnineError
 
 from warfarin import config
 from warfarin.utils.smdp_buffer import SMDPReplayBuffer
@@ -117,7 +121,10 @@ def main(args):
     for plot_name, plot in plots.items():
         print(f"Saving {plot_name}...")
         plot_fn = os.path.join(plots_dir, f"{plot_name}.jpg")
-        plot.save(plot_fn)
+        try:
+            plot.save(plot_fn)
+        except PlotnineError:
+            warn(f"Failed to save plot {plot_name}")
 
 
 if __name__ == "__main__":

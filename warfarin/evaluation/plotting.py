@@ -5,7 +5,6 @@ import pandas as pd
 from plotnine import *
 
 from warfarin import config
-from warfarin.models.threshold_model import ThresholdModel
 
 
 def plot_policy_heatmap(df):
