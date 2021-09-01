@@ -78,6 +78,7 @@ def bin_inr(df, num_bins=3, colname="INR_VALUE"):
 
     return pd.cut(df[colname], bins=cut_bins, labels=cut_labels)
 
+
 def load_raw_data_sas(base_path):
     """
     Load raw SAS files from specified path.
@@ -198,22 +199,22 @@ def preprocess_all(inr, events, baseline):
 
     # Keep track of main adverse events
     events.loc[:, "DEATH"] = (
-        events["EVENT_NAME"] == "All Cause Death"
+            events["EVENT_NAME"] == "All Cause Death"
     ).astype(int)
     events.loc[:, "STROKE"] = (
-        events["EVENT_NAME"] == "Ischemic Stroke"
+            events["EVENT_NAME"] == "Ischemic Stroke"
     ).astype(int)
     events.loc[:, "HEM_STROKE"] = (
-        events["EVENT_NAME"] == "Hemorrhagic Stroke"
+            events["EVENT_NAME"] == "Hemorrhagic Stroke"
     ).astype(int)
     events.loc[:, "MAJOR_BLEED"] = (
-        events["EVENT_NAME"] == "Major Bleeding"
+            events["EVENT_NAME"] == "Major Bleeding"
     ).astype(int)
     events.loc[:, "MINOR_BLEED"] = (
-        events["EVENT_NAME"] == "Minor Bleeding"
+            events["EVENT_NAME"] == "Minor Bleeding"
     ).astype(int)
     events.loc[:, "HOSP"] = (
-        events["EVENT_NAME"] == "Hospitalization"
+            events["EVENT_NAME"] == "Hospitalization"
     ).astype(int)
 
     print(events[config.EVENTS_TO_KEEP].sum())
@@ -280,7 +281,7 @@ def preprocess_engage_rocket(inr, baseline):
     nan_entries = sum(
         subset_data[
             subset_data["INR_TYPE"] == "Y"
-        ]["WARFARIN_DOSE_AVG_ADJ"].isnull()
+            ]["WARFARIN_DOSE_AVG_ADJ"].isnull()
     )
     total_entries = subset_data[subset_data["INR_TYPE"] == "Y"].shape[0]
     print(
@@ -300,8 +301,8 @@ def preprocess_engage_rocket(inr, baseline):
                              (subset_data["WARFARIN_DOSE"].shift(-1) == 0))
     subset_data.loc[subset_data["INR_VALUE"] == 0, "INR_VALUE"] = np.nan
     subset_data["INTERRUPT"] = (
-        (subset_data["WARFARIN_DOSE"] == 0) & subset_data["NEAR_0"]
-    ) | subset_data["INR_VALUE"].isnull()
+                                       (subset_data["WARFARIN_DOSE"] == 0) & subset_data["NEAR_0"]
+                               ) | subset_data["INR_VALUE"].isnull()
 
     subset_data = split_traj(subset_data)
 
@@ -400,8 +401,8 @@ def preprocess_aristotle(inr, baseline):
 
     # Splitting trajectories along dose interruptions
     aristotle_data["NEAR_0"] = (
-        (aristotle_data["WARFARIN_DOSE"].shift() == 0) |
-        (aristotle_data["WARFARIN_DOSE"].shift(-1) == 0)
+            (aristotle_data["WARFARIN_DOSE"].shift() == 0) |
+            (aristotle_data["WARFARIN_DOSE"].shift(-1) == 0)
     )
     aristotle_data["INTERRUPT"] = ((aristotle_data["WARFARIN_DOSE"] == 0) &
                                    aristotle_data["NEAR_0"])
@@ -438,7 +439,7 @@ def merge_inr_events(inr, events):
     # have data entry issues
     drop_ids = inr[
         inr["WARFARIN_DOSE"] >= config.DOSE_OUTLIER_THRESHOLD
-    ]["SUBJID"].unique()
+        ]["SUBJID"].unique()
     print(
         f"\tDropping {len(drop_ids)} patients with outlier doses exceeding "
         f"{config.DOSE_OUTLIER_THRESHOLD}mg weekly..."
@@ -529,6 +530,7 @@ def merge_inr_events(inr, events):
     print(f"\tDone merging. Took {t1 - t0} seconds")
 
     return inr_merged
+
 
 def split_traj_along_events(inr_merged):
     """
@@ -652,7 +654,7 @@ def split_traj_by_time_elapsed(measured_inrs):
 def remove_short_traj(measured_inrs, id_col="USUBJID_O_NEW"):
     """
     Remove trajectories with fewer than MIN_INR_COUNTS of INR visits. 
-    
+
     :param measured_inrs: dataframe containing INR data over time
     :param id_col: the column name of the trajectory ID. Defaults to
                    "USUBJID_O_NEW"
@@ -660,7 +662,7 @@ def remove_short_traj(measured_inrs, id_col="USUBJID_O_NEW"):
     """
     # Remove patients with fewer than min_inr_counts
     counts = measured_inrs.groupby(id_col).size()
-    patient_ids = counts[counts >= config.MIN_INR_COUNTS].index.tolist()    
+    patient_ids = counts[counts >= config.MIN_INR_COUNTS].index.tolist()
     num_removed = measured_inrs[id_col].nunique() - len(patient_ids)
     measured_inrs = measured_inrs[measured_inrs[id_col].isin(patient_ids)]
 
@@ -709,8 +711,8 @@ def remove_clinically_unintuitive(df):
         "USUBJID_O_NEW"
     )["INR_VALUE"].shift(-1)
     df_analyze["INR_VALUE_CHANGE"] = (
-        df_analyze["INR_VALUE"] - df_analyze["INR_VALUE_PREV"]
-    ) / df_analyze["INR_VALUE_PREV"]
+                                             df_analyze["INR_VALUE"] - df_analyze["INR_VALUE_PREV"]
+                                     ) / df_analyze["INR_VALUE_PREV"]
     df_analyze["WARFARIN_DOSE_CHANGE_SIGN"] = np.where(
         ((df_analyze["WARFARIN_DOSE_CHANGE"] == 0) |
          (df_analyze["WARFARIN_DOSE_CHANGE"].isnull())),
@@ -807,8 +809,8 @@ def remove_phys_implausible(df, inr_buffer_range=0.25):
         "SUBJID"
     )["INR_VALUE"].shift(-1)
     df_analyze["INR_VALUE_CHANGE"] = (
-        df_analyze["INR_VALUE"] - df_analyze["INR_VALUE_PREV"]
-    ) / df_analyze["INR_VALUE_PREV"]
+                                             df_analyze["INR_VALUE"] - df_analyze["INR_VALUE_PREV"]
+                                     ) / df_analyze["INR_VALUE_PREV"]
     df_analyze["WARFARIN_DOSE_CHANGE_SIGN"] = np.where(
         ((df_analyze["WARFARIN_DOSE_CHANGE"] == 0) |
          (df_analyze["WARFARIN_DOSE_CHANGE"].isnull())),
@@ -957,8 +959,8 @@ def prepare_features(merged_data):
           "have Warfarin weekly dosage of 0mg")
 
     perc_in_range = merged_data[
-        (merged_data["INR_VALUE"] >= 2) & (merged_data["INR_VALUE"] <= 3)
-    ].shape[0] / merged_data.shape[0]
+                        (merged_data["INR_VALUE"] >= 2) & (merged_data["INR_VALUE"] <= 3)
+                        ].shape[0] / merged_data.shape[0]
     print(f"\t{perc_in_range:,.2%} of entries are within range")
 
     merged_data.loc[:, "WARFARIN_DOSE_PREV"] = merged_data.groupby(
@@ -1053,7 +1055,7 @@ def split_data(inr_merged):
 
     other_patient_ids = inr_merged[
         inr_merged["TRIAL"] != "ARISTOTLE"
-    ]["SUBJID"].unique()
+        ]["SUBJID"].unique()
     other_patient_ids = np.append(other_patient_ids, other_ids)
 
     print("----------------------------------------------")
@@ -1061,7 +1063,7 @@ def split_data(inr_merged):
     arist_rely_data = inr_merged[
         inr_merged["TRIAL"].isin(["ARISTOTLE", "RELY"]) &
         inr_merged["SUBJID"].isin(other_patient_ids)
-    ]
+        ]
     val_ids, other_ids = split_data_ids(arist_rely_data, split_perc=0.2)
     val_data = inr_merged[inr_merged["SUBJID"].isin(val_ids)].copy()
 
