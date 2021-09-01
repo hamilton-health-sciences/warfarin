@@ -14,41 +14,44 @@ from warfarin.models.policy_plotting import plot_policy
 
 
 def main(args):
-    config.MIN_TRAINING_EPOCHS = 50
-
     # Load up the metrics for models trained as part of the grid search
     # TODO do not use backup
-    analysis = Analysis("./ray_logs_backup/dbcq")
+    analysis = Analysis("./ray_logs/dbcq")
     dfs = analysis.trial_dataframes
-    # TODO remove this line:
-    dfs = {k: df for k, df in dfs.items() if args.target_metric in df}
 
-    # Get best model according to the chosen metric
-    if args.mode == "max":
-        max_metric = lambda k: dfs[k].loc[
-            dfs[k]["training_iteration"] >= (config.MIN_TRAINING_EPOCHS - 1),
-            args.target_metric
-        ].max()
-        best_trial_name = max(dfs, key=max_metric)
-    elif args.mode == "min":
-        min_metric = lambda k: dfs[k].loc[
-            dfs[k]["training_iteration"] >= (config.MIN_TRAINING_EPOCHS - 1),
-            args.target_metric
-        ].min()
-        best_trial_name = min(dfs, key=max_metric)
-    df = dfs[best_trial_name]
-    if args.mode == "max":
-        idx = df.loc[
-            df["training_iteration"] >= (config.MIN_TRAINING_EPOCHS - 1),
-            args.target_metric
-        ].idxmax()
-    elif args.mode == "min":
-        idx = df.loc[
-            df["training_iteration"] >= (config.MIN_TRAINING_EPOCHS - 1),
-            args.target_metric
-        ].idxmin()
-    # best_trial_iter = df.iloc[idx]["training_iteration"]
-    best_trial_iter = 450
+    if args.trial_name_filter and args.step_idx:
+        best_trial_name = [
+            k for k in dfs if args.trial_name_filter in k
+        ][0]
+        best_trial_iter = args.step_idx
+    else:
+        # TODO remove this line:
+        dfs = {k: df for k, df in dfs.items() if args.target_metric in df}
+        # Get best model according to the chosen metric
+        if args.mode == "max":
+            max_metric = lambda k: dfs[k].loc[
+                dfs[k]["training_iteration"] >= (config.MIN_TRAINING_EPOCHS - 1),
+                args.target_metric
+            ].max()
+            best_trial_name = max(dfs, key=max_metric)
+        elif args.mode == "min":
+            min_metric = lambda k: dfs[k].loc[
+                dfs[k]["training_iteration"] >= (config.MIN_TRAINING_EPOCHS - 1),
+                args.target_metric
+            ].min()
+            best_trial_name = min(dfs, key=max_metric)
+        df = dfs[best_trial_name]
+        if args.mode == "max":
+            idx = df.loc[
+                df["training_iteration"] >= (config.MIN_TRAINING_EPOCHS - 1),
+                args.target_metric
+            ].idxmax()
+        elif args.mode == "min":
+            idx = df.loc[
+                df["training_iteration"] >= (config.MIN_TRAINING_EPOCHS - 1),
+                args.target_metric
+            ].idxmin()
+        best_trial_iter = df.iloc[idx]["training_iteration"]
 
     # Load the checkpointed model for evaluation
     trial_config = analysis.get_all_configs()[best_trial_name]
@@ -123,6 +126,20 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--trial_name_filter",
+        type=str,
+        required=False,
+        help=("If given, will select this trial rather than based on an "
+              "evaluation metric")
+    )
+    parser.add_argument(
+        "--step_idx",
+        type=int,
+        required=False,
+        help=("If given, will select this epoch rather than based on an "
+              "evaluation metric")
+    )
+    parser.add_argument(
         "--buffer_path",
         type=str,
         required=True,
@@ -131,13 +148,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--target_metric",
         type=str,
-        required=True,
+        required=False,
         help="The metric on the basis of which to select the model"
     )
     parser.add_argument(
         "--mode",
         type=str,
-        required=True,
+        required=False,
         choices=["min", "max"],
         help="Whether to maximize or minimize the target metric"
     )

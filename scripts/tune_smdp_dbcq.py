@@ -168,13 +168,13 @@ def tune_run(num_samples: int,
         "optimizer": "Adam",
         "polyak_target_update": True,
         "target_update_freq": 100,
-        "tau": 5e-3,
         # Searchable hyperparams
         "discount": tune.loguniform(0.95, 0.999),
         "batch_size": tune.choice([2, 4, 8, 32, 64, 128, 256]),
-        "learning_rate": tune.loguniform(1e-7, 1e-2),
+        "learning_rate": tune.loguniform(1e-7, 1e-4),
+        "tau": tune.loguniform(1e-5, 1e-2),
         "num_layers": tune.choice([2, 3]),
-        "hidden_dim": tune.choice([4, 8, 16, 32, 64, 128]),
+        "hidden_dim": tune.choice([16, 32, 64, 128, 256]),
         "bcq_threshold": tune.choice([0.2, 0.3])
     }
 

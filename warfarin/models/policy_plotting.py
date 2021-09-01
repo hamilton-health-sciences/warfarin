@@ -209,16 +209,16 @@ def plot_policy(policy, replay_buffer):
     plots = {}
 
     # Observed policy heatmap
-    obs_df = df[["OBSERVED_ACTION", "INR"]].copy()
-    obs_df.columns = ["ACTION", "INR"]
+    obs_df = df[["OBSERVED_ACTION", "INR", "CONTINENT"]].copy()
+    obs_df.columns = ["ACTION", "INR", "CONTINENT"]
     plots["observed_policy_heatmap"] = (
         plot_policy_heatmap(obs_df) +
         ggtitle("Observed Policy")
     )
 
     # RL policy heatmap
-    rl_df = df[["POLICY_ACTION", "INR"]].copy()
-    rl_df.columns = ["ACTION", "INR"]
+    rl_df = df[["POLICY_ACTION", "INR", "CONTINENT"]].copy()
+    rl_df.columns = ["ACTION", "INR", "CONTINENT"]
     plots["learned_policy_heatmap"] = (
         plot_policy_heatmap(rl_df) +
         ggtitle("RL Policy")
@@ -230,11 +230,12 @@ def plot_policy(policy, replay_buffer):
     )
     plots["absolute_agreement_curve"] = agreement_curve
     plots["absolute_agreement_histogram"] = agreement_histogram
-    plots["absolute_agreement_curve_continent"] = (
-        agreement_curve + facet_wrap("CONTINENT")
-    )
-    plots["absolute_agreement_histogram_continent"] = (
-        agreement_histogram + facet_wrap("CONTINENT")
-    )
+
+    # Break out all plots by continent
+    plots_all = {}
+    for plot_name, plot in plots.items():
+        plots_all[plot_name] = plot
+        # for subvar in ["CONTINENT"]:
+        #     plots_all[f"{plot_name}_{subvar}"] = plot + facet_wrap(subvar)
  
-    return plots
+    return plots_all
