@@ -9,14 +9,14 @@ from ray.tune import Analysis
 from warfarin import config
 from warfarin.utils.smdp_buffer import SMDPReplayBuffer
 from warfarin.models.smdp_dBCQ import discrete_BCQ
-from warfarin.models.policy_eval import eval_policy
-from warfarin.models.policy_plotting import plot_policy
+from warfarin.evaluation import evaluate_and_plot_policy
 
 
 def main(args):
+    # TODO donot commit this!!!
+    config.MIN_TRAINING_EPOCHS = 50
     # Load up the metrics for models trained as part of the grid search
-    # TODO do not use backup
-    analysis = Analysis("./ray_logs/dbcq")
+    analysis = Analysis(args.logs_path)
     dfs = analysis.trial_dataframes
 
     if args.trial_name_filter and args.step_idx:
@@ -99,8 +99,7 @@ def main(args):
     buf.max_size = len(buf.data)
 
     # Compute evaluation metrics on the buffer
-    metrics, _ = eval_policy(policy, buf)
-    plots = plot_policy(policy, buf)
+    metrics, plots, _ = evaluate_and_plot_policy(policy, buf)
 
     # Create output directories
     plots_dir = os.path.join(args.output_prefix, "plots")
@@ -125,6 +124,12 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--logs_path",
+        type=str,
+        default="./ray_logs/dbcq",
+        help="The path to the output Ray Tune logs"
+    )
     parser.add_argument(
         "--trial_name_filter",
         type=str,

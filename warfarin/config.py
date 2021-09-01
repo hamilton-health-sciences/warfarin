@@ -98,6 +98,10 @@ MAX_TRAINING_EPOCHS = 1_000
 
 # Evaluation constants
 
+# The upper thresholds for mean absolute agreement to consider a trajectory
+# agreed-upon.
+AGREEMENT_THRESHOLDS = [0.01, 0.025, 0.05, 0.10]
+
 # For INR binning in evaluations. In practice, the closedness of the endpoints
 # are not prescribed here, so will need to be modified in the evaluations code
 # if changed.

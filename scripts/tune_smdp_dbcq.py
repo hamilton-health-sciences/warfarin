@@ -18,7 +18,7 @@ from ray.tune.schedulers import AsyncHyperBandScheduler
 from warfarin import config as global_config
 from warfarin.utils.smdp_buffer import SMDPReplayBuffer
 from warfarin.models.smdp_dBCQ import discrete_BCQ
-from warfarin.models.policy_eval import eval_policy
+from warfarin.evaluation import evaluate_and_plot_policy
 
 
 def train_run(config: dict,
@@ -100,8 +100,7 @@ def train_run(config: dict,
         policy.Q.load_state_dict(state_dict)
 
     # Train
-    prev_train_selected_actions = None
-    prev_val_selected_actions = None
+    running_state = None
     for epoch in range(start, global_config.MAX_TRAINING_EPOCHS):
         # Number of batches for approximate coverage of the full buffer
         num_batches = int(
@@ -119,21 +118,12 @@ def train_run(config: dict,
             torch.save(policy.Q.state_dict(), ckpt_fn)
 
         # Evaluate the policy
-        train_results, train_selected_actions = eval_policy(policy,
-                                                            train_buffer)
-        val_results, val_selected_actions = eval_policy(policy, val_buffer)
-
-        # Compute the change in the policy's chosen actions as a possible
-        # convergence criteria
-        if prev_train_selected_actions is not None:
-            train_results["mean_abs_change_selected_actions"] = np.mean(
-                np.abs(prev_train_selected_actions - train_selected_actions)
-            )
-            val_results["mean_abs_change_selected_actions"] = np.mean(
-                np.abs(prev_val_selected_actions - val_selected_actions)
-            )
-        prev_train_selected_actions = train_selected_actions
-        prev_val_selected_actions = val_selected_actions
+        train_metrics, train_plots, running_state = eval_and_plot_policy(
+            policy, train_buffer, running_state
+        )
+        val_metrics, val_plots, running_state = eval_and_plot_policy(
+            policy, val_buffer, running_state
+        )
 
         # TODO: implement WIS ?
         tune.report(
