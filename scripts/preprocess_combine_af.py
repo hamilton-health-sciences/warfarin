@@ -20,43 +20,14 @@ from warfarin.utils.combine_preprocessing import (load_raw_data, preprocess_all,
                                                   remove_phys_implausible,
                                                   prepare_features,
                                                   split_data)
+from warfarin.utils import timer
 from warfarin import config
 
 
-def main(args):
-    if not os.path.exists(f"{args.data_folder}{args.raw_data_folder}"):
-        raise Exception(
-            "The specified data folder does not exist: "
-            "{args.data_folder}{args.raw_data_folder}"
-        )
-
-    print("\n----------------------------------------------")
-    print("Running preprocessing code for COMBINE data with the following "
-          "parameters.")
-    if args.remove_clin:
-        args.suffix = args.suffix + "_wo_clin"
-    if args.remove_phys:
-        args.suffix = args.suffix + "_wo_phys"
-    print(args)
-    print("\n----------------------------------------------")
-
-    t0 = time.time()
-    args.clean_data_path = args.data_folder + args.clean_data_folder
-    if not os.path.exists(f"{args.clean_data_path}"):
-        print(
-            "Making directory for storing cleaned data at "
-            f"{args.clean_data_path}..."
-        )
-        os.makedirs(f"{args.clean_data_path}")
-
-    args.split_data_path = args.data_folder + "split_data/"
-    if not os.path.exists(f"{args.split_data_path}"):
-        print(
-            "Making directory for storing split train, val, test data at "
-            f"{args.split_data_path}..."
-        )
-        os.makedirs(f"{args.split_data_path}")
-
+def preprocess(args):
+    """
+    Run the preprocessing pipeline end-to-end.
+    """
     # Load the data from feather files
     inr, events, baseline = load_raw_data(
         args.data_folder + args.raw_data_folder
@@ -77,14 +48,6 @@ def main(args):
     inr_events_merged = impute_inr_and_dose(inr_events_merged)
     inr_events_merged = split_traj_by_time_elapsed(inr_events_merged)
     merged_all = merge_inr_base(inr_events_merged, baseline)
-
-    # Store preprocessed data --> this data is not fully preprocessed though bc
-    # there is additional preprocessing by train/val/test
-    # INR: standardized INR records across all four trials
-    # Baseline, events: only contains records for Warfarin patients
-    # Merged_all: merged dataframes together, imputed values
-    #     save_data(inr, baseline, events, merged_all, args.clean_data_path,
-    #               args.suffix)
 
     # Remove misc columns
     for col in config.DROP_COLS:
@@ -135,8 +98,39 @@ def main(args):
         f"Stored the train, val, test data in directory: {args.split_data_path}"
     )
 
-    t1 = time.time()
-    print(f"DONE preprocessing! Took {t1 - t0:,.2f} seconds")
+
+def main(args):
+    # Ensure data directory exists
+    raw_data_dir = os.path.join(args.data_folder, args.raw_data_folder)
+    if not os.path.exists(raw_data_dir):
+        raise Exception(
+            f"The specified data folder does not exist: {raw_data_dir}"
+        )
+
+    # Construct suffix
+    if args.remove_clin:
+        args.suffix = args.suffix + "_wo_clin"
+    if args.remove_phys:
+        args.suffix = args.suffix + "_wo_phys"
+
+    # Write out preprocessing parameters
+    if args.output_preprocess_args is not None:
+        preprocess_args_fn = os.path.join(args.data_folder,
+                                          args.output_preprocess_args)
+        json.dumps(vars(args), open(preprocess_args_fn, "w"))
+
+    # Make directory for the cleaned data
+    args.clean_data_path = os.path.join(args.data_folder,
+                                        args.clean_data_folder)
+    os.makedirs(args.clean_data_path, exist_ok=True)
+
+    # Make directory for the split data
+    args.split_data_path = os.path.join(args.data_folder, "split_data")
+    os.makedirs(args.split_data_path, exist_ok=True)
+
+    # Run pipeline
+    with timer("preprocessing data"):
+        preprocess(args)
 
 
 if __name__ == "__main__":
@@ -188,6 +182,13 @@ if __name__ == "__main__":
         default="",
         type=str,
         help="Suffix to identify the preprocessed data."
+    )
+    parser.add_argument(
+        "--output_preprocess_args",
+        default=None,
+        type=str,
+        help=("Will output the arguments passed to this script to this JSON "
+              "file if given")
     )
     parser.add_argument("--seed", default=42, type=int)
     parsed_args = parser.parse_args()
