@@ -7,3 +7,4 @@ wandb
 output
 ray_logs*
 *.swp
+new_data

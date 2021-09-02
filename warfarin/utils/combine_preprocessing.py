@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 
 from warfarin import config
+from warfarin.utils import auditable
 
 
 def decode(df):
@@ -161,6 +162,7 @@ def load_raw_data(base_path):
     return inr, events, baseline
 
 
+@auditable("inr", "events", "baseline")
 def preprocess_all(inr, events, baseline):
     """
     Preliminary preprocessing steps on INR, events, and baseline dataframes.
@@ -243,6 +245,7 @@ def preprocess_all(inr, events, baseline):
     return inr, events, baseline
 
 
+@auditable()
 def preprocess_engage_rocket(inr, baseline):
     """
     Preprocessing steps that are specific to ENGAGE and ROCKET trial data.
@@ -314,6 +317,7 @@ def preprocess_engage_rocket(inr, baseline):
     return subset_data
 
 
+@auditable()
 def preprocess_rely(inr, baseline):
     """
     Preprocessing steps that are specific to RELY trial data.
@@ -351,6 +355,7 @@ def preprocess_rely(inr, baseline):
     return rely_data
 
 
+@auditable()
 def preprocess_aristotle(inr, baseline):
     """
     Preprocessing steps that are specific to ARISTOTLE trial data.
@@ -423,6 +428,7 @@ def preprocess_aristotle(inr, baseline):
     return aristotle_data
 
 
+@auditable()
 def merge_inr_events(inr, events):
     """
     Merge INR data with adverse events.
@@ -530,6 +536,8 @@ def merge_inr_events(inr, events):
 
     return inr_merged
 
+
+@auditable()
 def split_traj_along_events(inr_merged):
     """
     Split trajectory along adverse events.
@@ -560,6 +568,7 @@ def split_traj_along_events(inr_merged):
     return inr_merged
 
 
+@auditable()
 def impute_inr_and_dose(inr_merged):
     """
     Imputes values for INR and Warfarin dose on study days that are missing
@@ -608,6 +617,7 @@ def impute_inr_and_dose(inr_merged):
     return measured_inrs
 
 
+@auditable()
 def split_traj_by_time_elapsed(measured_inrs):
     """
     Split patient trajectory into multiple trajectories if a certain amount of
@@ -649,6 +659,7 @@ def split_traj_by_time_elapsed(measured_inrs):
     return measured_inrs
 
 
+@auditable()
 def remove_short_traj(measured_inrs, id_col="USUBJID_O_NEW"):
     """
     Remove trajectories with fewer than MIN_INR_COUNTS of INR visits. 
@@ -680,6 +691,7 @@ def remove_short_traj(measured_inrs, id_col="USUBJID_O_NEW"):
     return measured_inrs
 
 
+@auditable()
 def remove_clinically_unintuitive(df):
     """
     Remove entries that are unlikely to occur in clinical practice.
@@ -758,6 +770,7 @@ def remove_clinically_unintuitive(df):
     return df_analyze
 
 
+@auditable()
 def remove_phys_implausible(df, inr_buffer_range=0.25):
     """
     Remove entries that are unlikely to be seen, given our understanding of
@@ -913,6 +926,7 @@ def agg_weekly(inr_merged):
     return inr_weekly
 
 
+@auditable()
 def merge_inr_base(inr_merged, baseline):
     """
     Merge INR data with baseline features.
@@ -934,6 +948,7 @@ def merge_inr_base(inr_merged, baseline):
     return merged_data
 
 
+@auditable()
 def prepare_features(merged_data):
     """
     Create a few features and discretize continuous variables.
