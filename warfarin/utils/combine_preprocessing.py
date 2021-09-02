@@ -27,36 +27,6 @@ def decode(df):
     return df
 
 
-def split_traj(df, id_col="SUBJID"):
-    """
-    Split trajectories using "INTERRUPT" flag in df.
-
-    :param df: any dataframe containing "INTERRUPT" flag
-    :param id_col: the column name of the ID to split along (this could be the
-                   patient ID or trajectory ID)
-    :return: df with new ID col for the new trajectories split along "INTERRUPT"
-             flag
-    """
-    df["REMOVE_PRIOR"] = df.groupby(id_col)["INTERRUPT"].shift()
-    df["REMOVE_AFTER"] = df.groupby(id_col)["INTERRUPT"].shift(-1)
-
-    df["START_TRAJ"] = np.logical_and(
-        np.logical_or(df["REMOVE_PRIOR"].isnull(), df["REMOVE_PRIOR"] == 1),
-        ~df["INTERRUPT"])
-    df["END_TRAJ"] = np.logical_and(
-        np.logical_or(df["REMOVE_AFTER"].isnull(), df["REMOVE_AFTER"] == 1),
-        ~df["INTERRUPT"])
-
-    df["START_TRAJ_CUMU"] = df.groupby("SUBJID")["START_TRAJ"].cumsum()
-    df["END_TRAJ_CUMU"] = df.groupby("SUBJID")["END_TRAJ"].cumsum()
-
-    df[id_col + "_NEW"] = (df[id_col].astype(str) +
-                           df["START_TRAJ_CUMU"].astype(str))
-
-    df = df[(df["START_TRAJ_CUMU"] >= df["END_TRAJ_CUMU"]) & (
-        ~np.logical_and(df["START_TRAJ"], df["END_TRAJ"])) & (~df["INTERRUPT"])]
-
-    return df
 
 
 def bin_inr(df, num_bins=3, colname="INR_VALUE"):
@@ -161,77 +131,6 @@ def load_raw_data(base_path):
 
     return inr, events, baseline
 
-
-@auditable()
-def preprocess_engage_rocket(inr, baseline):
-    """
-    Preprocessing steps that are specific to ENGAGE and ROCKET trial data.
-
-    :param inr: dataframe of ENGAGE, ROCKET patients INR data
-    :param baseline: dataframe containing ENGAGE, ROCKET patients baseline data
-    :return: dataframe of ENGAGE, ROCKET patient INR data in a standardized
-             format
-    """
-    print("\nPreprocessing ENGAGE and ROCKET data...")
-
-    subset_ids = baseline[
-        (baseline["TRIAL"].isin(["ROCKET_AF", "ENGAGE"]))
-    ]["SUBJID"].unique()
-    subset_data = inr[inr["SUBJID"].isin(subset_ids)].copy()
-
-    # Removed doses that are not multiples of 0.5 or are 99 (these represent
-    # missing values)
-    subset_data["WARFARIN_DOSE"] = np.where(
-        (((subset_data["WARFARIN_DOSE"] % 0.5) == 0) &
-         (subset_data["WARFARIN_DOSE"] != 99)),
-        subset_data["WARFARIN_DOSE"],
-        np.nan
-    )
-
-    warfarin_dose_avg = subset_data.groupby(
-        "SUBJID"
-    )["WARFARIN_DOSE"].rolling(3, min_periods=1).mean()
-    subset_data["WARFARIN_DOSE_AVG"] = warfarin_dose_avg.reset_index()[
-        "WARFARIN_DOSE"
-    ].values
-    subset_data["WARFARIN_DOSE_AVG_ADJ"] = subset_data.groupby(
-        "SUBJID"
-    )["WARFARIN_DOSE_AVG"].shift()
-    nan_entries = sum(
-        subset_data[
-            subset_data["INR_TYPE"] == "Y"
-        ]["WARFARIN_DOSE_AVG_ADJ"].isnull()
-    )
-    total_entries = subset_data[subset_data["INR_TYPE"] == "Y"].shape[0]
-    print(
-        f"\tENGAGE, ROCKET_AF: {nan_entries} of {total_entries} "
-        f"({nan_entries / total_entries:,.2%}) entries are NaN"
-    )
-
-    subset_data["WARFARIN_DOSE"] = subset_data["WARFARIN_DOSE_AVG_ADJ"] * 7
-    subset_data = subset_data.drop(
-        columns=["WARFARIN_DOSE_AVG", "WARFARIN_DOSE_AVG_ADJ"]
-    )
-
-    subset_data = subset_data[subset_data["INR_TYPE"] == "Y"]
-
-    # Split along dose interruptions
-    subset_data["NEAR_0"] = ((subset_data["WARFARIN_DOSE"].shift() == 0) |
-                             (subset_data["WARFARIN_DOSE"].shift(-1) == 0))
-    subset_data.loc[subset_data["INR_VALUE"] == 0, "INR_VALUE"] = np.nan
-    subset_data["INTERRUPT"] = (
-        (subset_data["WARFARIN_DOSE"] == 0) & subset_data["NEAR_0"]
-    ) | subset_data["INR_VALUE"].isnull()
-
-    subset_data = split_traj(subset_data)
-
-    print(
-        f"\t{subset_data['SUBJID'].nunique():,.0f} patients, "
-        f"{subset_data['SUBJID_NEW'].nunique():,.0f} trajectories after "
-        "splitting along dose interruptions"
-    )
-
-    return subset_data
 
 
 @auditable()

@@ -6,10 +6,10 @@ import time
 
 import pandas as pd
 
-from warfarin.data.combine_preprocessing import preprocess_all
+from warfarin.data.combine_preprocessing import (preprocess_all,
+                                                 preprocess_engage_rocket)
 
 from warfarin.utils.combine_preprocessing import (load_raw_data,
-                                                  preprocess_engage_rocket,
                                                   preprocess_rely,
                                                   preprocess_aristotle,
                                                   merge_inr_events,

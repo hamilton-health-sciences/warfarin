@@ -1,4 +1,4 @@
-data
+/data
 slurm_logs
 __pycache__
 .ipynb_checkpoints
