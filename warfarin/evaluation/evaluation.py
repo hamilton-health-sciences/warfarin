@@ -8,7 +8,7 @@ import pandas as pd
 
 from plotnine import ggtitle, facet_wrap
 
-from warfarin.models.baselines import ThresholdModel
+from warfarin.models.baselines import ThresholdModel, RandomModel, MaintainModel
 from warfarin.evaluation.metrics import (eval_reasonable_actions,
                                          eval_classification,
                                          eval_ttr_at_agreement)
@@ -84,13 +84,17 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None):
         )
     )
 
-    # Extract threshold policy decisions
+    # Extract baseline policy decisions
     tm = ThresholdModel()
+    rm = RandomModel()
+    mm = MaintainModel()
     df["PREVIOUS_INR"] = df.groupby("USUBJID_O_NEW")["INR"].shift(1)
     df["THRESHOLD_ACTION"] = tm.select_action(
         np.array(df["PREVIOUS_INR"]),
         np.array(df["INR"])
     )
+    df["RANDOM_ACTION"] = rm.select_action(len(df))
+    df["MAINTAIN_ACTION"] = mm.select_action(len(df))
 
     # Map actions to the means of their bins
     # TODO use empirical means?
@@ -106,12 +110,18 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None):
     df["OBSERVED_ACTION_QUANT"] = df["OBSERVED_ACTION"].map(code_to_quant)
     df["POLICY_ACTION_QUANT"] = df["POLICY_ACTION"].map(code_to_quant)
     df["THRESHOLD_ACTION_QUANT"] = df["THRESHOLD_ACTION"].map(code_to_quant)
+    df["RANDOM_ACTION_QUANT"] = df["RANDOM_ACTION"].map(code_to_quant)
+    df["MAINTAIN_ACTION_QUANT"] = df["MAINTAIN_ACTION"].map(code_to_quant)
 
     # Compute differences
     df["POLICY_ACTION_DIFF"] = (df["POLICY_ACTION_QUANT"] -
                                 df["OBSERVED_ACTION_QUANT"])
     df["THRESHOLD_ACTION_DIFF"] = (df["THRESHOLD_ACTION_QUANT"] -
                                    df["OBSERVED_ACTION_QUANT"])
+    df["RANDOM_ACTION_DIFF"] = (df["THRESHOLD_ACTION_QUANT"] -
+                                df["OBSERVED_ACTION_QUANT"])
+    df["MAINTAIN_ACTION_DIFF"] = (df["MAINTAIN_ACTION_QUANT"] -
+                                  df["OBSERVED_ACTION_QUANT"])
 
     # Compute algorithm-observed differences
     action_diff_cols = [c for c in df.columns if "ACTION_DIFF" in c]
@@ -154,7 +164,8 @@ def compute_metrics(df, disagreement_ttr):
 
     # Ensure integer types are correct
     for k, v in stats.items():
-        stats[k] = np.array(v).astype(int).item()
+        if pd.api.types.is_int64_dtype(v):
+            stats[k] = np.array(v).astype(int).item()
 
     return stats
 
