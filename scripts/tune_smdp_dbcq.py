@@ -27,7 +27,7 @@ from warfarin.models.smdp_dBCQ import discrete_BCQ
 from warfarin.evaluation import evaluate_and_plot_policy
 
 
-def store_plot_tensorboard(plot_name, plot, step, output_dir):
+def store_plot_tensorboard(plot_name, plot, step, writer):
     """
     Store a plot so that it's visible in Tensorboard.
 
@@ -35,7 +35,7 @@ def store_plot_tensorboard(plot_name, plot, step, output_dir):
         plot_name: The name of the plot.
         plot: The plotnine plot object.
         step: The corresponding step (epoch).
-        output_dir: The output directory for the FileWriter.
+        writer: The TF writer to log the image to.
 
     Raises:
         PlotnineError if the plot could not be drawn.
@@ -49,7 +49,6 @@ def store_plot_tensorboard(plot_name, plot, step, output_dir):
     image = tf.expand_dims(image, 0)
 
     # Write the image
-    writer = tf.summary.create_file_writer(output_dir)
     with writer.as_default():
         tf.summary.image(plot_name, image, step=step)
         writer.flush()
@@ -133,8 +132,10 @@ def train_run(config: dict,
         state_dict = torch.load(os.path.join(checkpoint_dir, "model.pt"))
         policy.Q.load_state_dict(state_dict)
 
-    # Train
+    # Train the model
     running_state = None
+    trial_dir = tune.get_trial_dir()
+    writer = tf.summary.create_file_writer(trial_dir)
     for epoch in range(start, global_config.MAX_TRAINING_EPOCHS):
         # Number of batches for approximate coverage of the full buffer
         num_batches = int(
@@ -170,7 +171,7 @@ def train_run(config: dict,
                         store_plot_tensorboard(plot_name,
                                                plot,
                                                epoch,
-                                               ckpt_dir_write)
+                                               writer)
                     except PlotnineError:
                         pass
 
