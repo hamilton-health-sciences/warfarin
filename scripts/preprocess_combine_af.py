@@ -69,6 +69,8 @@ def main(args):
     aristotle_data = preprocess_aristotle(inr, baseline)
 
     inr = pd.concat([subset_data, rely_data, aristotle_data])
+    # TODO this belongs somewhere else
+    inr["INTERRUPT"] = inr["INTERRUPT"].astype(bool)
 
     inr_events_merged = merge_inr_events(inr, events)
     inr_events_merged = split_traj_along_events(inr_events_merged)
