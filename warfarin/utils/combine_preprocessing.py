@@ -190,7 +190,7 @@ def merge_inr_events(inr, events):
                      config.EVENTS_TO_KEEP]]
     )
     inr_merged = inr_merged.groupby(
-        ["TRIAL", "SUBJID", "STUDY_DAY"]
+        ["TRIAL", "TRAJID", "SUBJID", "STUDY_DAY"]
     ).sum(min_count=1).reset_index()
 
     # Impute days with missing events data as not having an event
