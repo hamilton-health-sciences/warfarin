@@ -7,10 +7,10 @@ import pandas as pd
 from warfarin.data.combine_preprocessing import (preprocess_all,
                                                  preprocess_engage_rocket,
                                                  preprocess_rely,
-                                                 preprocess_aristotle)
+                                                 preprocess_aristotle,
+                                                  merge_inr_events)
 
 from warfarin.utils.combine_preprocessing import (load_raw_data,
-                                                  merge_inr_events,
                                                   split_traj_along_events,
                                                   impute_inr_and_dose,
                                                   split_traj_by_time_elapsed,
