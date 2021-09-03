@@ -121,7 +121,7 @@ def preprocess_rely(inr, baseline):
     # these points.
     rely_data.loc[rely_data["INR_VALUE"] == 0, "INR_VALUE"] = np.nan
 
-    # Split trajectories along INR_TYPE=NaN entries
+    # Split trajectories in entries where INR is NaN
     rely_data["IS_NULL"] = rely_data["INR_VALUE"].isnull()
     rely_data["IS_NULL_CUMU"] = rely_data.groupby("SUBJID")["IS_NULL"].cumsum()
     rely_data["INTERRUPT"] = np.minimum(1, rely_data["IS_NULL_CUMU"].diff() > 0)

@@ -23,6 +23,10 @@ INR_REWARD = 1
 EVENTS_TO_KEEP = ["DEATH", "STROKE", "MAJOR_BLEED", "MINOR_BLEED", "HEM_STROKE",
                   "HOSP"]
 
+# If an event occurs more than this many days away from the last entry,
+# ignore it.
+EVENT_RANGE = 30
+
 # These are the patient features that are extracted from the baseline data and
 # merged with the rest of the data
 STATIC_STATE_COLS = ["SEX", "CONTINENT", "SMOKE", "BMED_ASPIRIN", "BMED_AMIOD",

@@ -94,3 +94,141 @@ def preprocess_all(inr, events, baseline):
     inr = inr.drop(["FIRST_DAY", "LAST_DAY"], axis=1)
 
     return inr, events, baseline
+
+
+@auditable()
+def merge_inr_events(inr, events):
+    """
+    Merge INR data with events data.
+
+    Args:
+        inr: The dataframe of processed INR measurements.
+        events: The dataframe of events.
+
+    Returns:
+        inr_merged: The dataframe of INR and events, merged.
+    """
+    # TODO move to separate function
+    # Remove patients who have outliers. The assumption is that these patients
+    # have data entry issues.
+    drop_ids = inr[
+        inr["WARFARIN_DOSE"] >= config.DOSE_OUTLIER_THRESHOLD
+    ]["SUBJID"].unique()
+    print(
+        f"\tDropping {len(drop_ids)} patients with outlier doses exceeding "
+        f"{config.DOSE_OUTLIER_THRESHOLD}mg weekly..."
+    )
+    inr = inr[~inr["SUBJID"].isin(drop_ids)]  # ["WARFARIN_DOSE"].max()
+
+    # Subset to non-imputed INRs, i.e. those actually observed
+    inr = inr[inr["INR_TYPE"] == "Y"]
+
+    # TODO we need a more complex imputation strategy here if we're using this
+    # variable.
+    # Set Rankin score for ischemic strokes
+    events["RANKIN_SCORE"] = np.where(
+        events["RANKIN_SCORE"].isnull(),
+        np.where(events["STROKE"] >= 1, 3, np.nan),
+        events["RANKIN_SCORE"]
+    )
+
+    # Index events by study day
+    events.loc[:, "STUDY_DAY"] = events["EVENT_T2"].astype(int)
+
+    # Aggregate events by day
+    events = events.groupby(["TRIAL", "SUBJID", "STUDY_DAY"]).agg(
+        {"DEATH": "sum",
+         "STROKE": "sum",
+         "HEM_STROKE": "sum",
+         "MAJOR_BLEED": "sum",
+         "MINOR_BLEED": "sum",
+         "HOSP": "sum",
+         "RANKIN_SCORE": "max"}
+    ).reset_index()
+    events["ADV_EVENTS_SUM"] = events[config.EVENTS_TO_KEEP].sum(axis=1)
+    events = events[events["ADV_EVENTS_SUM"] >= 1]
+
+    # Subset events to patients with at least one INR measurement after
+    # previous processing steps
+    events = events[events["SUBJID"].isin(inr["SUBJID"])].copy()
+
+    # TODO what is this
+    # inr = inr.groupby(["SUBJID", "TRAJID", "STUDY_DAY"]).last().reset_index()
+
+    # Merge INR and events data
+    inr_merged = pd.concat(
+        [inr, events[["TRIAL", "SUBJID", "STUDY_DAY", "RANKIN_SCORE"] +
+                     config.EVENTS_TO_KEEP]]
+    )
+    # inr_merged = inr_merged.groupby(
+    #     ["TRIAL", "SUBJID", "STUDY_DAY"]
+    # ).sum(min_count=1).reset_index()
+
+    # Impute days with missing events data as not having an event
+    for ev_name in config.EVENTS_TO_KEEP:
+        inr_merged.loc[:, ev_name] = inr_merged[ev_name].fillna(0).astype(int)
+
+    # Forward-fill trajectory ID to capture events in the correct trajectory.
+    # The remaining NaN TRAJIDs are from events that occur before the first INR
+    # measurement, so we drop these and convert the index back to int.
+    # TODO validate this assumption in audit
+    inr_merged = inr_merged.sort_values(by=["TRIAL", "SUBJID", "STUDY_DAY"])
+    inr_merged["TRAJID"] = inr_merged.groupby(
+        ["TRIAL", "SUBJID"]
+    )["TRAJID"].fillna(method="ffill")
+    inr_merged = inr_merged[~inr_merged["TRAJID"].isnull()].copy()
+    inr_merged["TRAJID"] = inr_merged["TRAJID"].astype(int)
+    inr_merged = inr_merged.groupby(
+        ["TRIAL", "SUBJID", "TRAJID", "STUDY_DAY"]
+    ).sum(min_count=1).reset_index()
+
+    # Remove events that occur over `config.EVENT_RANGE` days since the last
+    # INR entry
+    noninr_sel = pd.isnull(inr_merged["INR_VALUE"])
+    event_sel = inr_merged[config.EVENTS_TO_KEEP].sum(axis=1) > 0
+    out_of_range_sel = inr_merged["STUDY_DAY"].diff() > config.EVENT_RANGE
+    inr_merged = inr_merged[~(noninr_sel & event_sel & out_of_range_sel)].copy()
+
+    # TODO move to auditing
+    # print(
+    #     "\tNum stroke occurrences: \n"
+    #     f"{inr_merged.groupby('TRIAL')['STROKE'].value_counts()}"
+    # )
+    # print(
+    #     "\tNum hem strokes: \n"
+    #     f"{inr_merged.groupby('TRIAL')['HEM_STROKE'].value_counts()}"
+    # )
+
+    # If there are multiple events that happen between INR measurements, only
+    # take the first one
+    temp = inr_merged.copy()
+    temp.loc[:, "INR_MEASURED"] = (~pd.isnull(temp["INR_VALUE"])).astype(int)
+    temp.loc[:, "CUMU_MEASUR"] = temp.iloc[::-1].groupby(
+        ["SUBJID", "TRAJID"]
+    )["INR_MEASURED"].cumsum()[::-1]
+    prev_inr_measured = temp.groupby("SUBJID")["INR_MEASURED"].shift().fillna(0)
+    mask = np.logical_or(prev_inr_measured, temp["INR_MEASURED"])
+    inr_merged = inr_merged[mask].copy()
+
+    import pdb; pdb.set_trace()
+
+    # TODO move to auditing
+    # print(
+    #     "\tMasking events that do not occur after an INR measurement. This "
+    #     f"removes: {temp.shape[0] - inr_merged.shape[0]} entries."
+    # )
+
+    # TODO not sure what this is, but I think it's strictly related to re-
+    # indexing so can be skipped
+    # inr_merged.groupby(
+    #     ["SUBJID", "CUMU_MEASUR"]
+    # ).size().reset_index().sort_values(by=0)
+    # inr_merged["SUBJID_NEW"] = inr_merged.groupby(
+    #     "SUBJID"
+    # )["SUBJID_NEW"].fillna(method="ffill")
+    # inr_merged = inr_merged[~inr_merged["SUBJID_NEW"].isnull()]
+
+    # t1 = time.time()
+    # print(f"\tDone merging. Took {t1 - t0} seconds")
+
+    return inr_merged
