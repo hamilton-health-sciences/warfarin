@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 
 from warfarin import config
-from warfarin.utils import auditable
+from warfarin.data.auditing import auditable
 
 
 def decode(df):
@@ -25,8 +25,6 @@ def decode(df):
     for col in str_df:
         df[col] = [x.strip() if isinstance(x, str) else x for x in str_df[col]]
     return df
-
-
 
 
 def bin_inr(df, num_bins=3, colname="INR_VALUE"):
@@ -141,11 +139,9 @@ def merge_inr_events(inr, events):
     :param events: dataframe of adverse event data
     :return: merged dataframe containing both INR and adverse event data
     """
-    # TODO: This function is the slowest. This can probably be modified
-    print("\nMerging INR data with adverse events...")
-
-    # Removed patients who have outliers. The assumption is that these patients
-    # have data entry issues
+    # TODO move to separate function
+    # Remove patients who have outliers. The assumption is that these patients
+    # have data entry issues.
     drop_ids = inr[
         inr["WARFARIN_DOSE"] >= config.DOSE_OUTLIER_THRESHOLD
     ]["SUBJID"].unique()
@@ -156,21 +152,20 @@ def merge_inr_events(inr, events):
     inr = inr[~inr["SUBJID"].isin(drop_ids)]  # ["WARFARIN_DOSE"].max()
     inr = inr[inr["INR_TYPE"] == "Y"]
 
-    print("\tMerging data...")
-    t0 = time.time()
-
-    # Merge INR entries with events
-    inr.loc[:, "TIMESTEP"] = inr["STUDY_DAY"]
-    events.loc[:, "TIMESTEP"] = events["EVENT_T2"]
-
+    # TODO we need a more complex imputation strategy here if we're using this
+    # variable.
+    # Set Rankin score for ischemic strokes
     events["RANKIN_SCORE"] = np.where(
         events["RANKIN_SCORE"].isnull(),
         np.where(events["STROKE"] >= 1, 3, np.nan),
         events["RANKIN_SCORE"]
     )
 
+    # Index events by study day
+    events.loc[:, "STUDY_DAY"] = events["EVENT_T2"].astype(int)
+
     # Aggregate events by day
-    events = events.groupby(["SUBJID", "TIMESTEP"]).agg(
+    events = events.groupby(["TRIAL", "SUBJID", "STUDY_DAY"]).agg(
         {"DEATH": "sum",
          "STROKE": "sum",
          "HEM_STROKE": "sum",
@@ -179,28 +174,40 @@ def merge_inr_events(inr, events):
          "HOSP": "sum",
          "RANKIN_SCORE": "max"}
     ).reset_index()
-
     events["ADV_EVENTS_SUM"] = events[config.EVENTS_TO_KEEP].sum(axis=1)
     events = events[events["ADV_EVENTS_SUM"] >= 1]
-    inr = inr.groupby(["SUBJID", "TIMESTEP"]).last().reset_index()
 
+    # Subset events to patients with at least one INR measurement after
+    # previous processing steps
+    events = events[events["SUBJID"].isin(inr["SUBJID"])].copy()
+
+    # TODO what is this
+    # inr = inr.groupby(["SUBJID", "TRAJID", "STUDY_DAY"]).last().reset_index()
+
+    # Merge INR and events data
     inr_merged = pd.concat(
-        [inr, events[["SUBJID", "TIMESTEP", "RANKIN_SCORE"] + config.EVENTS_TO_KEEP]]
+        [inr, events[["TRIAL", "SUBJID", "STUDY_DAY", "RANKIN_SCORE"] +
+                     config.EVENTS_TO_KEEP]]
     )
     inr_merged = inr_merged.groupby(
-        ["SUBJID", "TIMESTEP"]
+        ["TRIAL", "SUBJID", "STUDY_DAY"]
     ).sum(min_count=1).reset_index()
-    inr_merged = inr_merged.merge(
-        inr[["SUBJID", "TIMESTEP", "INR_TYPE", "SUBJID_NEW"]],
-        how="left",
-        on=["SUBJID", "TIMESTEP"]
-    )
-    inr_merged = inr_merged.merge(inr.groupby("SUBJID")["TRIAL"].last(),
-                                  how="left",
-                                  on="SUBJID")
 
-    for ev in config.EVENTS_TO_KEEP:
-        inr_merged.loc[:, ev] = inr_merged[ev].fillna(0)
+    # Impute days with missing events data as not having an event
+    for ev_name in config.EVENTS_TO_KEEP:
+        inr_merged.loc[:, ev_name] = inr_merged[ev_name].fillna(0).astype(int)
+
+    # Forward-fill trajectory ID to capture events in the correct trajectory.
+    # The remaining NaN TRAJIDs are from events that occur before the first INR
+    # measurement, so we drop these and convert the index back to int.
+    # TODO validate this assumption in audit
+    inr_merged["TRAJID"] = inr_merged.groupby(
+        ["TRIAL", "SUBJID"]
+    )["TRAJID"].fillna(method="ffill")
+    inr_merged = inr_merged[~inr_merged["TRAJID"].isnull()].copy()
+    inr_merged["TRAJID"] = inr_merged["TRAJID"].astype(int)
+
+    import pdb; pdb.set_trace()
 
     print(
         "\tNum stroke occurrences: \n"
