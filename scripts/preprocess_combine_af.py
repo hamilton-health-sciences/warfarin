@@ -2,16 +2,14 @@
 
 import os
 
-import time
-
 import pandas as pd
 
 from warfarin.data.combine_preprocessing import (preprocess_all,
-                                                 preprocess_engage_rocket)
+                                                 preprocess_engage_rocket,
+                                                 preprocess_rely,
+                                                 preprocess_aristotle)
 
 from warfarin.utils.combine_preprocessing import (load_raw_data,
-                                                  preprocess_rely,
-                                                  preprocess_aristotle,
                                                   merge_inr_events,
                                                   split_traj_along_events,
                                                   impute_inr_and_dose,
@@ -37,11 +35,11 @@ def preprocess(args):
 
     inr, events, baseline = preprocess_all(inr, events, baseline)
 
-    subset_data = preprocess_engage_rocket(inr, baseline)
+    engage_rocket_data = preprocess_engage_rocket(inr, baseline)
     rely_data = preprocess_rely(inr, baseline)
     aristotle_data = preprocess_aristotle(inr, baseline)
 
-    inr = pd.concat([subset_data, rely_data, aristotle_data])
+    inr = pd.concat([engage_rocket_data, rely_data, aristotle_data])
     # TODO this belongs somewhere else
     inr["INTERRUPT"] = inr["INTERRUPT"].astype(bool)
 

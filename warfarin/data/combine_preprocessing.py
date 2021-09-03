@@ -173,10 +173,148 @@ def preprocess_engage_rocket(inr, baseline):
     subset_data = split_traj(subset_data)
 
     # TODO move reporting to separate auditing tool
-    print(
-        f"\t{subset_data['SUBJID'].nunique():,.0f} patients, "
-        f"{subset_data['SUBJID_NEW'].nunique():,.0f} trajectories after "
-        "splitting along dose interruptions"
-    )
+    # print(
+    #     f"\t{subset_data['SUBJID'].nunique():,.0f} patients, "
+    #     f"{subset_data['SUBJID_NEW'].nunique():,.0f} trajectories after "
+    #     "splitting along dose interruptions"
+    # )
 
     return subset_data
+
+
+@auditable()
+def preprocess_rely(inr, baseline):
+    """
+    Preprocessing steps that are specific to RE-LY trial data.
+
+    In order, this function:
+
+        1. Convert average daily doses to weekly doses.
+        2. Convert observed INR values of 0 to NaN, as it is unclear what
+           happened at those steps.
+        3. Split trajectories at points where INR is null.
+
+    Args:
+        inr: Dataframe of all INR data.
+        baseline: Dataframe of all baseline data.
+
+    Returns:
+        rely_data: Dataframe of processed RE-LY INR data.
+    """
+    # Subset to RE-LY participants
+    subset_ids = baseline[(baseline["TRIAL"] == "RELY")]["SUBJID"].unique()
+    rely_data = inr[inr["SUBJID"].isin(subset_ids)].copy()
+
+    # Convert daily doses to weekly doses
+    rely_data["WARFARIN_DOSE"] = rely_data["WARFARIN_DOSE"] * 7
+
+    # Split along dose interruptions. There are 4 entries in the RE-LY dataset
+    # where the INR value is 0. Since it is unclear what the dynamics are around
+    # this point, we will remove these transitions and separate trajectories at
+    # these points.
+    rely_data.loc[rely_data["INR_VALUE"] == 0, "INR_VALUE"] = np.nan
+
+    # Split trajectories along INR_TYPE=NaN entries
+    rely_data["IS_NULL"] = rely_data["INR_VALUE"].isnull()
+    rely_data["IS_NULL_CUMU"] = rely_data.groupby("SUBJID")["IS_NULL"].cumsum()
+    rely_data["INTERRUPT"] = np.minimum(1, rely_data["IS_NULL_CUMU"].diff() > 0)
+    rely_data = rely_data.drop(["IS_NULL", "IS_NULL_CUMU"], axis=1)
+
+    rely_data = split_traj(rely_data)
+
+    # TODO extract out to auditing script
+    # print(
+    #     f"\t{rely_data['SUBJID'].nunique():,.0f} patients, "
+    #     f"{rely_data['SUBJID_NEW'].nunique():,.0f} trajectories after "
+    #     "splitting along dose interruptions"
+    # )
+
+    return rely_data
+
+
+@auditable()
+def preprocess_aristotle(inr, baseline):
+    """
+    Preprocessing steps that are specific to ARISTOTLE trial data.
+
+    In order, this function:
+
+        1. Converts two typoed negative doses to their positive equivalent.
+        2. Handles cases where the INR is observed on day `t`, but the visit
+           where the previous dose is recorded doesn't occur until day `t + 1`.
+        3. When dose is NaN, we assume there isn't a visit, and backfill the
+           previous dose column accordingly. (TODO correct interpretation?)
+        4. Define interruptions as consecutive zero doses (TODO how many?) and
+           and split into trajectories along these interruptions.
+
+    Args:
+        inr: Dataframe of all INR data.
+        baseline: Dataframe of all baseline data.
+
+    Returns:
+        inr: Dataframe of INR data from ARISTOTLE.
+    """
+    # Subset to ARISTOTLE data
+    subset_ids = baseline[(baseline["TRIAL"] == "ARISTOTLE")]["SUBJID"].unique()
+    aristotle_data = inr[inr["SUBJID"].isin(subset_ids)].copy()
+
+    # TODO move to auditing script
+    # print(
+    #     "\tThere are "
+    #     f"{len(aristotle_data[aristotle_data['WARFARIN_DOSE'] < 0])} entries "
+    #     "with negative entries. Taking absolute value..."
+    # )
+
+    # For ARISTOTLE patients, there are 2 negative doses that were manually
+    # converted to positive doses as they appear to be typos.
+    aristotle_data["WARFARIN_DOSE"] = np.abs(aristotle_data["WARFARIN_DOSE"])
+
+    # TODO is this appropriate for evaluation? i.e. did the clinician actually
+    # make a decision?
+    # Handling lag between INR and Warfarin dose. Specifically, in cases where
+    # the INR is observed but there is no corresponding dose, we pull in the
+    # previous dose from the next observation.
+    aristotle_data["PREV_DOSE"] = aristotle_data.groupby(
+        "SUBJID"
+    )["WARFARIN_DOSE"].shift(-1)
+    mask = (~aristotle_data["PREV_DOSE"].isnull() &
+            aristotle_data["WARFARIN_DOSE"].isnull() &
+            (aristotle_data["INR_TYPE"] == "Y"))
+    aristotle_data.loc[mask,
+                       "WARFARIN_DOSE"] = aristotle_data.loc[mask, "PREV_DOSE"]
+    # TODO move to auditing script
+    # num_lags = sum(mask)
+    # print(f"\tIdentified {num_lags} potential lags")
+
+    # Backfill warfarin dose until previous visit is reached.
+    aristotle_data["WARFARIN_DOSE"] = aristotle_data.groupby(
+        "SUBJID"
+    )["WARFARIN_DOSE"].fillna(method="bfill")
+    aristotle_data = aristotle_data.dropna(
+        subset=["INR_VALUE", "WARFARIN_DOSE"]
+    )
+    aristotle_data = aristotle_data[aristotle_data["INR_TYPE"] == "Y"]
+
+    # Splitting trajectories along dose interruptions
+    near_zero = (
+        (aristotle_data["WARFARIN_DOSE"].shift(1) == 0) |
+        (aristotle_data["WARFARIN_DOSE"].shift(-1) == 0)
+    )
+    aristotle_data["INTERRUPT"] = ((aristotle_data["WARFARIN_DOSE"] == 0) &
+                                   near_zero)
+    aristotle_data = split_traj(aristotle_data)
+
+    # aristotle_data[aristotle_data["INTERRUPT"]].groupby(
+    #     "SUBJID"
+    # ).size().hist()
+    # plt.xlabel("Number of INR measurements where dose was interrupted")
+    # plt.ylabel("Count")
+
+    # TODO move to auditing script
+    # print(
+    #     f"\t{aristotle_data['SUBJID'].nunique():,.0f} patients, "
+    #     f"{aristotle_data['SUBJID_NEW'].nunique():,.0f} trajectories after "
+    #     "splitting along dose interruptions"
+    # )
+
+    return aristotle_data
