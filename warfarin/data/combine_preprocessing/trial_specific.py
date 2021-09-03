@@ -16,7 +16,8 @@ def preprocess_engage_rocket(inr, baseline):
            missingness code 99.
         3. Computes the weekly dose from the given daily doses.
         4. Subsets to observed INRs and doses.
-        5. Sets an interrupt flag when two consecutive zero doses are observed.
+        5. Sets an interrupt flag when two consecutive zero doses are observed,
+           or we observe an INR of 0.
         6. Splits trajectories on the interrupt flag.
 
     Args:
@@ -188,6 +189,7 @@ def preprocess_aristotle(inr, baseline):
             (aristotle_data["INR_TYPE"] == "Y"))
     aristotle_data.loc[mask,
                        "WARFARIN_DOSE"] = aristotle_data.loc[mask, "PREV_DOSE"]
+    aristotle_data = aristotle_data.drop(["PREV_DOSE"], axis=1)
     # TODO move to auditing script
     # num_lags = sum(mask)
     # print(f"\tIdentified {num_lags} potential lags")
