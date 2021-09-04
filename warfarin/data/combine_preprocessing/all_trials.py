@@ -126,8 +126,7 @@ def merge_inr_events(inr, events):
     # Subset to non-imputed INRs, i.e. those actually observed
     inr = inr[inr["INR_TYPE"] == "Y"]
 
-    # TODO we need a more complex imputation strategy here if we're using this
-    # variable.
+    # TODO Rankin score does not seem to be carrying over
     # Set Rankin score for ischemic strokes
     events["RANKIN_SCORE"] = np.where(
         events["RANKIN_SCORE"].isnull(),
