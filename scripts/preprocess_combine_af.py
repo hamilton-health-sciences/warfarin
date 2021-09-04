@@ -10,11 +10,11 @@ from warfarin.data.combine_preprocessing import (preprocess_all,
                                                  preprocess_aristotle,
                                                  merge_inr_events,
                                                  split_trajectories_at_events,
-                                                 impute_inr_and_dose)
+                                                 impute_inr_and_dose,
+                                                 split_trajectories_at_gaps,
+                                                 merge_inr_baseline)
 
 from warfarin.utils.combine_preprocessing import (load_raw_data,
-                                                  split_traj_by_time_elapsed,
-                                                  merge_inr_base,
                                                   remove_short_traj,
                                                   remove_clinically_unintuitive,
                                                   remove_phys_implausible,
@@ -44,29 +44,21 @@ def preprocess(args):
     inr_events_merged = merge_inr_events(inr, events)
     inr_events_merged = split_trajectories_at_events(inr_events_merged)
     inr_events_merged = impute_inr_and_dose(inr_events_merged)
-    inr_events_merged = split_traj_by_time_elapsed(inr_events_merged)
-    merged_all = merge_inr_base(inr_events_merged, baseline)
+    inr_events_merged = split_trajectories_at_gaps(inr_events_merged)
+    merged_all = merge_inr_baseline(inr_events_merged, baseline)
 
-    # Remove misc columns
-    for col in config.DROP_COLS:
-        if col in inr.columns:
-            inr = inr.drop(columns=[col])
-
-        if col in merged_all.columns:
-            merged_all = merged_all.drop(columns=[col])
-
-    inr.reset_index(drop=True).to_feather(
-        args.clean_data_path + f"inr{args.suffix}.feather"
-    )
-    baseline.reset_index(drop=True).to_feather(
-        args.clean_data_path + f"baseline{args.suffix}.feather"
-    )
-    events.reset_index(drop=True).to_feather(
-        args.clean_data_path + f"events{args.suffix}.feather"
-    )
-    merged_all.reset_index(drop=True).to_feather(
-        args.clean_data_path + f"merged_data{args.suffix}.feather"
-    )
+    # Save the output prior to splitting
+    baseline_path = os.path.join(args.clean_data_path,
+                                 f"baseline{args.suffix}.feather")
+    inr_path = os.path.join(args.clean_data_path, f"inr{args.suffix}.feather")
+    events_path = os.path.join(args.clean_data_path,
+                               f"events{args.suffix}.feather")
+    merged_path = os.path.join(args.clean_data_path,
+                               f"merged{args.suffix}.feather")
+    baseline.reset_index(drop=True).to_feather(baseline_path)
+    inr.reset_index(drop=True).to_feather(inr_path)
+    events.reset_index(drop=True).to_feather(events_path)
+    merged_all.reset_index(drop=True).to_feather(merged_path)
 
     # Some preprocessing is only applied to train data
     train_data, val_data, test_data = split_data(merged_all)

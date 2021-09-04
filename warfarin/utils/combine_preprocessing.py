@@ -133,49 +133,6 @@ def load_raw_data(base_path):
 
 
 
-
-@auditable()
-def split_traj_by_time_elapsed(measured_inrs):
-    """
-    Split patient trajectory into multiple trajectories if a certain amount of
-    time elapses between visits.
-
-    :param measured_inrs: dataframe containing patient INR data over time
-    :return: dataframe containing new trajectory ID
-    """
-    id_col = "SUBJID_NEW_2"
-
-    measured_inrs["STUDY_WEEK"] = measured_inrs["STUDY_DAY"] // 7
-    measured_inrs.loc[:, "TIME_DIFF"] = measured_inrs.groupby(
-        id_col
-    )["STUDY_DAY"].diff().fillna(0)
-    first_measures = measured_inrs.groupby(id_col).first().reset_index()
-    first_measures["IS_FIRST"] = 1
-    measured_inrs = measured_inrs.merge(
-        first_measures[[id_col, "STUDY_DAY", "IS_FIRST"]],
-        how="left",
-        on=[id_col, "STUDY_DAY"]
-    )
-    measured_inrs.loc[measured_inrs["TIME_DIFF"] > config.MAX_TIME_ELAPSED,
-                      "IS_FIRST"] = 1
-    measured_inrs.loc[:, "IS_FIRST"] = measured_inrs["IS_FIRST"].fillna(0)
-
-    new_id = "USUBJID_O_NEW"
-    measured_inrs.loc[:, new_id] = measured_inrs.groupby(
-        id_col
-    )["IS_FIRST"].cumsum()
-    measured_inrs.loc[:, new_id] = (measured_inrs[id_col].astype(str) +
-                                    measured_inrs[new_id].astype(str))
-    measured_inrs = measured_inrs.drop(columns=["IS_FIRST", "TIME_DIFF"])
-
-    print(
-        f"After splitting... \n\t{measured_inrs[new_id].nunique():,.0f} "
-        f"trajectories, {measured_inrs.shape[0]:,.0f} samples"
-    )
-
-    return measured_inrs
-
-
 @auditable()
 def remove_short_traj(measured_inrs, id_col="USUBJID_O_NEW"):
     """
@@ -442,27 +399,6 @@ def agg_weekly(inr_merged):
     print(f"Aggregated by week... \n\t{inr_weekly.shape[0]} entries")
     return inr_weekly
 
-
-@auditable()
-def merge_inr_base(inr_merged, baseline):
-    """
-    Merge INR data with baseline features.
-
-    :param inr_merged: dataframe with INR and events data
-    :param baseline: dataframe with patient baseline features
-    :return:
-    """
-    merged_data = inr_merged.merge(baseline[config.STATIC_STATE_COLS + ["SUBJID"]],
-                                   on="SUBJID", how="left")
-    print(
-        "Merged with baseline data... \n\t"
-        f"{merged_data['SUBJID'].nunique():,.0f} patients, "
-        f"{merged_data.shape[0]:,.0f} weekly entries"
-    )
-    print(f"\n{merged_data['TRIAL'].value_counts()} \n")
-    print(f"\n{merged_data.groupby('TRIAL')['SUBJID'].nunique()} \n")
-
-    return merged_data
 
 
 @auditable()

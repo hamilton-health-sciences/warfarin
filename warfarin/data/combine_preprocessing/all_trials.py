@@ -331,7 +331,7 @@ def impute_inr_and_dose(inr_merged):
     # available in a given trajectory. We then drop remaining null entries.
     inr_merged = inr_merged.groupby(
         ["SUBJID", "TRAJID"]
-    ).fillna(method="ffill")
+    ).apply(lambda df: df.fillna(method="ffill"))
     inr_merged = inr_merged[~inr_merged["INR_VALUE"].isnull() &
                             ~inr_merged["WARFARIN_DOSE"].isnull()].copy()
 
@@ -346,7 +346,7 @@ def impute_inr_and_dose(inr_merged):
 
     # TODO move to auditing
     # n0 = measured_inrs.shape[0]
-    measured_inrs = measured_inrs[~measured_inrs["WARFARIN_DOSE"].isnull()]
+    # measured_inrs = measured_inrs[~measured_inrs["WARFARIN_DOSE"].isnull()]
     # num_removed = n0 - measured_inrs.shape[0]
     # print(f"Removed {num_removed:,.0f} entries with NaN Warfarin doses")
 
@@ -357,3 +357,85 @@ def impute_inr_and_dose(inr_merged):
     # print("\n")
     # print(measured_inrs["TRIAL"].value_counts())
     # print("\n")
+    
+
+@auditable()
+def split_trajectories_at_gaps(measured_inrs):
+    """
+    Split patient trajectory into multiple trajectories if a certain amount of
+    time elapses between visits.
+
+    Args:
+        measured_inrs: Dataframe containing merged INR and events data.
+
+    Returns:
+        measured_inrs: Dataframe containing the same data, but with some
+                       trajectories split with new index TRAJID.
+    """
+    # Compute the time difference between adjacent visits in a trajectory
+    measured_inrs.loc[:, "TIME_DIFF"] = measured_inrs.groupby(
+        ["SUBJID", "TRAJID"]
+    )["STUDY_DAY"].diff().fillna(0)
+
+    # Label each entry (visit) with whether it should be the first entry in a
+    # trajectory, or not
+    first_measures = measured_inrs.groupby(
+        ["SUBJID", "TRAJID"]
+    ).first().reset_index()
+    first_measures["IS_FIRST"] = 1
+    measured_inrs = measured_inrs.merge(
+        first_measures[["SUBJID", "TRAJID", "STUDY_DAY", "IS_FIRST"]],
+        how="left",
+        on=["SUBJID", "TRAJID", "STUDY_DAY"]
+    )
+    measured_inrs.loc[measured_inrs["TIME_DIFF"] > config.MAX_TIME_ELAPSED,
+                      "IS_FIRST"] = 1
+    measured_inrs.loc[:, "IS_FIRST"] = measured_inrs["IS_FIRST"].fillna(0)
+    measured_inrs["IS_FIRST"] = measured_inrs["IS_FIRST"].astype(int)
+
+    # Construct new trajectory ID
+    measured_inrs["TRAJID"] = (
+        measured_inrs["TRAJID"] +
+        measured_inrs.groupby("SUBJID")["IS_FIRST"].cumsum() - 1
+    )
+
+    # new_id = "USUBJID_O_NEW"
+    # measured_inrs.loc[:, new_id] = measured_inrs.groupby(
+    #     id_col
+    # )["IS_FIRST"].cumsum()
+    # measured_inrs.loc[:, new_id] = (measured_inrs[id_col].astype(str) +
+    #                                 measured_inrs[new_id].astype(str))
+    measured_inrs = measured_inrs.drop(columns=["IS_FIRST", "TIME_DIFF"])
+
+    # TODO move to auditing
+    # print(
+    #     f"After splitting... \n\t{measured_inrs[new_id].nunique():,.0f} "
+    #     f"trajectories, {measured_inrs.shape[0]:,.0f} samples"
+    # )
+
+    return measured_inrs
+
+
+@auditable()
+def merge_inr_baseline(inr_merged, baseline):
+    """
+    Merge INR data with baseline features.
+
+    Args:
+        inr_merged: The merged INR and events data.
+        baseline: Dataframe of baseline information.
+
+    Returns:
+        merged_data: The INR, events, and baseline data merged.
+    """
+    baseline = baseline[config.STATIC_STATE_COLS + ["SUBJID"]]
+    merged_data = inr_merged.merge(baseline, on="SUBJID", how="left")
+    # print(
+    #     "Merged with baseline data... \n\t"
+    #     f"{merged_data['SUBJID'].nunique():,.0f} patients, "
+    #     f"{merged_data.shape[0]:,.0f} weekly entries"
+    # )
+    # print(f"\n{merged_data['TRIAL'].value_counts()} \n")
+    # print(f"\n{merged_data.groupby('TRIAL')['SUBJID'].nunique()} \n")
+
+    return merged_data

@@ -80,6 +80,8 @@ def preprocess_engage_rocket(inr, baseline):
 
     subset_data = split_traj(subset_data)
 
+    subset_data = subset_data.drop(columns=["INTERRUPT"])
+
     # TODO move reporting to separate auditing tool
     # print(
     #     f"\t{subset_data['SUBJID'].nunique():,.0f} patients, "
@@ -128,6 +130,8 @@ def preprocess_rely(inr, baseline):
     rely_data = rely_data.drop(["IS_NULL", "IS_NULL_CUMU"], axis=1)
 
     rely_data = split_traj(rely_data)
+
+    rely_data = rely_data.drop(columns=["INTERRUPT"])
 
     # TODO extract out to auditing script
     # print(
@@ -210,7 +214,10 @@ def preprocess_aristotle(inr, baseline):
     )
     aristotle_data["INTERRUPT"] = ((aristotle_data["WARFARIN_DOSE"] == 0) &
                                    near_zero)
+
     aristotle_data = split_traj(aristotle_data)
+
+    aristotle_data = aristotle_data.drop(columns=["INTERRUPT"])
 
     # aristotle_data[aristotle_data["INTERRUPT"]].groupby(
     #     "SUBJID"
