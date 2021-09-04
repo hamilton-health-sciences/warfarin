@@ -44,3 +44,39 @@ def split_traj(df):
 
     return df
 
+
+def split_data_ids(data, split_perc, random_seed=42):
+    """
+    Create two subgroups of IDs.
+
+    This is used to split the IDs into two groups, based on the percentage
+    split given. The percentage split is for the first group. For example,
+    split_perc=0.3 suggests that the first group should contain 30% of the IDs.
+
+    Args:
+        data: Dataframe containing column "SUBJID".
+        split_perc: Percentage of first group.
+        random_seed: Seed for the random shuffle to ensure reproducibility.
+
+    Returns:
+        left_ids: IDs in the first group.
+        right_ids: IDs in the second group.
+    """
+    np.random.seed(random_seed)
+    patient_ids = data["SUBJID"].unique()
+    np.random.shuffle(patient_ids)
+
+    indx = int(split_perc * len(patient_ids))
+    left_ids = patient_ids[:indx]
+    right_ids = patient_ids[indx:]
+
+    # num_total = len(left_ids) + len(right_ids)
+    # num_left = len(left_ids)
+    # num_right = len(right_ids)
+
+    # print(
+    #     f"\tFirst group: {num_left} patients ({num_left / num_total:,.2%}), "
+    #     f"Second group: {num_right} patients ({num_right / num_total:,.2%})"
+    # )
+
+    return left_ids, right_ids

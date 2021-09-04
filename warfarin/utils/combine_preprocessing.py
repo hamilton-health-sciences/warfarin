@@ -48,6 +48,7 @@ def bin_inr(df, num_bins=3, colname="INR_VALUE"):
 
     return pd.cut(df[colname], bins=cut_bins, labels=cut_labels)
 
+
 def load_raw_data_sas(base_path):
     """
     Load raw SAS files from specified path.
@@ -131,38 +132,6 @@ def load_raw_data(base_path):
     return inr, events, baseline
 
 
-
-
-@auditable()
-def remove_short_traj(measured_inrs, id_col="USUBJID_O_NEW"):
-    """
-    Remove trajectories with fewer than MIN_INR_COUNTS of INR visits. 
-    
-    :param measured_inrs: dataframe containing INR data over time
-    :param id_col: the column name of the trajectory ID. Defaults to
-                   "USUBJID_O_NEW"
-    :return: dataframe with short trajectories removed 
-    """
-    # Remove patients with fewer than min_inr_counts
-    counts = measured_inrs.groupby(id_col).size()
-    patient_ids = counts[counts >= config.MIN_INR_COUNTS].index.tolist()    
-    num_removed = measured_inrs[id_col].nunique() - len(patient_ids)
-    measured_inrs = measured_inrs[measured_inrs[id_col].isin(patient_ids)]
-
-    num_traj = len(patient_ids)
-    num_samples = measured_inrs.shape[0]
-    num_patients = measured_inrs['SUBJID'].nunique()
-
-    print(
-        f"Removing {num_removed:,.0f} trajectories with fewer than "
-        f"{config.MIN_INR_COUNTS} INR measurements.."
-    )
-    print(
-        f"\tRemaining {num_patients:,.0f} patients, {num_traj:,.0f} "
-        f"trajectories, {num_samples:,.0f} samples remaining..."
-    )
-
-    return measured_inrs
 
 
 @auditable()
@@ -500,113 +469,4 @@ def load_data(base_path, suffix):
     return inr, baseline, events, merged_data
 
 
-def split_data(inr_merged):
-    """
-    Split data into train, validation, and test data.
 
-    Half of the ARISTOTLE data was held-out for the test data. The remainder
-    was mixed between validation and train. Validation contained only ARISTOTLE
-    and RElY data. Due to the way the data was stored across trials, there was
-    more confidence in ARISTOTLE and RELY data than ENGAGE and ROCKET_AF for our
-    problem.
-
-    :param inr_merged: dataframe containing the preprocessed, merged data
-    :return: train, validation, and test sets
-    """
-    print("----------------------------------------------")
-    print("Creating test dataset from ARISTOTLE data...")
-    aristotle_data = inr_merged[inr_merged["TRIAL"] == "ARISTOTLE"]
-    test_ids, other_ids = split_data_ids(aristotle_data, split_perc=0.65)
-    test_data = inr_merged[inr_merged["SUBJID"].isin(test_ids)].copy()
-
-    other_patient_ids = inr_merged[
-        inr_merged["TRIAL"] != "ARISTOTLE"
-    ]["SUBJID"].unique()
-    other_patient_ids = np.append(other_patient_ids, other_ids)
-
-    print("----------------------------------------------")
-    print("Creating valid dataset from ARISTOTLE and RELY data...")
-    arist_rely_data = inr_merged[
-        inr_merged["TRIAL"].isin(["ARISTOTLE", "RELY"]) &
-        inr_merged["SUBJID"].isin(other_patient_ids)
-    ]
-    val_ids, other_ids = split_data_ids(arist_rely_data, split_perc=0.2)
-    val_data = inr_merged[inr_merged["SUBJID"].isin(val_ids)].copy()
-
-    train_sel = ~inr_merged["SUBJID"].isin(np.append(val_ids, test_ids))
-    train_data = inr_merged[train_sel].copy()
-    # train_data, val_data = ReplayBuffer.split_data(
-    #     inr_merged[inr_merged["SUBJID"].isin(other_patient_ids)],
-    #     split=[0.94, 0.06]
-    # )
-
-    num_test_patients = len(test_ids)
-    num_train_patients = train_data["SUBJID"].nunique()
-    num_val_patients = val_data["SUBJID"].nunique()
-    num_total_patients = (num_test_patients + num_train_patients +
-                          num_val_patients)
-
-    num_test_samples = len(test_data)
-    num_train_samples = len(train_data)
-    num_val_samples = len(val_data)
-    num_total_samples = num_test_samples + num_train_samples + num_val_samples
-
-    print("----------------------------------------------")
-    print(
-        f"Total patients: {num_total_patients:,.0f}, "
-        f"total samples: {num_total_samples:,.0f}"
-    )
-    print(
-        f"\t Train patients: {num_train_patients} "
-        f"({num_train_patients / num_total_patients:,.2%}), "
-        f"total samples: {num_train_samples:,.0f} "
-        f"({num_train_samples / num_total_samples:,.2%})"
-    )
-    print(
-        f"\t Validation patients: {num_val_patients} "
-        f"({num_val_patients / num_total_patients:,.2%}), "
-        f"total samples: {num_val_samples:,.0f} "
-        f"({num_val_samples / num_total_samples:,.2%})"
-    )
-    print(
-        f"\t Test patients: {num_test_patients} "
-        f"({num_test_patients / num_total_patients:,.2%}), "
-        f"total samples: {num_test_samples:,.0f} "
-        f"({num_test_samples / num_total_samples:,.2%})"
-    )
-
-    return train_data, val_data, test_data
-
-
-def split_data_ids(data, split_perc, random_seed=42, id_col="SUBJID"):
-    """
-    Create two subgroups of IDs.
-
-    This is used to split the IDs into two groups, based on the percentage
-    split given. The percentage split is for the first group. For example,
-    split_perc=0.3 suggests that the first group should contain 30% of the IDs.
-
-    :param data: dataframe containing ID column
-    :param split_perc: percentage of first group
-    :param random_seed: seed for the np random shuffle to ensure reproducibility
-    :param id_col: name of the ID column we want to subset
-    :return: two groups of IDs
-    """
-    np.random.seed(random_seed)
-    patient_ids = data[id_col].unique()
-    np.random.shuffle(patient_ids)
-
-    indx = int(split_perc * len(patient_ids))
-    left_ids = patient_ids[:indx]
-    right_ids = patient_ids[indx:]
-
-    num_total = len(left_ids) + len(right_ids)
-    num_left = len(left_ids)
-    num_right = len(right_ids)
-
-    print(
-        f"\tFirst group: {num_left} patients ({num_left / num_total:,.2%}), "
-        f"Second group: {num_right} patients ({num_right / num_total:,.2%})"
-    )
-
-    return left_ids, right_ids

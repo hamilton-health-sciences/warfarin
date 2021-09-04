@@ -4,6 +4,7 @@ import pandas as pd
 
 from warfarin import config
 from warfarin.data.auditing import auditable
+from warfarin.data.utils import split_data_ids
 
 
 @auditable("inr", "events", "baseline")
@@ -439,3 +440,114 @@ def merge_inr_baseline(inr_merged, baseline):
     # print(f"\n{merged_data.groupby('TRIAL')['SUBJID'].nunique()} \n")
 
     return merged_data
+
+
+@auditable()
+def split_data(inr_merged, test_ids):
+    """
+    Split data into train, validation, and test data.
+    
+    Args:
+        inr_merged: The dataframe containing the preprocessed, merged data.
+
+    Returns:
+        train: The data used for model training.
+        val: The data used for validation (hyperparameter tuning).
+        test: The data used for final model testing.
+    """
+    aristotle_ids = inr_merged["SUBJID"][inr_merged["TRIAL"] == "ARISTOTLE"]
+    other_ids = np.setdiff1d(aristotle_ids, test_ids)
+    test_data = inr_merged[inr_merged["SUBJID"].isin(test_ids)].copy()
+
+    other_patient_ids = inr_merged[
+        inr_merged["TRIAL"] != "ARISTOTLE"
+    ]["SUBJID"].unique()
+    other_patient_ids = np.append(other_patient_ids, other_ids)
+
+    # print("----------------------------------------------")
+    # print("Creating valid dataset from ARISTOTLE and RELY data...")
+    arist_rely_data = inr_merged[
+        inr_merged["TRIAL"].isin(["ARISTOTLE", "RELY"]) &
+        inr_merged["SUBJID"].isin(other_patient_ids)
+    ]
+    val_ids, other_ids = split_data_ids(arist_rely_data, split_perc=0.2)
+    val_data = inr_merged[inr_merged["SUBJID"].isin(val_ids)].copy()
+
+    train_sel = ~inr_merged["SUBJID"].isin(np.append(val_ids, test_ids))
+    train_data = inr_merged[train_sel].copy()
+
+    # TODO move to auditing
+    # num_test_patients = len(test_ids)
+    # num_train_patients = train_data["SUBJID"].nunique()
+    # num_val_patients = val_data["SUBJID"].nunique()
+    # num_total_patients = (num_test_patients + num_train_patients +
+    #                       num_val_patients)
+
+    # num_test_samples = len(test_data)
+    # num_train_samples = len(train_data)
+    # num_val_samples = len(val_data)
+    # num_total_samples = num_test_samples + num_train_samples + num_val_samples
+
+    # print("----------------------------------------------")
+    # print(
+    #     f"Total patients: {num_total_patients:,.0f}, "
+    #     f"total samples: {num_total_samples:,.0f}"
+    # )
+    # print(
+    #     f"\t Train patients: {num_train_patients} "
+    #     f"({num_train_patients / num_total_patients:,.2%}), "
+    #     f"total samples: {num_train_samples:,.0f} "
+    #     f"({num_train_samples / num_total_samples:,.2%})"
+    # )
+    # print(
+    #     f"\t Validation patients: {num_val_patients} "
+    #     f"({num_val_patients / num_total_patients:,.2%}), "
+    #     f"total samples: {num_val_samples:,.0f} "
+    #     f"({num_val_samples / num_total_samples:,.2%})"
+    # )
+    # print(
+    #     f"\t Test patients: {num_test_patients} "
+    #     f"({num_test_patients / num_total_patients:,.2%}), "
+    #     f"total samples: {num_test_samples:,.0f} "
+    #     f"({num_test_samples / num_total_samples:,.2%})"
+    # )
+
+    return train_data, val_data, test_data
+
+
+@auditable()
+def remove_short_traj(measured_inrs):
+    """
+    Remove trajectories with fewer than config.MIN_INR_COUNTS of INR visits.
+
+    Args:
+        measured_inrs: Dataframe containing merged INR, events, and baseline
+                       data.
+
+    Returns:
+        measured_inrs: Dataframe with short trajectories removed.
+    """
+    # Remove trajectories with fewer than `config.MIN_INR_COUNTS`
+    measured_inrs = measured_inrs.set_index(["TRIAL", "SUBJID", "TRAJID"])
+    measured_inrs["COUNT"] = measured_inrs.groupby(
+        ["TRIAL", "SUBJID", "TRAJID"]
+    ).size()
+    measured_inrs = measured_inrs[
+        measured_inrs["COUNT"] >= config.MIN_INR_COUNTS
+    ]
+    measured_inrs = measured_inrs.drop(columns=["COUNT"])
+
+    # TODO move to auditing
+    # num_traj = len(patient_ids)
+    # num_samples = measured_inrs.shape[0]
+    # num_patients = measured_inrs['SUBJID'].nunique()
+    # print(
+    #     f"Removing {num_removed:,.0f} trajectories with fewer than "
+    #     f"{config.MIN_INR_COUNTS} INR measurements.."
+    # )
+    # print(
+    #     f"\tRemaining {num_patients:,.0f} patients, {num_traj:,.0f} "
+    #     f"trajectories, {num_samples:,.0f} samples remaining..."
+    # )
+
+    return measured_inrs

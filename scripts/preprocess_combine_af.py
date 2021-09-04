@@ -2,6 +2,8 @@
 
 import os
 
+import numpy as np
+
 import pandas as pd
 
 from warfarin.data.combine_preprocessing import (preprocess_all,
@@ -12,14 +14,14 @@ from warfarin.data.combine_preprocessing import (preprocess_all,
                                                  split_trajectories_at_events,
                                                  impute_inr_and_dose,
                                                  split_trajectories_at_gaps,
-                                                 merge_inr_baseline)
+                                                 merge_inr_baseline,
+                                                 split_data,
+                                                 remove_short_traj)
 
 from warfarin.utils.combine_preprocessing import (load_raw_data,
-                                                  remove_short_traj,
                                                   remove_clinically_unintuitive,
                                                   remove_phys_implausible,
-                                                  prepare_features,
-                                                  split_data)
+                                                  prepare_features)
 from warfarin.utils import timer
 from warfarin import config
 
@@ -60,10 +62,12 @@ def preprocess(args):
     events.reset_index(drop=True).to_feather(events_path)
     merged_all.reset_index(drop=True).to_feather(merged_path)
 
-    # Some preprocessing is only applied to train data
-    train_data, val_data, test_data = split_data(merged_all)
-    train_data = remove_short_traj(train_data)
+    # Split the data
+    test_ids = np.loadtxt(args.test_ids_path).astype(int)
+    train_data, val_data, test_data = split_data(merged_all, test_ids)
 
+    # Some preprocessing is only applied to train data
+    train_data = remove_short_traj(train_data)
     if args.remove_clin:
         train_data = remove_clinically_unintuitive(train_data)
         train_data = remove_short_traj(train_data)
@@ -147,6 +151,14 @@ if __name__ == "__main__":
         type=str,
         help=("Subfolder within the data folder for storing the preprocessed/"
               "clean data.")
+    )
+    parser.add_argument(
+        "--test_ids_path",
+        type=str,
+        required=True,
+        help=("Path to the IDs of subjects to include in the test set. Needed "
+              "to ensure that the test set doesn't change during model "
+              "development")
     )
     parser.add_argument(
         "--remove_clin",
