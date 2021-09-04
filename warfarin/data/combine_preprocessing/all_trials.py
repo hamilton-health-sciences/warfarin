@@ -124,7 +124,7 @@ def merge_inr_events(inr, events):
     inr = inr[~inr["SUBJID"].isin(drop_ids)]  # ["WARFARIN_DOSE"].max()
 
     # Subset to non-imputed INRs, i.e. those actually observed
-    inr = inr[inr["INR_TYPE"] == "Y"]
+    inr = inr[inr["INR_TYPE"] == "Y"].copy()
 
     # TODO Rankin score does not seem to be carrying over
     # Set Rankin score for ischemic strokes
@@ -278,6 +278,9 @@ def split_trajectories_at_events(inr_merged):
         ["TRIAL", "SUBJID"]
     )["TRAJID"].cumsum()
 
+    # Remove extraneous columns
+    inr_merged = inr_merged.drop(["IS_EVENT", "EVENT_TRAJ_IDX"], axis=1)
+
     # TODO remove trajectories now too short (see e.g. ID 32214 where event
     # occurs in first entry...)
 
@@ -291,3 +294,66 @@ def split_trajectories_at_events(inr_merged):
     # print(inr_merged[config.EVENTS_TO_KEEP].sum())
 
     return inr_merged
+
+
+@auditable()
+def impute_inr_and_dose(inr_merged):
+    """
+    Imputes values for INR and Warfarin dose on study days that are missing
+    entries.
+
+    There are some entries that do not have a Warfarin dose, in which case we
+    backfill the dose. In particular, adverse events do not necessarily coincide
+    with clinical visits and may not have a Warfarin dose or INR value
+    associated with the event. Aside from adverse events, the INR should not be
+    missing.
+
+    Args:
+        inr_merged: Dataframe containing INR and events data.
+
+    Returns:
+        inr_merged: INR and events data with imputed INRs and doses.
+    """
+    # TODO audit the result of this
+    # Backfill the warfarin dose within a subject. Note that we do not group
+    # by trajectory here, in case the warfarin dose is reported after an adverse
+    # event that terminates a trajectory. We may want to stick some time gap
+    # limit on this in the future, possibly by splitting trajectories based on
+    # time elapsed (TODO).
+    inr_merged["WARFARIN_DOSE"] = inr_merged.groupby(
+        "SUBJID"
+    )["WARFARIN_DOSE"].fillna(method="bfill")
+
+    # TODO audit this assumption
+    # There are remaining null INR values, but these are trajectories that only
+    # contain an adverse event, with no corresponding INR measurement. This
+    # action forward fills INR and doses when a previous INR or dose is
+    # available in a given trajectory. We then drop remaining null entries.
+    inr_merged = inr_merged.groupby(
+        ["SUBJID", "TRAJID"]
+    ).fillna(method="ffill")
+    inr_merged = inr_merged[~inr_merged["INR_VALUE"].isnull() &
+                            ~inr_merged["WARFARIN_DOSE"].isnull()].copy()
+
+    return inr_merged
+
+    # TODO move to auditing
+    # null_entries = measured_inrs[measured_inrs["WARFARIN_DOSE"].isnull()]
+    # print(
+    #     f"After imputing, there are still {null_entries.shape[0]} null entries,"
+    #     f" from {null_entries['SUBJID'].nunique()} patients"
+    # )
+
+    # TODO move to auditing
+    # n0 = measured_inrs.shape[0]
+    measured_inrs = measured_inrs[~measured_inrs["WARFARIN_DOSE"].isnull()]
+    # num_removed = n0 - measured_inrs.shape[0]
+    # print(f"Removed {num_removed:,.0f} entries with NaN Warfarin doses")
+
+    # print(
+    #     f"There are {measured_inrs['SUBJID'].nunique()} patients, "
+    #     f"{measured_inrs['SUBJID_NEW_2'].nunique()} trajectories"
+    # )
+    # print("\n")
+    # print(measured_inrs["TRIAL"].value_counts())
+    # print("\n")

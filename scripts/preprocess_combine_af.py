@@ -9,10 +9,10 @@ from warfarin.data.combine_preprocessing import (preprocess_all,
                                                  preprocess_rely,
                                                  preprocess_aristotle,
                                                  merge_inr_events,
-                                                 split_trajectories_at_events)
+                                                 split_trajectories_at_events,
+                                                 impute_inr_and_dose)
 
 from warfarin.utils.combine_preprocessing import (load_raw_data,
-                                                  impute_inr_and_dose,
                                                   split_traj_by_time_elapsed,
                                                   merge_inr_base,
                                                   remove_short_traj,

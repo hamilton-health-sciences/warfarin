@@ -135,55 +135,6 @@ def load_raw_data(base_path):
 
 
 @auditable()
-def impute_inr_and_dose(inr_merged):
-    """
-    Imputes values for INR and Warfarin dose on study days that are missing
-    entries.
-
-    There are some entries that do not have a Warfarin dose, in which case we
-    backfill the dose. In particular, adverse events do not necessarily coincide
-    with clinical visits and may not have a Warfarin dose or INR value
-    associated with the event. Aside from adverse events, the INR should not be
-    missing.
-
-    Demographic data is constant over time, so demographic features are
-    forward-filled.
-
-    :param inr_merged: dataframe containing clinical visits with INR data and
-                       adverse events
-    :return: dataframe with imputed values around missing doses and INR values
-    """
-    inr_merged["WARFARIN_DOSE"] = inr_merged.groupby(
-        "SUBJID"
-    )["WARFARIN_DOSE"].fillna(method="bfill")
-    inr_merged["STUDY_DAY"] = inr_merged["TIMESTEP"]
-
-    measured_inrs = inr_merged.groupby("SUBJID").fillna(method="ffill")
-    measured_inrs["SUBJID"] = inr_merged["SUBJID"]
-
-    null_entries = measured_inrs[measured_inrs["WARFARIN_DOSE"].isnull()]
-    print(
-        f"After imputing, there are still {null_entries.shape[0]} null entries,"
-        f" from {null_entries['SUBJID'].nunique()} patients"
-    )
-
-    n0 = measured_inrs.shape[0]
-    measured_inrs = measured_inrs[~measured_inrs["WARFARIN_DOSE"].isnull()]
-    num_removed = n0 - measured_inrs.shape[0]
-    print(f"Removed {num_removed:,.0f} entries with NaN Warfarin doses")
-
-    print(
-        f"There are {measured_inrs['SUBJID'].nunique()} patients, "
-        f"{measured_inrs['SUBJID_NEW_2'].nunique()} trajectories"
-    )
-    print("\n")
-    print(measured_inrs["TRIAL"].value_counts())
-    print("\n")
-
-    return measured_inrs
-
-
-@auditable()
 def split_traj_by_time_elapsed(measured_inrs):
     """
     Split patient trajectory into multiple trajectories if a certain amount of
