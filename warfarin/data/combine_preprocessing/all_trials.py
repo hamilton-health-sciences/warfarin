@@ -1,5 +1,8 @@
 import numpy as np
 
+import pandas as pd
+
+from warfarin import config
 from warfarin.data.auditing import auditable
 
 
@@ -210,8 +213,6 @@ def merge_inr_events(inr, events):
     mask = np.logical_or(prev_inr_measured, temp["INR_MEASURED"])
     inr_merged = inr_merged[mask].copy()
 
-    import pdb; pdb.set_trace()
-
     # TODO move to auditing
     # print(
     #     "\tMasking events that do not occur after an INR measurement. This "
@@ -230,5 +231,64 @@ def merge_inr_events(inr, events):
 
     # t1 = time.time()
     # print(f"\tDone merging. Took {t1 - t0} seconds")
+
+    return inr_merged
+
+
+@auditable()
+def split_trajectories_at_events(inr_merged):
+    """
+    Split trajectories at adverse events.
+
+    Specifically, the last entry of each trajectory is set to the entry
+    containing the event indicator.
+
+    Args:
+        inr_merged: Dataframe containing INR and adverse events data.
+
+    Returns:
+        inr_merged: Dataframe with updated TRAJID column.
+    """
+    # TODO should minor bleeding be considered an event? See e.g. patient
+    # with ID 63553
+    # Check whether entry is an event
+    inr_merged = inr_merged.set_index(["TRIAL", "SUBJID", "TRAJID"])
+    # inr_merged = inr_merged.sort_values(by="STUDY_DAY")
+    inr_merged["IS_EVENT"] = (inr_merged[config.EVENTS_TO_KEEP].sum(axis=1) > 0)
+    inr_merged["EVENT_TRAJ_IDX"] = inr_merged.groupby(
+        ["TRIAL", "SUBJID"]
+    )["IS_EVENT"].cumsum()
+
+    # Construct a new ID by cumsumming whether the previous entry is an event
+    # and adding it to the existing trajectory ID
+    inr_merged = inr_merged.reset_index()
+    inr_merged["TRAJID"] = (
+        inr_merged.groupby(
+            ["TRIAL", "SUBJID"]
+        )["EVENT_TRAJ_IDX"].shift(1).fillna(0).astype(int) +
+        inr_merged["TRAJID"]
+    )
+
+    # Re-index the new trajectory ID from 0 within each subject
+    inr_merged["TRAJID"] = (
+        inr_merged.groupby(
+            ["TRIAL", "SUBJID"]
+        )["TRAJID"].diff().fillna(0) > 0
+    )
+    inr_merged["TRAJID"] = inr_merged.groupby(
+        ["TRIAL", "SUBJID"]
+    )["TRAJID"].cumsum()
+
+    # TODO remove trajectories now too short (see e.g. ID 32214 where event
+    # occurs in first entry...)
+
+    # TODO move to auditing
+    # print(
+    #     "\tDone splitting along adverse events. Went from "
+    #     f"{inr_merged['SUBJID_NEW'].nunique()} trajectories to "
+    #     f"{inr_merged['SUBJID_NEW_2'].nunique()} trajectories."
+    # )
+    # print("\tEvents in merged df:")
+    # print(inr_merged[config.EVENTS_TO_KEEP].sum())
 
     return inr_merged

@@ -12,6 +12,7 @@ import numpy as np
 
 from warfarin import config
 from warfarin.data.auditing import auditable
+from warfarin.data.utils import split_traj
 
 
 def decode(df):
@@ -131,36 +132,6 @@ def load_raw_data(base_path):
 
 
 
-
-@auditable()
-def split_traj_along_events(inr_merged):
-    """
-    Split trajectory along adverse events.
-
-    Since the dynamics around adverse events are unexpected, these transitions
-    are removed by ending the trajectory at the adverse event.
-
-    :param inr_merged: dataframe containing INR and adverse events data
-    :return: dataframe with new trajectory ID column "SUBJID_NEW_2"
-    """
-    prev_inr_measured = inr_merged.groupby(
-        "SUBJID_NEW"
-    )["INR_MEASURED"].shift().fillna(0)
-    inr_merged["INTERRUPT"] = np.logical_and(
-        prev_inr_measured,
-        1 - inr_merged["INR_MEASURED"]
-    )
-    inr_merged = split_traj(inr_merged, id_col="SUBJID_NEW")
-    inr_merged = inr_merged.rename(columns={"SUBJID_NEW_NEW": "SUBJID_NEW_2"})
-    print(
-        "\tDone splitting along adverse events. Went from "
-        f"{inr_merged['SUBJID_NEW'].nunique()} trajectories to "
-        f"{inr_merged['SUBJID_NEW_2'].nunique()} trajectories."
-    )
-    print("\tEvents in merged df:")
-    print(inr_merged[config.EVENTS_TO_KEEP].sum())
-
-    return inr_merged
 
 
 @auditable()

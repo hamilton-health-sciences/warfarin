@@ -8,10 +8,10 @@ from warfarin.data.combine_preprocessing import (preprocess_all,
                                                  preprocess_engage_rocket,
                                                  preprocess_rely,
                                                  preprocess_aristotle,
-                                                  merge_inr_events)
+                                                 merge_inr_events,
+                                                 split_trajectories_at_events)
 
 from warfarin.utils.combine_preprocessing import (load_raw_data,
-                                                  split_traj_along_events,
                                                   impute_inr_and_dose,
                                                   split_traj_by_time_elapsed,
                                                   merge_inr_base,
@@ -44,7 +44,7 @@ def preprocess(args):
     inr["INTERRUPT"] = inr["INTERRUPT"].astype(bool)
 
     inr_events_merged = merge_inr_events(inr, events)
-    inr_events_merged = split_traj_along_events(inr_events_merged)
+    inr_events_merged = split_trajectories_at_events(inr_events_merged)
     inr_events_merged = impute_inr_and_dose(inr_events_merged)
     inr_events_merged = split_traj_by_time_elapsed(inr_events_merged)
     merged_all = merge_inr_base(inr_events_merged, baseline)
