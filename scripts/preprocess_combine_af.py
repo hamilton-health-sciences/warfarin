@@ -40,8 +40,6 @@ def preprocess(args):
     aristotle_data = preprocess_aristotle(inr, baseline)
 
     inr = pd.concat([engage_rocket_data, rely_data, aristotle_data])
-    # TODO this belongs somewhere else
-    inr["INTERRUPT"] = inr["INTERRUPT"].astype(bool)
 
     inr_events_merged = merge_inr_events(inr, events)
     inr_events_merged = split_trajectories_at_events(inr_events_merged)
