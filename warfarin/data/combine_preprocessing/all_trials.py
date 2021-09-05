@@ -516,9 +516,9 @@ def split_data(inr_merged, test_ids):
 
 
 @auditable()
-def remove_short_traj(measured_inrs):
+def remove_short_trajectories(measured_inrs, min_length=config.MIN_INR_COUNTS):
     """
-    Remove trajectories with fewer than config.MIN_INR_COUNTS of INR visits.
+    Remove trajectories with fewer than `min_length` entries.
 
     Args:
         measured_inrs: Dataframe containing merged INR, events, and baseline
@@ -527,15 +527,26 @@ def remove_short_traj(measured_inrs):
     Returns:
         measured_inrs: Dataframe with short trajectories removed.
     """
-    # Remove trajectories with fewer than `config.MIN_INR_COUNTS`
+    # Remove trajectories with fewer than `min_length` entries
     measured_inrs = measured_inrs.set_index(["TRIAL", "SUBJID", "TRAJID"])
     measured_inrs["COUNT"] = measured_inrs.groupby(
         ["TRIAL", "SUBJID", "TRAJID"]
     ).size()
     measured_inrs = measured_inrs[
-        measured_inrs["COUNT"] >= config.MIN_INR_COUNTS
+        measured_inrs["COUNT"] >= min_length
     ]
     measured_inrs = measured_inrs.drop(columns=["COUNT"])
+    measured_inrs = measured_inrs.reset_index()
+
+    # Re-index the new trajectory ID from 0 within each subject
+    measured_inrs["TRAJID"] = (
+        measured_inrs.groupby(
+            ["TRIAL", "SUBJID"]
+        )["TRAJID"].diff().fillna(0) > 0
+    )
+    measured_inrs["TRAJID"] = measured_inrs.groupby(
+        ["TRIAL", "SUBJID"]
+    )["TRAJID"].cumsum()
 
     # TODO move to auditing
     # num_traj = len(patient_ids)

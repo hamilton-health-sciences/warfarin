@@ -16,7 +16,7 @@ from warfarin.data.combine_preprocessing import (preprocess_all,
                                                  split_trajectories_at_gaps,
                                                  merge_inr_baseline,
                                                  split_data,
-                                                 remove_short_traj)
+                                                 remove_short_trajectories)
 
 from warfarin.utils.combine_preprocessing import (load_raw_data,
                                                   remove_clinically_unintuitive,
@@ -49,6 +49,11 @@ def preprocess(args):
     inr_events_merged = split_trajectories_at_gaps(inr_events_merged)
     merged_all = merge_inr_baseline(inr_events_merged, baseline)
 
+    # Prune trajectories with only one entry, as these are not useful for
+    # training or evaluation (and represent cases where only an adverse
+    # event occurred)
+    merged_all = remove_short_trajectories(merged_all, min_length=2)
+
     # Save the output prior to splitting
     baseline_path = os.path.join(args.clean_data_path,
                                  f"baseline{args.suffix}.feather")
@@ -66,31 +71,29 @@ def preprocess(args):
     test_ids = np.loadtxt(args.test_ids_path).astype(int)
     train_data, val_data, test_data = split_data(merged_all, test_ids)
 
-    # Some preprocessing is only applied to train data
-    train_data = remove_short_traj(train_data)
-    if args.remove_clin:
-        train_data = remove_clinically_unintuitive(train_data)
-        train_data = remove_short_traj(train_data)
-    if args.remove_phys:
-        train_data = remove_phys_implausible(train_data)
-        train_data = remove_short_traj(train_data)
+    # if args.remove_clin:
+    #     train_data = remove_clinically_unintuitive(train_data)
+    #     train_data = remove_short_traj(train_data)
+    # if args.remove_phys:
+    #     train_data = remove_phys_implausible(train_data)
+    #     train_data = remove_short_traj(train_data)
 
-    train_data = prepare_features(train_data)
-    val_data = prepare_features(val_data)
-    test_data = prepare_features(test_data)
+    # train_data = prepare_features(train_data)
+    # val_data = prepare_features(val_data)
+    # test_data = prepare_features(test_data)
 
-    train_data.reset_index(drop=True).to_feather(
-        f"{args.split_data_path}train_data{args.suffix}.feather"
-    )
-    val_data.reset_index(drop=True).to_feather(
-        f"{args.split_data_path}val_data{args.suffix}.feather"
-    )
-    test_data.reset_index(drop=True).to_feather(
-        f"{args.split_data_path}test_data{args.suffix}.feather"
-    )
-    print(
-        f"Stored the train, val, test data in directory: {args.split_data_path}"
-    )
+    train_path = os.path.join(args.split_data_path,
+                              f"train_data{args.suffix}.feather")
+    val_path = os.path.join(args.split_data_path,
+                            f"val_data{args.suffix}.feather")
+    test_path = os.path.join(args.split_data_path,
+                             f"test_data{args.suffix}.feather")
+    train_data.reset_index(drop=True).to_feather(train_path)
+    val_data.reset_index(drop=True).to_feather(val_path)
+    test_data.reset_index(drop=True).to_feather(test_path)
+    # print(
+    #     f"Stored the train, val, test data in directory: {args.split_data_path}"
+    # )
 
 
 def main(args):
