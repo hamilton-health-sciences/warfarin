@@ -186,6 +186,8 @@ def audit_remove_outlying_doses():
     df_path = os.path.join(config.AUDIT_PATH, "remove_outlying_doses.feather")
     df = pd.read_feather(df_path)
 
+    message("Auditing `remove_outlying_doses`...", 0)
+
     message("Warfarin dose summary stats:")
     message(df["WARFARIN_DOSE"].describe(), 2)
 
@@ -193,6 +195,8 @@ def audit_remove_outlying_doses():
 def audit_merge_inr_events():
     df_path = os.path.join(config.AUDIT_PATH, "merge_inr_events.feather")
     df = pd.read_feather(df_path)
+
+    message("Auditing `merge_inr_events`...", 0)
 
     message("Maximum number of times a study day is recorded for a patient "
             "(should be 1):")
@@ -221,6 +225,8 @@ def audit_split_trajectories_at_events():
     df_path = os.path.join(config.AUDIT_PATH,
                            "split_trajectories_at_events.feather")
     df = pd.read_feather(df_path)
+
+    message("Auditing `split_trajectories_at_events`...", 0)
 
     message("Number of event occurrences by trial:")
     message(df.groupby("TRIAL")[config.EVENTS_TO_KEEP].sum(), 2)
