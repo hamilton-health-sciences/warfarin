@@ -255,6 +255,13 @@ def audit_split_trajectories_at_events():
     message(f"Number of patients: {num_patients}")
     message(f"Number of trajectories: {num_trajectories}")
 
+    message("Maximum number of splittable events in a transition "
+            "(should be 1):")
+    df["SPLITTABLE_EVENT"] = df[config.EVENTS_TO_SPLIT].sum(axis=1) > 0
+    message(
+        df.groupby(["SUBJID", "TRAJID"])["SPLITTABLE_EVENT"].sum().max(), 2
+    )
+
     trajectory_length_stats(df, ["TRIAL", "SUBJID", "TRAJID"])
 
     missing_doses(df)
