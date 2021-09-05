@@ -40,7 +40,6 @@ def preprocess_engage_rocket(inr, baseline):
     subset_data.loc[subset_data["WARFARIN_DOSE"] == 99,
                     "WARFARIN_DOSE"] = np.nan
 
-    # TODO validate these assumptions?
     # Doses in ENGAGE and ROCKET-AF are recorded as the three daily doses prior
     # to an INR measurement. Compute the 3-day rolling mean and shift it forward
     # 1 day to align it with the corresponding INR measurement. Multiply by
@@ -50,18 +49,6 @@ def preprocess_engage_rocket(inr, baseline):
     )["WARFARIN_DOSE"].rolling(3, min_periods=1).mean().groupby(
         "SUBJID", as_index=False
     ).shift(1) * 7.
-
-    # TODO move reporting to separate auditing tool
-    nan_entries = sum(
-        subset_data[
-            subset_data["INR_TYPE"] == "Y"
-        ]["WARFARIN_DOSE"].isnull()
-    )
-    total_entries = subset_data[subset_data["INR_TYPE"] == "Y"].shape[0]
-    print(
-        f"\tENGAGE, ROCKET_AF: {nan_entries} of {total_entries} "
-        f"({nan_entries / total_entries:,.2%}) entries are NaN"
-    )
 
     # Subset to entries where INR is actually observed, which are now aligned
     # with known weekly doses
@@ -152,13 +139,6 @@ def preprocess_aristotle(inr, baseline):
     # Subset to ARISTOTLE data
     subset_ids = baseline[(baseline["TRIAL"] == "ARISTOTLE")]["SUBJID"].unique()
     aristotle_data = inr[inr["SUBJID"].isin(subset_ids)].copy()
-
-    # TODO move to auditing script
-    # print(
-    #     "\tThere are "
-    #     f"{len(aristotle_data[aristotle_data['WARFARIN_DOSE'] < 0])} entries "
-    #     "with negative entries. Taking absolute value..."
-    # )
 
     # For ARISTOTLE patients, there are 2 negative doses that were manually
     # converted to positive doses as they appear to be typos.

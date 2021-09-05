@@ -86,6 +86,31 @@ def audit_preprocess_all():
         2
     )
 
+    # TODO figure out what to do when 1 or 2 -- missing data or assume 0
+    # dose on that day? look at examples to figure this out?
+    # In ENGAGE and ROCKET data, ensure we have three daily entries for each
+    # following INR_TYPE = Y
+    subset = inr[inr["TRIAL"].isin(["ENGAGE", "ROCKET_AF"])].copy()
+    subset["WARFARIN_DOSE_NONNULL"] = ~subset["WARFARIN_DOSE"].isnull()
+    subset["NUM_DAILY_DOSES"] = subset.groupby(
+        "SUBJID", as_index=False
+    )["WARFARIN_DOSE_NONNULL"].rolling(
+        3, min_periods=1
+    ).sum()["WARFARIN_DOSE_NONNULL"]
+    subset["NUM_PREVIOUS_DAILY_DOSES"] = subset.groupby(
+        "SUBJID", as_index=False
+    )["NUM_DAILY_DOSES"].shift(1)["NUM_DAILY_DOSES"].fillna(0)
+    subset = subset.drop(columns=["WARFARIN_DOSE_NONNULL", "NUM_DAILY_DOSES"])
+    message("Number of daily entries before each `INR_TYPE = Y` in ENGAGE "
+            "and ROCKET-AF:")
+    message(
+        subset[subset["INR_TYPE"] == "Y"].groupby(
+            "TRIAL"
+        )["NUM_PREVIOUS_DAILY_DOSES"].value_counts(),
+        2
+    )
+
+
 def audit_preprocess_trial_specific(trial_names):
     df_path = os.path.join(config.AUDIT_PATH,
                            f"preprocess_{trial_names}.feather")
