@@ -278,6 +278,18 @@ def audit_split_trajectories_at_gaps():
     trajectory_length_stats(df, ["TRIAL", "SUBJID", "TRAJID"])
 
 
+def audit_merge_inr_baseline():
+    df_path = os.path.join(config.AUDIT_PATH, "merge_inr_baseline.feather")
+    df = pd.read_feather(df_path)
+
+    message("Auditing results of `merge_inr_baseline`...", 0)
+
+    trajectory_length_stats(df, ["TRIAL", "SUBJID", "TRAJID"])
+
+    message("Missing values in baseline columns:")
+    message(df[config.STATIC_STATE_COLS].isnull().sum(), 2)
+
+
 def main():
     audit_preprocess_all()
     for trial_names in ["engage_rocket", "rely", "aristotle"]:
@@ -287,6 +299,7 @@ def main():
     audit_split_trajectories_at_events()
     audit_impute_inr_and_dose()
     audit_split_trajectories_at_gaps()
+    audit_merge_inr_baseline()
 
 
 if __name__ == "__main__":

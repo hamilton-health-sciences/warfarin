@@ -350,13 +350,6 @@ def merge_inr_baseline(inr_merged, baseline):
     """
     baseline = baseline[config.STATIC_STATE_COLS + ["SUBJID"]]
     merged_data = inr_merged.merge(baseline, on="SUBJID", how="left")
-    # print(
-    #     "Merged with baseline data... \n\t"
-    #     f"{merged_data['SUBJID'].nunique():,.0f} patients, "
-    #     f"{merged_data.shape[0]:,.0f} weekly entries"
-    # )
-    # print(f"\n{merged_data['TRIAL'].value_counts()} \n")
-    # print(f"\n{merged_data.groupby('TRIAL')['SUBJID'].nunique()} \n")
 
     return merged_data
 
