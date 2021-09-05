@@ -77,6 +77,14 @@ def audit_preprocess_all():
         2
     )
 
+    # Negative INR values
+    message("Counts of negative doses (likely typos):")
+    message(
+        inr[(inr["WARFARIN_DOSE"] < 0)].groupby(
+            ["TRIAL", "SUBJID"]
+        )["WARFARIN_DOSE"].count(),
+        2
+    )
 
 def audit_preprocess_trial_specific(trial_names):
     df_path = os.path.join(config.AUDIT_PATH,
@@ -136,20 +144,23 @@ def audit_preprocess_trial_specific(trial_names):
         2
     )
 
+    # Number of zero INR values
+    message("Number of zero INR values (impossible):")
+    message(
+        inr[(inr["INR_VALUE"] == 0) & (inr["INR_TYPE"] == "Y")].groupby(
+            "TRIAL"
+        )["INR_VALUE"].count(),
+        2
+    )
 
-# def audit_preprocess_aristotle():
-#     pre_df_path = os.path.join(config.AUDIT_PATH,
-#                                "preprocess_all_inr.feather")
-#     df_path = os.path.join(config.AUDIT_PATH,
-#                            "preprocess_aristotle.feather")
-#     pre_inr = pd.read_feather(pre_df_path)
-#     pre_inr = pre_inr[pre_inr["TRIAL"] == "ARISTOTLE"]
-#     inr = pd.read_feather(df_path)
-# 
-#     # Identify cases where INR is observed at a given visit but no previous
-#     # weekly dose is recorded, in which case we pull in the next recorded
-#     # previous weekly dose.
-
+    # Number of zero warfarin doses
+    message("Number of zero warfarin doses:")
+    message(
+        inr[(inr["WARFARIN_DOSE"] == 0) & (inr["INR_TYPE"] == "Y")].groupby(
+            "TRIAL"
+        )["WARFARIN_DOSE"].count(),
+        2
+    )
 
 
 def main():

@@ -52,7 +52,6 @@ def preprocess_all(inr, events, baseline):
 
     baseline = baseline.rename(columns={"REGION": "CONTINENT"})
 
-    # TODO one-hot encode somewhere else?
     # One-hot encode adverse events
     events.loc[:, "DEATH"] = (
         events["EVENT_NAME"] == "All Cause Death"

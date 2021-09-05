@@ -137,11 +137,9 @@ def preprocess_aristotle(inr, baseline):
     In order, this function:
 
         1. Converts two typoed negative doses to their positive equivalent.
-        2. Handles cases where the INR is observed on day `t`, but the visit
-           where the previous dose is recorded doesn't occur until day `t + 1`.
-        3. When dose is NaN, we assume there isn't a visit, and backfill the
+        2. When dose is NaN, we assume there isn't a visit, and backfill the
            previous dose column accordingly. (TODO correct interpretation?)
-        4. Define interruptions as consecutive weekly doses of zero and split
+        3. Define interruptions as consecutive weekly doses of zero and split
            into trajectories along these interruptions.
 
     Args:
