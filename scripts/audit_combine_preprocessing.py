@@ -13,6 +13,24 @@ def message(msg, indent=1):
     print(msg_indented)
 
 
+def trajectory_length_stats(df, traj_id_cols):
+    # Trajectory length stats (in entries)
+    traj_length = df.groupby(
+        traj_id_cols, as_index=False
+    )["INR_VALUE"].count().groupby("TRIAL")["INR_VALUE"].describe()
+    message("Trajectory length (# entries):")
+    message(traj_length[["min", "25%", "50%", "mean", "75%", "max"]], 2)
+
+    # Trajectory length stats (in days)
+    last = df.groupby(traj_id_cols)["STUDY_DAY"].max()
+    first = df.groupby(traj_id_cols)["STUDY_DAY"].min()
+    traj_length_days = (last - first).reset_index().groupby(
+        "TRIAL"
+    )["STUDY_DAY"].describe()
+    message("Trajectory length (days):")
+    message(traj_length_days[["min", "25%", "50%", "mean", "75%", "max"]], 2)
+
+
 def audit_preprocess_all():
     baseline_fn = os.path.join(config.AUDIT_PATH,
                                "preprocess_all_baseline.feather")
@@ -40,25 +58,8 @@ def audit_preprocess_all():
     message(f"Number of entries (INR):\t {num_entries_inr}")
     message(f"Number of entries (events):\t {num_entries_events}")
 
-    # Trajectory length stats (in entries)
-    traj_length = inr[inr["INR_TYPE"] == "Y"].groupby(
-        ["TRIAL", "SUBJID"], as_index=False
-    )["INR_VALUE"].count().groupby("TRIAL")["INR_VALUE"].describe()
-    message("Trajectory length (# entries):")
-    message(traj_length[["min", "25%", "50%", "mean", "75%", "max"]], 2)
-
-    # Trajectory length stats (in days)
-    last = inr[inr["INR_TYPE"] == "Y"].groupby(
-        ["TRIAL", "SUBJID"]
-    )["STUDY_DAY"].max()
-    first = inr[inr["INR_TYPE"] == "Y"].groupby(
-        ["TRIAL", "SUBJID"]
-    )["STUDY_DAY"].min()
-    traj_length_days = (last - first).reset_index().groupby(
-        "TRIAL"
-    )["STUDY_DAY"].describe()
-    message("Trajectory length (days):")
-    message(traj_length_days[["min", "25%", "50%", "mean", "75%", "max"]], 2)
+    trajectory_length_stats(inr[inr["INR_TYPE"] == "Y"],
+                            ["TRIAL", "SUBJID"])
 
     # Event statistics
     message("Event counts:")
@@ -131,28 +132,11 @@ def audit_preprocess_trial_specific(trial_names):
         2
     )
 
-    # Trajectory length stats (in entries)
-    traj_length = inr[inr["INR_TYPE"] == "Y"].groupby(
-        ["TRIAL", "SUBJID"], as_index=False
-    )["INR_VALUE"].count().groupby("TRIAL")["INR_VALUE"].describe()
-    message("Trajectory length after splitting on interruptions (# entries):")
-    message(traj_length[["min", "25%", "50%", "mean", "75%", "max"]], 2)
-
-    # Trajectory length stats (in days)
-    last = inr[inr["INR_TYPE"] == "Y"].groupby(
-        ["TRIAL", "SUBJID"]
-    )["STUDY_DAY"].max()
-    first = inr[inr["INR_TYPE"] == "Y"].groupby(
-        ["TRIAL", "SUBJID"]
-    )["STUDY_DAY"].min()
-    traj_length_days = (last - first).reset_index().groupby(
-        "TRIAL"
-    )["STUDY_DAY"].describe()
-    message("Trajectory length after splitting on interruptions (days):")
-    message(traj_length_days[["min", "25%", "50%", "mean", "75%", "max"]], 2)
+    trajectory_length_stats(inr[inr["INR_TYPE"] == "Y"],
+                            ["TRIAL", "SUBJID", "TRAJID"])
 
     # Number of non-null INRs
-    message("Number of observed INRs:")
+    message("Number of observed INRs per patient:")
     message(
         inr[inr["INR_TYPE"] == "Y"].groupby(
             ["TRIAL", "SUBJID"], as_index=False
@@ -161,7 +145,7 @@ def audit_preprocess_trial_specific(trial_names):
     )
 
     # Number of non-null doses
-    message("Number of observed warfarin doses:")
+    message("Number of observed warfarin doses per patient:")
     message(
         inr[inr["INR_TYPE"] == "Y"].groupby(
             ["TRIAL", "SUBJID"], as_index=False
@@ -203,7 +187,7 @@ def audit_merge_inr_events():
     message("Maximum number of times a study day is recorded for a patient "
             "(should be 1):")
     message(
-        df.groupby(["TRIAL", "SUBJID", "STUDY_DAY"])["TRAJID"].count(), 2
+        df.groupby(["TRIAL", "SUBJID", "STUDY_DAY"])["TRAJID"].count().max(), 2
     )
 
     message("Number of event occurrences by trial:")
@@ -216,13 +200,34 @@ def audit_merge_inr_events():
         2
     )
 
+    num_patients = df["SUBJID"].nunique()
+    num_trajectories = len(df[["SUBJID", "TRAJID"]].value_counts())
+    message(f"Number of patients: {num_patients}")
+    message(f"Number of trajectories: {num_trajectories}")
+    message("Trajectory lengths (number of entries):")
+
 
 def audit_split_trajectories_at_events():
     df_path = os.path.join(config.AUDIT_PATH,
                            "split_trajectories_at_events.feather")
     df = pd.read_feather(df_path)
 
-    import pdb; pdb.set_trace()
+    message("Number of event occurrences by trial:")
+    message(df.groupby("TRIAL")[config.EVENTS_TO_KEEP].sum(), 2)
+
+    message("Rate of events by trial (per patient):")
+    message(
+        df.groupby("TRIAL")[config.EVENTS_TO_KEEP].sum() /
+        np.asarray(df.groupby("TRIAL")["SUBJID"].nunique()).reshape(-1, 1),
+        2
+    )
+
+    num_patients = df["SUBJID"].nunique()
+    num_trajectories = len(df[["SUBJID", "TRAJID"]].value_counts())
+    message(f"Number of patients: {num_patients}")
+    message(f"Number of trajectories: {num_trajectories}")
+
+    trajectory_length_stats(df, ["TRIAL", "SUBJID", "TRAJID"])
 
 
 def main():
@@ -231,6 +236,7 @@ def main():
         audit_preprocess_trial_specific(trial_names)
     audit_remove_outlying_doses()
     audit_merge_inr_events()
+    audit_split_trajectories_at_events()
 
 
 if __name__ == "__main__":
