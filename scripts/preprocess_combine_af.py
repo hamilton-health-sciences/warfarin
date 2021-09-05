@@ -10,6 +10,7 @@ from warfarin.data.combine_preprocessing import (preprocess_all,
                                                  preprocess_engage_rocket,
                                                  preprocess_rely,
                                                  preprocess_aristotle,
+                                                 remove_outlying_doses,
                                                  merge_inr_events,
                                                  split_trajectories_at_events,
                                                  impute_inr_and_dose,
@@ -43,6 +44,7 @@ def preprocess(args):
 
     inr = pd.concat([engage_rocket_data, rely_data, aristotle_data])
 
+    inr = remove_outlying_doses(inr)
     inr_events_merged = merge_inr_events(inr, events)
     inr_events_merged = split_trajectories_at_events(inr_events_merged)
     inr_events_merged = impute_inr_and_dose(inr_events_merged)

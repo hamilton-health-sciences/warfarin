@@ -100,6 +100,21 @@ def preprocess_all(inr, events, baseline):
 
 
 @auditable()
+def remove_outlying_doses(inr):
+    """
+    Remove patients who have outliers.
+
+    The assumption is that these patients have data entry issues.
+    """
+    drop_ids = inr[
+        inr["WARFARIN_DOSE"] >= config.DOSE_OUTLIER_THRESHOLD
+    ]["SUBJID"].unique()
+    inr = inr[~inr["SUBJID"].isin(drop_ids)].copy()
+
+    return inr
+
+
+@auditable()
 def merge_inr_events(inr, events):
     """
     Merge INR data with events data.
@@ -111,18 +126,6 @@ def merge_inr_events(inr, events):
     Returns:
         inr_merged: The dataframe of INR and events, merged.
     """
-    # TODO move to separate function
-    # Remove patients who have outliers. The assumption is that these patients
-    # have data entry issues.
-    drop_ids = inr[
-        inr["WARFARIN_DOSE"] >= config.DOSE_OUTLIER_THRESHOLD
-    ]["SUBJID"].unique()
-    print(
-        f"\tDropping {len(drop_ids)} patients with outlier doses exceeding "
-        f"{config.DOSE_OUTLIER_THRESHOLD}mg weekly..."
-    )
-    inr = inr[~inr["SUBJID"].isin(drop_ids)]  # ["WARFARIN_DOSE"].max()
-
     # Subset to non-imputed INRs, i.e. those actually observed
     inr = inr[inr["INR_TYPE"] == "Y"].copy()
 
@@ -154,17 +157,11 @@ def merge_inr_events(inr, events):
     # previous processing steps
     events = events[events["SUBJID"].isin(inr["SUBJID"])].copy()
 
-    # TODO what is this
-    # inr = inr.groupby(["SUBJID", "TRAJID", "STUDY_DAY"]).last().reset_index()
-
     # Merge INR and events data
     inr_merged = pd.concat(
         [inr, events[["TRIAL", "SUBJID", "STUDY_DAY", "RANKIN_SCORE"] +
                      config.EVENTS_TO_KEEP]]
     )
-    # inr_merged = inr_merged.groupby(
-    #     ["TRIAL", "SUBJID", "STUDY_DAY"]
-    # ).sum(min_count=1).reset_index()
 
     # Impute days with missing events data as not having an event
     for ev_name in config.EVENTS_TO_KEEP:
@@ -173,7 +170,6 @@ def merge_inr_events(inr, events):
     # Forward-fill trajectory ID to capture events in the correct trajectory.
     # The remaining NaN TRAJIDs are from events that occur before the first INR
     # measurement, so we drop these and convert the index back to int.
-    # TODO validate this assumption in audit
     inr_merged = inr_merged.sort_values(by=["TRIAL", "SUBJID", "STUDY_DAY"])
     inr_merged["TRAJID"] = inr_merged.groupby(
         ["TRIAL", "SUBJID"]
@@ -191,16 +187,6 @@ def merge_inr_events(inr, events):
     out_of_range_sel = inr_merged["STUDY_DAY"].diff() > config.EVENT_RANGE
     inr_merged = inr_merged[~(noninr_sel & event_sel & out_of_range_sel)].copy()
 
-    # TODO move to auditing
-    # print(
-    #     "\tNum stroke occurrences: \n"
-    #     f"{inr_merged.groupby('TRIAL')['STROKE'].value_counts()}"
-    # )
-    # print(
-    #     "\tNum hem strokes: \n"
-    #     f"{inr_merged.groupby('TRIAL')['HEM_STROKE'].value_counts()}"
-    # )
-
     # If there are multiple events that happen between INR measurements, only
     # take the first one
     temp = inr_merged.copy()
@@ -211,25 +197,6 @@ def merge_inr_events(inr, events):
     prev_inr_measured = temp.groupby("SUBJID")["INR_MEASURED"].shift().fillna(0)
     mask = np.logical_or(prev_inr_measured, temp["INR_MEASURED"])
     inr_merged = inr_merged[mask].copy()
-
-    # TODO move to auditing
-    # print(
-    #     "\tMasking events that do not occur after an INR measurement. This "
-    #     f"removes: {temp.shape[0] - inr_merged.shape[0]} entries."
-    # )
-
-    # TODO not sure what this is, but I think it's strictly related to re-
-    # indexing so can be skipped
-    # inr_merged.groupby(
-    #     ["SUBJID", "CUMU_MEASUR"]
-    # ).size().reset_index().sort_values(by=0)
-    # inr_merged["SUBJID_NEW"] = inr_merged.groupby(
-    #     "SUBJID"
-    # )["SUBJID_NEW"].fillna(method="ffill")
-    # inr_merged = inr_merged[~inr_merged["SUBJID_NEW"].isnull()]
-
-    # t1 = time.time()
-    # print(f"\tDone merging. Took {t1 - t0} seconds")
 
     return inr_merged
 

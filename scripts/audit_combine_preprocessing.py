@@ -188,11 +188,49 @@ def audit_preprocess_trial_specific(trial_names):
     )
 
 
+def audit_remove_outlying_doses():
+    df_path = os.path.join(config.AUDIT_PATH, "remove_outlying_doses.feather")
+    df = pd.read_feather(df_path)
+
+    message("Warfarin dose summary stats:")
+    message(df["WARFARIN_DOSE"].describe(), 2)
+
+
+def audit_merge_inr_events():
+    df_path = os.path.join(config.AUDIT_PATH, "merge_inr_events.feather")
+    df = pd.read_feather(df_path)
+
+    message("Maximum number of times a study day is recorded for a patient "
+            "(should be 1):")
+    message(
+        df.groupby(["TRIAL", "SUBJID", "STUDY_DAY"])["TRAJID"].count(), 2
+    )
+
+    message("Number of event occurrences by trial:")
+    message(df.groupby("TRIAL")[config.EVENTS_TO_KEEP].sum(), 2)
+
+    message("Rate of events by trial (per patient):")
+    message(
+        df.groupby("TRIAL")[config.EVENTS_TO_KEEP].sum() /
+        np.asarray(df.groupby("TRIAL")["SUBJID"].nunique()).reshape(-1, 1),
+        2
+    )
+
+
+def audit_split_trajectories_at_events():
+    df_path = os.path.join(config.AUDIT_PATH,
+                           "split_trajectories_at_events.feather")
+    df = pd.read_feather(df_path)
+
+    import pdb; pdb.set_trace()
+
+
 def main():
     audit_preprocess_all()
     for trial_names in ["engage_rocket", "rely", "aristotle"]:
         audit_preprocess_trial_specific(trial_names)
-    # audit_preprocess_aristotle()
+    audit_remove_outlying_doses()
+    audit_merge_inr_events()
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 from .all_trials import (preprocess_all,
+                         remove_outlying_doses,
                          merge_inr_events,
                          split_trajectories_at_events,
                          impute_inr_and_dose,
