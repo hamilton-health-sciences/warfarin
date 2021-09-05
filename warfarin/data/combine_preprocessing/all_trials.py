@@ -268,7 +268,6 @@ def impute_inr_and_dose(inr_merged):
     Returns:
         inr_merged: INR and events data with imputed INRs and doses.
     """
-    # TODO audit the result of this
     # Backfill the warfarin dose within a subject. Note that we do not group
     # by trajectory here, in case the warfarin dose is reported after an adverse
     # event that terminates a trajectory. We may want to stick some time gap
@@ -278,7 +277,6 @@ def impute_inr_and_dose(inr_merged):
         "SUBJID"
     )["WARFARIN_DOSE"].fillna(method="bfill")
 
-    # TODO audit this assumption
     # There are remaining null INR values, but these are trajectories that only
     # contain an adverse event, with no corresponding INR measurement. This
     # action forward fills INR and doses when a previous INR or dose is
@@ -291,27 +289,6 @@ def impute_inr_and_dose(inr_merged):
 
     return inr_merged
 
-    # TODO move to auditing
-    # null_entries = measured_inrs[measured_inrs["WARFARIN_DOSE"].isnull()]
-    # print(
-    #     f"After imputing, there are still {null_entries.shape[0]} null entries,"
-    #     f" from {null_entries['SUBJID'].nunique()} patients"
-    # )
-
-    # TODO move to auditing
-    # n0 = measured_inrs.shape[0]
-    # measured_inrs = measured_inrs[~measured_inrs["WARFARIN_DOSE"].isnull()]
-    # num_removed = n0 - measured_inrs.shape[0]
-    # print(f"Removed {num_removed:,.0f} entries with NaN Warfarin doses")
-
-    # print(
-    #     f"There are {measured_inrs['SUBJID'].nunique()} patients, "
-    #     f"{measured_inrs['SUBJID_NEW_2'].nunique()} trajectories"
-    # )
-    # print("\n")
-    # print(measured_inrs["TRIAL"].value_counts())
-    # print("\n")
-    
 
 @auditable()
 def split_trajectories_at_gaps(measured_inrs):

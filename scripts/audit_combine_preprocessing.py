@@ -31,6 +31,18 @@ def trajectory_length_stats(df, traj_id_cols):
     message(traj_length_days[["min", "25%", "50%", "mean", "75%", "max"]], 2)
 
 
+def missing_doses(df):
+    df["DOSE_NULL"] = df["WARFARIN_DOSE"].isnull()
+
+    message("Missing doses by trial:")
+    message(df.groupby("TRIAL")["DOSE_NULL"].sum(), 2)
+
+    _df = df.groupby(["TRIAL", "SUBJID"], as_index=False)["DOSE_NULL"].sum()
+    _df["AT_LEAST_ONE_DOSE_NULL"] = _df["DOSE_NULL"] > 0
+    message("Number of patients with missing doses by trial:")
+    message(_df.groupby("TRIAL")["AT_LEAST_ONE_DOSE_NULL"].sum(), 2)
+
+
 def audit_preprocess_all():
     baseline_fn = os.path.join(config.AUDIT_PATH,
                                "preprocess_all_baseline.feather")
@@ -127,7 +139,7 @@ def audit_preprocess_trial_specific(trial_names):
                            f"preprocess_{trial_names}.feather")
     inr = pd.read_feather(df_path)
 
-    message(f"Auditing `preprocess_{trial_names}`...", 0)
+    message(f"Auditing results of `preprocess_{trial_names}`...", 0)
 
     # Number of patients
     message("Number of patients after splitting on interruptions:")
@@ -186,7 +198,7 @@ def audit_remove_outlying_doses():
     df_path = os.path.join(config.AUDIT_PATH, "remove_outlying_doses.feather")
     df = pd.read_feather(df_path)
 
-    message("Auditing `remove_outlying_doses`...", 0)
+    message("Auditing results of `remove_outlying_doses`...", 0)
 
     message("Warfarin dose summary stats:")
     message(df["WARFARIN_DOSE"].describe(), 2)
@@ -196,7 +208,7 @@ def audit_merge_inr_events():
     df_path = os.path.join(config.AUDIT_PATH, "merge_inr_events.feather")
     df = pd.read_feather(df_path)
 
-    message("Auditing `merge_inr_events`...", 0)
+    message("Auditing results of `merge_inr_events`...", 0)
 
     message("Maximum number of times a study day is recorded for a patient "
             "(should be 1):")
@@ -226,7 +238,7 @@ def audit_split_trajectories_at_events():
                            "split_trajectories_at_events.feather")
     df = pd.read_feather(df_path)
 
-    message("Auditing `split_trajectories_at_events`...", 0)
+    message("Auditing results of `split_trajectories_at_events`...", 0)
 
     message("Number of event occurrences by trial:")
     message(df.groupby("TRIAL")[config.EVENTS_TO_KEEP].sum(), 2)
@@ -245,6 +257,17 @@ def audit_split_trajectories_at_events():
 
     trajectory_length_stats(df, ["TRIAL", "SUBJID", "TRAJID"])
 
+    missing_doses(df)
+
+
+def audit_impute_inr_and_dose():
+    df_path = os.path.join(config.AUDIT_PATH, "impute_inr_and_dose.feather")
+    df = pd.read_feather(df_path)
+
+    message("Auditing results of `impute_inr_and_dose`...", 0)
+
+    missing_doses(df)
+
 
 def main():
     audit_preprocess_all()
@@ -253,6 +276,7 @@ def main():
     audit_remove_outlying_doses()
     audit_merge_inr_events()
     audit_split_trajectories_at_events()
+    audit_impute_inr_and_dose()
 
 
 if __name__ == "__main__":
