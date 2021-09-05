@@ -290,6 +290,28 @@ def audit_merge_inr_baseline():
     message(df[config.STATIC_STATE_COLS].isnull().sum(), 2)
 
 
+def audit_remove_short_trajectories():
+    df_path = os.path.join(config.AUDIT_PATH,
+                           "remove_short_trajectories.feather")
+    df = pd.read_feather(df_path)
+
+    message("Auditing results of `remove_short_trajectories`...", 0)
+
+    trajectory_length_stats(df, ["TRIAL", "SUBJID", "TRAJID"])
+
+
+def audit_split_data():
+    df_path = os.path.join(config.AUDIT_PATH, "split_data_test.feather")
+    df = pd.read_feather(df_path)
+
+    test_subjid = np.asarray(df["SUBJID"])
+    prescribed_test_subjid = np.loadtxt("./data/test_subject_ids.txt")
+
+    msg = "Test set subject IDs not as prescribed! This represents an error"
+
+    assert set(test_subjid) == set(prescribed_test_subjid), msg
+
+
 def main():
     audit_preprocess_all()
     for trial_names in ["engage_rocket", "rely", "aristotle"]:
@@ -300,6 +322,8 @@ def main():
     audit_impute_inr_and_dose()
     audit_split_trajectories_at_gaps()
     audit_merge_inr_baseline()
+    audit_remove_short_trajectories()
+    audit_split_data()
 
 
 if __name__ == "__main__":
