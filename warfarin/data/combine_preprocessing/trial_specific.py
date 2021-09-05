@@ -82,13 +82,6 @@ def preprocess_engage_rocket(inr, baseline):
 
     subset_data = subset_data.drop(columns=["INTERRUPT"])
 
-    # TODO move reporting to separate auditing tool
-    # print(
-    #     f"\t{subset_data['SUBJID'].nunique():,.0f} patients, "
-    #     f"{subset_data['SUBJID_NEW'].nunique():,.0f} trajectories after "
-    #     "splitting along dose interruptions"
-    # )
-
     return subset_data
 
 
@@ -133,13 +126,6 @@ def preprocess_rely(inr, baseline):
 
     rely_data = rely_data.drop(columns=["INTERRUPT"])
 
-    # TODO extract out to auditing script
-    # print(
-    #     f"\t{rely_data['SUBJID'].nunique():,.0f} patients, "
-    #     f"{rely_data['SUBJID_NEW'].nunique():,.0f} trajectories after "
-    #     "splitting along dose interruptions"
-    # )
-
     return rely_data
 
 
@@ -180,24 +166,6 @@ def preprocess_aristotle(inr, baseline):
     # converted to positive doses as they appear to be typos.
     aristotle_data["WARFARIN_DOSE"] = np.abs(aristotle_data["WARFARIN_DOSE"])
 
-    # TODO is this appropriate for evaluation? i.e. did the clinician actually
-    # make a decision?
-    # Handling lag between INR and Warfarin dose. Specifically, in cases where
-    # the INR is observed but there is no corresponding dose, we pull in the
-    # previous dose from the next observation.
-    aristotle_data["PREV_DOSE"] = aristotle_data.groupby(
-        "SUBJID"
-    )["WARFARIN_DOSE"].shift(-1)
-    mask = (~aristotle_data["PREV_DOSE"].isnull() &
-            aristotle_data["WARFARIN_DOSE"].isnull() &
-            (aristotle_data["INR_TYPE"] == "Y"))
-    aristotle_data.loc[mask,
-                       "WARFARIN_DOSE"] = aristotle_data.loc[mask, "PREV_DOSE"]
-    aristotle_data = aristotle_data.drop(["PREV_DOSE"], axis=1)
-    # TODO move to auditing script
-    # num_lags = sum(mask)
-    # print(f"\tIdentified {num_lags} potential lags")
-
     # Backfill warfarin dose until previous visit is reached.
     aristotle_data["WARFARIN_DOSE"] = aristotle_data.groupby(
         "SUBJID"
@@ -218,18 +186,5 @@ def preprocess_aristotle(inr, baseline):
     aristotle_data = split_traj(aristotle_data)
 
     aristotle_data = aristotle_data.drop(columns=["INTERRUPT"])
-
-    # aristotle_data[aristotle_data["INTERRUPT"]].groupby(
-    #     "SUBJID"
-    # ).size().hist()
-    # plt.xlabel("Number of INR measurements where dose was interrupted")
-    # plt.ylabel("Count")
-
-    # TODO move to auditing script
-    # print(
-    #     f"\t{aristotle_data['SUBJID'].nunique():,.0f} patients, "
-    #     f"{aristotle_data['SUBJID_NEW'].nunique():,.0f} trajectories after "
-    #     "splitting along dose interruptions"
-    # )
 
     return aristotle_data
