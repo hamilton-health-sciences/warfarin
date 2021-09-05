@@ -330,19 +330,8 @@ def split_trajectories_at_gaps(measured_inrs):
         measured_inrs.groupby("SUBJID")["IS_FIRST"].cumsum() - 1
     )
 
-    # new_id = "USUBJID_O_NEW"
-    # measured_inrs.loc[:, new_id] = measured_inrs.groupby(
-    #     id_col
-    # )["IS_FIRST"].cumsum()
-    # measured_inrs.loc[:, new_id] = (measured_inrs[id_col].astype(str) +
-    #                                 measured_inrs[new_id].astype(str))
+    # Remove extraneous columns
     measured_inrs = measured_inrs.drop(columns=["IS_FIRST", "TIME_DIFF"])
-
-    # TODO move to auditing
-    # print(
-    #     f"After splitting... \n\t{measured_inrs[new_id].nunique():,.0f} "
-    #     f"trajectories, {measured_inrs.shape[0]:,.0f} samples"
-    # )
 
     return measured_inrs
 

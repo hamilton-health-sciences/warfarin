@@ -14,6 +14,20 @@ def message(msg, indent=1):
 
 
 def trajectory_length_stats(df, traj_id_cols):
+    # Number of patients
+    message("Number of patients:")
+    message(df.groupby("TRIAL")["SUBJID"].nunique(), 2)
+
+    # Number of trajectories
+    if "TRAJID" in df:
+        message("Number of trajectories:")
+        message(
+            df.groupby(
+                traj_id_cols, as_index=False
+            ).size().groupby("TRIAL")["TRAJID"].count(),
+            2
+        )
+
     # Trajectory length stats (in entries)
     traj_length = df.groupby(
         traj_id_cols, as_index=False
@@ -141,19 +155,6 @@ def audit_preprocess_trial_specific(trial_names):
 
     message(f"Auditing results of `preprocess_{trial_names}`...", 0)
 
-    # Number of patients
-    message("Number of patients after splitting on interruptions:")
-    message(inr.groupby("TRIAL")["SUBJID"].nunique(), 2)
-
-    # Number of trajectories
-    message("Number of trajectories after splitting on interruptions:")
-    message(
-        inr.groupby(
-            ["TRIAL", "SUBJID", "TRAJID"], as_index=False
-        ).size().groupby("TRIAL")["TRAJID"].count(),
-        2
-    )
-
     trajectory_length_stats(inr[inr["INR_TYPE"] == "Y"],
                             ["TRIAL", "SUBJID", "TRAJID"])
 
@@ -226,11 +227,7 @@ def audit_merge_inr_events():
         2
     )
 
-    num_patients = df["SUBJID"].nunique()
-    num_trajectories = len(df[["SUBJID", "TRAJID"]].value_counts())
-    message(f"Number of patients: {num_patients}")
-    message(f"Number of trajectories: {num_trajectories}")
-    message("Trajectory lengths (number of entries):")
+    trajectory_length_stats(df, ["TRIAL", "SUBJID", "TRAJID"])
 
 
 def audit_split_trajectories_at_events():
@@ -250,10 +247,7 @@ def audit_split_trajectories_at_events():
         2
     )
 
-    num_patients = df["SUBJID"].nunique()
-    num_trajectories = len(df[["SUBJID", "TRAJID"]].value_counts())
-    message(f"Number of patients: {num_patients}")
-    message(f"Number of trajectories: {num_trajectories}")
+    trajectory_length_stats(df, ["TRIAL", "SUBJID", "TRAJID"])
 
     message("Maximum number of splittable events in a transition "
             "(should be 1):")
@@ -261,8 +255,6 @@ def audit_split_trajectories_at_events():
     message(
         df.groupby(["SUBJID", "TRAJID"])["SPLITTABLE_EVENT"].sum().max(), 2
     )
-
-    trajectory_length_stats(df, ["TRIAL", "SUBJID", "TRAJID"])
 
     missing_doses(df)
 
@@ -276,6 +268,16 @@ def audit_impute_inr_and_dose():
     missing_doses(df)
 
 
+def audit_split_trajectories_at_gaps():
+    df_path = os.path.join(config.AUDIT_PATH,
+                           "split_trajectories_at_gaps.feather")
+    df = pd.read_feather(df_path)
+
+    message("Auditing results of `split_trajectories_at_gaps`...", 0)
+
+    trajectory_length_stats(df, ["TRIAL", "SUBJID", "TRAJID"])
+
+
 def main():
     audit_preprocess_all()
     for trial_names in ["engage_rocket", "rely", "aristotle"]:
@@ -284,6 +286,7 @@ def main():
     audit_merge_inr_events()
     audit_split_trajectories_at_events()
     audit_impute_inr_and_dose()
+    audit_split_trajectories_at_gaps()
 
 
 if __name__ == "__main__":
