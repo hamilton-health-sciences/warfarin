@@ -23,6 +23,11 @@ INR_REWARD = 1
 EVENTS_TO_KEEP = ["DEATH", "STROKE", "MAJOR_BLEED", "MINOR_BLEED", "HEM_STROKE",
                   "HOSP"]
 
+# Events to split on. We don't split on minor bleeds as this would create way
+# too many short trajectories, particularly in RE-LY where the per-patient
+# rate of minor bleeding is 90%.
+EVENTS_TO_SPLIT = ["DEATH", "STROKE", "MAJOR_BLEED", "HEM_STROKE", "HOSP"]
+
 # If an event occurs more than this many days away from the last entry,
 # ignore it.
 EVENT_RANGE = 30

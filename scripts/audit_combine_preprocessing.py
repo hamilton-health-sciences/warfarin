@@ -78,7 +78,17 @@ def audit_preprocess_all():
         2
     )
 
-    # Negative INR values
+    # Null INR values
+    message("Null INR values:")
+    inr["INR_NULL"] = inr["INR_VALUE"].isnull()
+    message(
+        inr[inr["INR_TYPE"] == "Y"].groupby(
+            "TRIAL"
+        )["INR_NULL"].sum(),
+        2
+    )
+
+    # Negative doses
     message("Counts of negative doses (likely typos):")
     message(
         inr[(inr["WARFARIN_DOSE"] < 0)].groupby(

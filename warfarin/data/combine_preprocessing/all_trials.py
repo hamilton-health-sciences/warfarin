@@ -215,12 +215,11 @@ def split_trajectories_at_events(inr_merged):
     Returns:
         inr_merged: Dataframe with updated TRAJID column.
     """
-    # TODO should minor bleeding be considered an event? See e.g. patient
-    # with ID 63553
     # Check whether entry is an event
     inr_merged = inr_merged.set_index(["TRIAL", "SUBJID", "TRAJID"])
-    # inr_merged = inr_merged.sort_values(by="STUDY_DAY")
-    inr_merged["IS_EVENT"] = (inr_merged[config.EVENTS_TO_KEEP].sum(axis=1) > 0)
+    inr_merged["IS_EVENT"] = (
+        inr_merged[config.EVENTS_TO_SPLIT].sum(axis=1) > 0
+    )
     inr_merged["EVENT_TRAJ_IDX"] = inr_merged.groupby(
         ["TRIAL", "SUBJID"]
     )["IS_EVENT"].cumsum()
@@ -247,18 +246,6 @@ def split_trajectories_at_events(inr_merged):
 
     # Remove extraneous columns
     inr_merged = inr_merged.drop(["IS_EVENT", "EVENT_TRAJ_IDX"], axis=1)
-
-    # TODO remove trajectories now too short (see e.g. ID 32214 where event
-    # occurs in first entry...)
-
-    # TODO move to auditing
-    # print(
-    #     "\tDone splitting along adverse events. Went from "
-    #     f"{inr_merged['SUBJID_NEW'].nunique()} trajectories to "
-    #     f"{inr_merged['SUBJID_NEW_2'].nunique()} trajectories."
-    # )
-    # print("\tEvents in merged df:")
-    # print(inr_merged[config.EVENTS_TO_KEEP].sum())
 
     return inr_merged
 
