@@ -30,7 +30,7 @@ EVENTS_TO_SPLIT = ["DEATH", "STROKE", "MAJOR_BLEED", "HEM_STROKE", "HOSP"]
 
 # If an event occurs more than this many days away from the last entry,
 # ignore it.
-EVENT_RANGE = 30
+EVENT_RANGE = 90
 
 # These are the patient features that are extracted from the baseline data and
 # merged with the rest of the data

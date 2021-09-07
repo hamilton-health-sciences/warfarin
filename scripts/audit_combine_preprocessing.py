@@ -4,6 +4,8 @@ import pandas as pd
 
 import numpy as np
 
+from plotnine import *
+
 from warfarin import config
 
 
@@ -300,6 +302,16 @@ def audit_remove_short_trajectories():
     trajectory_length_stats(df, ["TRIAL", "SUBJID", "TRAJID"])
 
 
+def audit_remove_short_trajectories():
+    df_path = os.path.join(config.AUDIT_PATH,
+                           "remove_short_trajectories.feather")
+    df = pd.read_feather(df_path)
+
+    message("Auditing results of `remove_short_trajectories`...", 0)
+
+    trajectory_length_stats(df, ["TRIAL", "SUBJID", "TRAJID"])
+
+
 def audit_split_data():
     df_path = os.path.join(config.AUDIT_PATH, "split_data_test.feather")
     df = pd.read_feather(df_path)
@@ -310,6 +322,98 @@ def audit_split_data():
     msg = "Test set subject IDs not as prescribed! This represents an error"
 
     assert set(test_subjid) == set(prescribed_test_subjid), msg
+
+
+def plot_transitions():
+    df_path = os.path.join(config.AUDIT_PATH,
+                           "remove_short_trajectories.feather")
+    df = pd.read_feather(df_path).set_index(["TRIAL", "SUBJID", "TRAJID"])
+
+    df["DAYS_ELAPSED"] = df.groupby(
+        ["TRIAL", "SUBJID", "TRAJID"]
+    )["STUDY_DAY"].diff().shift(-1)
+
+    df["REL_DOSE_CHANGE"] = df.groupby(
+        ["TRIAL", "SUBJID", "TRAJID"]
+    )["WARFARIN_DOSE"].shift(-1) / df["WARFARIN_DOSE"] - 1
+
+    df["INR_CHANGE"] = df.groupby(
+        ["TRIAL", "SUBJID", "TRAJID"]
+    )["INR_VALUE"].diff().shift(-1)
+
+    _df = df.loc[:, ["INR_VALUE", "REL_DOSE_CHANGE", "INR_CHANGE"]].dropna()
+    _df["INR_BIN"] = pd.cut(
+        _df["INR_VALUE"],
+        [0., 1., 2., 3., 4., np.inf],
+        labels=["< 1", "[1, 2)", "[2, 3]", "(3, 4]", "> 4"]
+    )
+    _df.loc[_df["INR_VALUE"] == 2., "INR_BIN"] == "[2, 3]"
+    action_ints = np.array(
+        pd.cut(_df["REL_DOSE_CHANGE"],
+               [-np.inf, -0.2, -0.1, 0., 0.1, 0.2, np.inf]).cat.codes
+    )
+    action_ints[action_ints > 2] += 1
+    action_ints[_df["REL_DOSE_CHANGE"] == 0.] = 3
+    _df["REL_DOSE_CHANGE_BIN"] = pd.Categorical(
+        pd.Series(action_ints).map(
+            dict(zip(np.arange(7).astype(int), config.ACTION_LABELS))
+        ),
+        ordered=True,
+        categories=config.ACTION_LABELS
+    )
+    _df["INR_CHANGE_BIN"] = pd.cut(
+        _df["INR_CHANGE"],
+        [-np.inf, -1., -0.25, 0.25, 1., np.inf],
+        labels=["Decrease > 1.0", "Decrease < 1.0", "Approx. Same",
+                "Increase < 1.0", "Increase > 1.0"]
+    )
+
+    _df = _df.reset_index()
+    plt_df = _df[["TRIAL", "INR_BIN", "REL_DOSE_CHANGE_BIN"]].value_counts()
+    plt_df = plt_df.reset_index().rename(columns={0: "count"}).set_index(
+        ["TRIAL", "INR_BIN", "REL_DOSE_CHANGE_BIN"]
+    )
+    plt_df["freq"] = (plt_df["count"] /
+                      plt_df.groupby(["TRIAL", "INR_BIN"])["count"].sum())
+    plt_df["freq_txt"] = plt_df["freq"].apply(lambda f: f"{f*100:.2f}%")
+    plt = (
+        ggplot(plt_df.reset_index(),
+               aes(x="INR_BIN", y="REL_DOSE_CHANGE_BIN")) +
+        geom_tile(aes(fill="freq")) +
+        geom_text(aes(label="freq_txt"), size=6) +
+        scale_fill_gradient(low="#FFFFFF", high="#4682B4", guide=False) +
+        facet_wrap("TRIAL") +
+        ylab("INR") +
+        ylab("Resulting Change in Dose")# +
+        # theme(axis_text_x=element_text(angle=90, margin={"t": 2.}))
+    )
+    plt_path = os.path.join(config.AUDIT_PLOT_PATH,
+                            "inr_dose_change_tile.png")
+    plt.save(plt_path)
+
+    plt_df = _df[
+        ["TRIAL", "REL_DOSE_CHANGE_BIN", "INR_CHANGE_BIN"]
+    ].value_counts()
+    plt_df = plt_df.reset_index().rename(columns={0: "count"}).set_index(
+        ["TRIAL", "REL_DOSE_CHANGE_BIN", "INR_CHANGE_BIN"]
+    )
+    plt_df["freq"] = (plt_df["count"] /
+                      plt_df.groupby(["TRIAL", "REL_DOSE_CHANGE_BIN"])["count"].sum())
+    plt_df["freq_txt"] = plt_df["freq"].apply(lambda f: f"{f*100:.2f}%")
+    plt = (
+        ggplot(plt_df.reset_index(),
+               aes(x="REL_DOSE_CHANGE_BIN", y="INR_CHANGE_BIN")) +
+        geom_tile(aes(fill="freq")) +
+        geom_text(aes(label="freq_txt"), size=6) +
+        scale_fill_gradient(low="#FFFFFF", high="#4682B4", guide=False) +
+        facet_wrap("TRIAL") +
+        xlab("Change in Dose") +
+        ylab("Resulting change in INR") +
+        theme(axis_text_x=element_text(angle=90, margin={"t": 2.}))
+    )
+    plt_path = os.path.join(config.AUDIT_PLOT_PATH,
+                            "dose_change_inr_change_tile.png")
+    plt.save(plt_path)
 
 
 def main():
@@ -324,6 +428,7 @@ def main():
     audit_merge_inr_baseline()
     audit_remove_short_trajectories()
     audit_split_data()
+    plot_transitions()
 
 
 if __name__ == "__main__":
