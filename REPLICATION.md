@@ -19,45 +19,33 @@ Point Python at the cloned directory:
 
 ## Preprocessing
 
-First, rename the input SAS files to `baseline_raw.sas7bdat`, and
-`events_raw.sas7bdat`, `inr_raw.sas7bdat` and place them in `data/raw_data`.
-Then use the feather conversion script to get these in a more portable format:
+Run the preprocessing steps. This will first convert the input SAS files into
+Feather dataframes and store them, then preprocess the data and create replay
+buffers for RL modeling, splitting off the test set from the IDs listed in
+`./data/test_subject_ids.txt`. This list of IDs was randomly generated.
 
-    $ python3 scripts/convert_sas_to_feather.py
-
-Next, pre-process the data (described in section XX of the manuscript):
-
-    $ python3 scripts/run_combine_preprocessing.py --data_folder ./data/
-
-Finally, generate the replay buffers, which is the format used as input to the
-RL model:
-
-    $ python3 scripts/create_replay_buffer.py \
-          --input_fn ./data/split_data/train_data.feather \
-          --num_actions 7 --incl_hist \
-          --output_fn ./data/replay_buffers/train_data \
-          --output_events_fn ./data/replay_buffers/events_data \
-          --output_normalization ./output/normalization.json
-
-    $ python3 scripts/create_replay_buffer.py \
-          --input_fn ./data/split_data/val_data.feather \
-          --num_actions 7 --incl_hist \
-          --output_fn ./data/replay_buffers/val_data \
-          --normalization ./output/normalization.json
-
-    $ python3 scripts/create_replay_buffer.py \
-          --input_fn ./data/split_data/test_data.feather \
-          --num_actions 7 --incl_hist \
-          --output_fn ./data/replay_buffers/test_data \
-          --normalization ./output/normalization.json
+    $ bash script/preprocess.sh \
+        ./data/raw_data/baseline.sas7bdat \
+        ./data/raw_data/inr.sas7bdat
+        ./data/raw_data/events.sas7bdat
+        ./data/test_subject_ids.txt
 
 ## Model training
 
-With a GPU available, train the dBCQ model:
+With a GPU available, train and tune the dBCQ model on the development set:
 
-    $ python3 scripts/train_smdp_dBCQ.py --suffix=smdp --num_actions=7 --state_dim=56 \
-        --hidden_states=64 --events_batch_size=0 --BCQ_threshold=0.2 --events_batch_size=0 \
-        --lr=0.00005 --max_timesteps=1_000_000 --save_folder="./output/dbcq"
+    $ python3 scripts/tune_smdp_dbcq.py \
+        --train_buffer `pwd`/data/replay_buffers/train_data \
+        --events_buffer `pwd`/data/replay_buffers/events_data \
+        --val_buffer `pwd`/data/replay_buffers/val_data \
+        --target_metric val_jindex_good_actions \
+        --mode max
+
+Evaluations and plots can be accessed through Tensorboard:
+
+    $ python3 -m tensorboard.main --logdir=./ray_logs
+    Serving TensorBoard on localhost; to expose to the network, use a proxy or pass --bind_all
+    TensorBoard 2.6.0 at http://localhost:6006/ (Press CTRL+C to quit)
 
 ## Evaluations and figures
 

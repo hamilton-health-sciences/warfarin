@@ -12,9 +12,11 @@ def decode(df):
         df: The dataframe with bytestrings decoded to UTF-8 strings.
     """
     str_df = df.select_dtypes([np.object])
-    str_df = str_df.stack().str.decode("utf-8").unstack()
     for col in str_df:
-        df[col] = [x.strip() if isinstance(x, str) else x for x in str_df[col]]
+        try:
+            df[col] = str_df[col].str.decode("utf-8").str.strip()
+        except:
+            df[col] = str_df[col].str.decode("ISO-8859-1").str.strip()
     return df
 
 

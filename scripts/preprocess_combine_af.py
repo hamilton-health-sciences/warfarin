@@ -59,13 +59,10 @@ def preprocess(args):
     merged_all = remove_short_trajectories(merged_all, min_length=2)
 
     # Save the output prior to splitting
-    baseline_path = os.path.join(args.clean_data_path,
-                                 f"baseline{args.suffix}.feather")
-    inr_path = os.path.join(args.clean_data_path, f"inr{args.suffix}.feather")
-    events_path = os.path.join(args.clean_data_path,
-                               f"events{args.suffix}.feather")
-    merged_path = os.path.join(args.clean_data_path,
-                               f"merged{args.suffix}.feather")
+    baseline_path = os.path.join(args.output_directory, f"baseline.feather")
+    inr_path = os.path.join(args.output_directory, f"inr.feather")
+    events_path = os.path.join(args.output_directory, f"events.feather")
+    merged_path = os.path.join(args.output_directory, f"merged.feather")
     baseline.reset_index(drop=True).to_feather(baseline_path)
     inr.reset_index(drop=True).to_feather(inr_path)
     events.reset_index(drop=True).to_feather(events_path)
@@ -75,12 +72,10 @@ def preprocess(args):
     test_ids = np.loadtxt(args.test_ids_path).astype(int)
     train_data, val_data, test_data = split_data(merged_all, test_ids)
 
-    train_path = os.path.join(args.split_data_path,
-                              f"train_data{args.suffix}.feather")
-    val_path = os.path.join(args.split_data_path,
-                            f"val_data{args.suffix}.feather")
-    test_path = os.path.join(args.split_data_path,
-                             f"test_data{args.suffix}.feather")
+    # Save the split output
+    train_path = os.path.join(args.output_directory, f"train_data.feather")
+    val_path = os.path.join(args.output_directory, f"val_data.feather")
+    test_path = os.path.join(args.output_directory, f"test_data.feather")
     train_data.reset_index(drop=True).to_feather(train_path)
     val_data.reset_index(drop=True).to_feather(val_path)
     test_data.reset_index(drop=True).to_feather(test_path)
@@ -94,8 +89,6 @@ def main(args):
         json.dumps(vars(args), open(preprocess_args_fn, "w"))
 
     # Make directory for the cleaned data
-    args.clean_data_path = os.path.join(args.data_folder,
-                                        args.output_directory)
     os.makedirs(args.output_directory, exist_ok=True)
 
     # Run pipeline
