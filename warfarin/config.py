@@ -41,6 +41,24 @@ STATIC_STATE_COLS = ["SEX", "CONTINENT", "SMOKE", "BMED_ASPIRIN", "BMED_AMIOD",
 # The adverse events we want to consider in Warfarin dosing
 ADV_EVENTS = ["STROKE", "HEM_STROKE", "MAJOR_BLEED"]
 
+# Raw warfarin dose bins
+WARFARIN_DOSE_BOUNDS = [-0.001, 5, 12.5, 17.5, 22.5, 27.5, 30, 32.5, 35, 45, 1000]
+WARFARIN_DOSE_BIN_LABELS = ["<=5", "(5, 12.5]", "(12.5, 17.5]", "(17.5, 22.5]",
+                            "(22.5, 27.5]", "(27.5, 30]", "(30, 32.5]",
+                            "(32.5, 35]", "(35, 45]", ">45"]
+
+# Age bins
+AGE_BOUNDS = [-0.001, 50, 60, 65, 70, 75, 80, 91]
+AGE_BIN_LABELS = ["<=50", "(50, 60]", "(60, 65]", "(65, 70]", "(70, 75]",
+                  "(75, 80]", ">80"]
+
+# Weight bins
+WEIGHT_BOUNDS = [-0.001, 55, 70, 80, 90, 100, 200]
+WEIGHT_BIN_LABELS = ["<=55", "(55, 70]", "(70, 80]", "(80, 90]", "(90, 100]",
+                     ">100"]
+
+
+
 # These are the columns of the state space
 STATE_COLS_TO_FILL = ["INR_VALUE","SEX", "BMED_ASPIRIN", "BMED_AMIOD",
                       "DIABETES", "HX_CHF", "HYPERTENSION", "HX_MI",

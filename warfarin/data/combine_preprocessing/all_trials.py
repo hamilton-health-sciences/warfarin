@@ -52,6 +52,10 @@ def preprocess_all(inr, events, baseline):
 
     baseline = baseline.rename(columns={"REGION": "CONTINENT"})
 
+    # Make age in baseline data an int
+    baseline.loc[baseline["AGE_DEIDENTIFIED"] == ">89", "AGE_DEIDENTIFIED"] = 90
+    baseline["AGE_DEIDENTIFIED"] = baseline["AGE_DEIDENTIFIED"].astype(int)
+
     # One-hot encode adverse events
     events.loc[:, "DEATH"] = (
         events["EVENT_NAME"] == "All Cause Death"
