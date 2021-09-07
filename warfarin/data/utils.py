@@ -1,6 +1,23 @@
 import numpy as np
 
 
+def decode(df):
+    """
+    Decode dataframe string columns from bytes.
+
+    Args:
+        df: Any dataframe.
+
+    Returns:
+        df: The dataframe with bytestrings decoded to UTF-8 strings.
+    """
+    str_df = df.select_dtypes([np.object])
+    str_df = str_df.stack().str.decode("utf-8").unstack()
+    for col in str_df:
+        df[col] = [x.strip() if isinstance(x, str) else x for x in str_df[col]]
+    return df
+
+
 def split_traj(df):
     """
     Split trajectories using "INTERRUPT" flag in the input dataframe.

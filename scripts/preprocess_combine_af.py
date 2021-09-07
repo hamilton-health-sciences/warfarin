@@ -32,18 +32,20 @@ def preprocess(args):
     Run the preprocessing pipeline end-to-end.
     """
     # Load the data from feather files
-    inr, events, baseline = load_raw_data(
-        args.data_folder + args.raw_data_folder
-    )
+    baseline = pd.read_feather(args.baseline_path)
+    inr = pd.read_feather(args.inr_path)
+    events = pd.read_feather(args.events_path)
 
+    # Perform non-trial-specific initial preprocessing
     inr, events, baseline = preprocess_all(inr, events, baseline)
 
+    # Trial-specific preprocessing
     engage_rocket_data = preprocess_engage_rocket(inr, baseline)
     rely_data = preprocess_rely(inr, baseline)
     aristotle_data = preprocess_aristotle(inr, baseline)
-
     inr = pd.concat([engage_rocket_data, rely_data, aristotle_data])
 
+    # Perform non-trial-specific preprocessing
     inr = remove_outlying_doses(inr)
     inr_events_merged = merge_inr_events(inr, events)
     inr_events_merged = split_trajectories_at_events(inr_events_merged)
@@ -73,17 +75,6 @@ def preprocess(args):
     test_ids = np.loadtxt(args.test_ids_path).astype(int)
     train_data, val_data, test_data = split_data(merged_all, test_ids)
 
-    # if args.remove_clin:
-    #     train_data = remove_clinically_unintuitive(train_data)
-    #     train_data = remove_short_traj(train_data)
-    # if args.remove_phys:
-    #     train_data = remove_phys_implausible(train_data)
-    #     train_data = remove_short_traj(train_data)
-
-    # train_data = prepare_features(train_data)
-    # val_data = prepare_features(val_data)
-    # test_data = prepare_features(test_data)
-
     train_path = os.path.join(args.split_data_path,
                               f"train_data{args.suffix}.feather")
     val_path = os.path.join(args.split_data_path,
@@ -93,25 +84,9 @@ def preprocess(args):
     train_data.reset_index(drop=True).to_feather(train_path)
     val_data.reset_index(drop=True).to_feather(val_path)
     test_data.reset_index(drop=True).to_feather(test_path)
-    # print(
-    #     f"Stored the train, val, test data in directory: {args.split_data_path}"
-    # )
 
 
 def main(args):
-    # Ensure data directory exists
-    raw_data_dir = os.path.join(args.data_folder, args.raw_data_folder)
-    if not os.path.exists(raw_data_dir):
-        raise Exception(
-            f"The specified data folder does not exist: {raw_data_dir}"
-        )
-
-    # Construct suffix
-    if args.remove_clin:
-        args.suffix = args.suffix + "_wo_clin"
-    if args.remove_phys:
-        args.suffix = args.suffix + "_wo_phys"
-
     # Write out preprocessing parameters
     if args.output_preprocess_args is not None:
         preprocess_args_fn = os.path.join(args.data_folder,
@@ -120,12 +95,8 @@ def main(args):
 
     # Make directory for the cleaned data
     args.clean_data_path = os.path.join(args.data_folder,
-                                        args.clean_data_folder)
-    os.makedirs(args.clean_data_path, exist_ok=True)
-
-    # Make directory for the split data
-    args.split_data_path = os.path.join(args.data_folder, "split_data")
-    os.makedirs(args.split_data_path, exist_ok=True)
+                                        args.output_directory)
+    os.makedirs(args.output_directory, exist_ok=True)
 
     # Run pipeline
     with timer("preprocessing data"):
@@ -137,25 +108,28 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--data_folder",
-        default="./data/",
-        type=str,
+        "--inr_path",
         required=True,
-        help=("Path to folder containing data. The raw data should be within "
-              "this folder. Cleaned data will be stored here as well.")
+        type=str,
+        help="Path to INR data feather file"
     )
     parser.add_argument(
-        "--raw_data_folder",
-        default="raw_data/",
+        "--baseline_path",
+        required=True,
         type=str,
-        help="Subfolder within the data folder containing the raw data."
+        help="Path to baseline data feather file"
     )
     parser.add_argument(
-        "--clean_data_folder",
-        default="clean_data/",
+        "--events_path",
+        required=True,
         type=str,
-        help=("Subfolder within the data folder for storing the preprocessed/"
-              "clean data.")
+        help="Path to events data feather file"
+    )
+    parser.add_argument(
+        "--output_directory",
+        required=True,
+        type=str,
+        help="Path to the directory to output the cleaned data"
     )
     parser.add_argument(
         "--test_ids_path",
@@ -164,31 +138,6 @@ if __name__ == "__main__":
         help=("Path to the IDs of subjects to include in the test set. Needed "
               "to ensure that the test set doesn't change during model "
               "development")
-    )
-    parser.add_argument(
-        "--remove_clin",
-        default=False,
-        action="store_const",
-        const=True,
-        help=("Flag to indicate whether or not we want to remove clinically "
-              "unintuitive cases. Note that when this parameter is marked as "
-              "True, '_wo_clin' will be appended to the data suffix.")
-    )
-    parser.add_argument(
-        "--remove_phys",
-        default=False,
-        action="store_const",
-        const=True,
-        help=("Flag to indicate whether or not we want to remove "
-              "physiologically implausible cases. Note that when this "
-              "parameter is marked as True, '_wo_phys' will be appended to the "
-              "data suffix.")
-    )
-    parser.add_argument(
-        "--suffix",
-        default="",
-        type=str,
-        help="Suffix to identify the preprocessed data."
     )
     parser.add_argument(
         "--output_preprocess_args",

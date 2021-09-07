@@ -15,17 +15,6 @@ from warfarin.data.auditing import auditable
 from warfarin.data.utils import split_traj
 
 
-def decode(df):
-    """
-    Decode dataframes from bytes.
-
-    :param df: any dataframe
-    """
-    str_df = df.select_dtypes([np.object])
-    str_df = str_df.stack().str.decode("utf-8").unstack()
-    for col in str_df:
-        df[col] = [x.strip() if isinstance(x, str) else x for x in str_df[col]]
-    return df
 
 
 def bin_inr(df, num_bins=3, colname="INR_VALUE"):
