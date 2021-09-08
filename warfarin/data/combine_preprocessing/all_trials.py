@@ -32,7 +32,7 @@ def preprocess_all(inr, events, baseline):
         events: The events dataframe.
         baseline: The baseline dataframe.
     """
-    # Fix dtypes of columns
+    # Fix dtypes of useful indexing columns
     baseline["SUBJID"] = baseline["SUBJID"].astype(int)
     inr["SUBJID"] = inr["SUBJID"].astype(int)
     inr["STUDY_DAY"] = inr["STUDY_DAY"].astype(int)
@@ -353,6 +353,15 @@ def merge_inr_baseline(inr_merged, baseline):
         merged_data: The INR, events, and baseline data merged.
     """
     baseline = baseline[config.STATIC_STATE_COLS + ["SUBJID"]]
+
+    # Convert categorical columns to categorical
+    for colname in baseline.columns:
+        if baseline[colname].dtype == object:
+            if "Y" in baseline[colname]:
+                baseline[colname] = baseline[colname].map({"Y": 1, "N": 0})
+            else:
+                baseline[colname] = pd.Categorical(baseline[colname])
+
     merged_data = inr_merged.merge(baseline, on="SUBJID", how="left")
 
     return merged_data
