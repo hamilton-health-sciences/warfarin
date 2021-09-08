@@ -2,8 +2,11 @@ from typing import Optional
 
 import pandas as pd
 
-from warfarin.data.feature_engineering import (engineer_features,
+import numpy as np
+
+from warfarin.data.feature_engineering import (engineer_state_features,
                                                extract_observed_decision,
+                                               compute_k,
                                                compute_reward,
                                                compute_done,
                                                compute_sample_probability)
@@ -70,13 +73,13 @@ class WarfarinReplayBuffer:
 
     @staticmethod
     def from_data(df, rel_event_sample_prob: int = 1):
-        id_cols = ["TRIAL", "SUBJID", "TRAJID"]
+        id_cols = ["TRIAL", "SUBJID", "TRAJID", "STUDY_DAY"]
         df = df.set_index(id_cols)
 
-        state = engineer_state_features(df.copy())
-        next_state = engineer_state_features(
-            df.groupby(id_cols).shift(-1).copy()
-        )
+        state, state_transform_params = engineer_state_features(df.copy())
+        next_state = state.groupby(
+            ["TRIAL", "SUBJID", "TRAJID"]
+        ).shift(-1).copy()
         option = extract_observed_decision(df.copy())
         k = compute_k(df.copy())
         reward = compute_reward(df.copy())
@@ -84,10 +87,13 @@ class WarfarinReplayBuffer:
         sample_prob = compute_sample_probability(df.copy(),
                                                  rel_event_sample_prob)
 
+        # TODO what are remaining dose change nulls??
+
         return WarfarinReplayBuffer(k,
                                     state,
                                     option,
                                     next_state,
                                     reward,
                                     done,
-                                    sample_prob)
+                                    sample_prob,
+                                    state_transform_params)

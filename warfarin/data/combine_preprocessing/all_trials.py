@@ -352,12 +352,12 @@ def merge_inr_baseline(inr_merged, baseline):
     Returns:
         merged_data: The INR, events, and baseline data merged.
     """
-    baseline = baseline[config.STATIC_STATE_COLS + ["SUBJID"]]
+    baseline = baseline[config.STATIC_STATE_COLS + ["SUBJID"]].copy()
 
     # Convert categorical columns to categorical
     for colname in baseline.columns:
         if baseline[colname].dtype == object:
-            if "Y" in baseline[colname]:
+            if "Y" in baseline[colname].unique():
                 baseline[colname] = baseline[colname].map({"Y": 1, "N": 0})
             else:
                 baseline[colname] = pd.Categorical(baseline[colname])

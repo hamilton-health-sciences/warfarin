@@ -57,7 +57,13 @@ WEIGHT_BOUNDS = [-0.001, 55, 70, 80, 90, 100, 200]
 WEIGHT_BIN_LABELS = ["<=55", "(55, 70]", "(70, 80]", "(80, 90]", "(90, 100]",
                      ">100"]
 
-
+# Raw columns of the state space.
+STATE_COLS = ["AGE_DEIDENTIFIED", "SEX", "WEIGHT", "CONTINENT", "SMOKE",
+              "BMED_ASPIRIN", "BMED_AMIOD", "BMED_THIENO", "DIABETES", "HX_CHF",
+              "HYPERTENSION", "HX_MI", "INR_VALUE", "WARFARIN_DOSE",
+              "STROKE_FLAG", "MAJOR_BLEED_FLAG", "MINOR_BLEED_FLAG",
+              "HEM_STROKE_FLAG", "HOSP_FLAG", "WARFARIN_DOSE_BIN", "AGE_BIN",
+              "WEIGHT_BIN"]
 
 # These are the columns of the state space
 STATE_COLS_TO_FILL = ["INR_VALUE","SEX", "BMED_ASPIRIN", "BMED_AMIOD",
