@@ -1,3 +1,5 @@
+"""Baseline model with the rules-based approach."""
+
 import numpy as np
 
 

@@ -1,20 +1,14 @@
-# coding: utf-8
-
 """Functions for pre-processing COMBINE-AF data."""
 
 from copy import deepcopy
 
-import time
-
-import pandas as pd
-
 import numpy as np
 
-from warfarin import config
 from warfarin.data.auditing import auditable
 from warfarin.data.utils import split_traj
 
 
+# TODO fix this
 @auditable()
 def remove_clinically_unintuitive(df):
     """
@@ -94,6 +88,7 @@ def remove_clinically_unintuitive(df):
     return df_analyze
 
 
+# TODO fix this
 @auditable()
 def remove_phys_implausible(df, inr_buffer_range=0.25):
     """

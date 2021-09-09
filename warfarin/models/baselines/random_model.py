@@ -1,3 +1,5 @@
+"""Baseline model which always chooses a random action."""
+
 import numpy as np
 
 

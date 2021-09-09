@@ -1,3 +1,5 @@
+"""Baseline model which always maintains the dose."""
+
 import numpy as np
 
 
