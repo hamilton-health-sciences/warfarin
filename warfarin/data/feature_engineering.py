@@ -160,15 +160,16 @@ def compute_k(df):
     Returns:
         k: The number of days elapsed as a pd.Series.
     """
-    k = df.reset_index().groupby(
-        ["TRIAL", "SUBJID", "TRAJID"]
-    )["STUDY_DAY"].diff().shift(-1)
-    k.name = "k"
+    df = df.reset_index()
+    df["k"] = df.groupby(["TRIAL", "SUBJID", "TRAJID"])["STUDY_DAY"].diff()
+    df["k"] = df.groupby(["TRIAL", "SUBJID", "TRAJID"])["k"].shift(-1)
+    df = df.set_index(["TRIAL", "SUBJID", "TRAJID", "STUDY_DAY"])
+    k = df["k"]
 
     return k
 
 
-def compute_reward(df, discount_factor=0.99):
+def compute_reward(df, discount_factor):
     """
     Compute the reward associated with each SMDP transition.
 

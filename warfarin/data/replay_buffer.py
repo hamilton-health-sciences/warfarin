@@ -1,4 +1,8 @@
+from __future__ import annotations
+
 from typing import Optional
+
+from warnings import warn
 
 import pandas as pd
 
@@ -14,32 +18,14 @@ from warfarin.data.feature_engineering import (engineer_state_features,
 
 class WarfarinReplayBuffer:
     def __init__(self,
-                 k: pd.Series,
-                 state: pd.DataFrame,
-                 option: pd.Series,
-                 next_state: pd.DataFrame,
-                 reward: pd.Series,
-                 done: pd.Series,
-                 sample_prob: Optional[pd.Series] = None,
-                 device: str = "cpu",
+                 df: pd.DataFrame,
+                 discount_factor: float,
+                 rel_event_sample_prob: int = 1,
                  batch_size: int = None,
+                 device: str = "cpu",
                  seed: int = 42) -> None:
-        # Data that makes up each transition
-        self.k = k
-        self.state = state
-        self.option = option
-        self.next_state = next_state
-        self.reward = reward
-        self.done = done
-
-        # The number of transitions in the buffer
-        self.size = len(self.state)
-
-        # The relative probability of sampling a given transition (does not have
-        # to sum to 1)
-        if sample_prob is None:
-            sample_prob = np.ones(self.size)
-        self.sample_prob = sample_prob
+        # Discount factor
+        self.discount_factor = discount_factor
 
         # The size of batches to sample
         self.batch_size = batch_size
@@ -50,29 +36,20 @@ class WarfarinReplayBuffer:
         # Seeded RNG for reproducibility
         self.rng = np.random.default_rng(seed)
 
-    def sample(self, idx=None):
-        if idx is None:
-            norm_sample_p = self.sample_prob / self.sample_prob.sum()
-            idx = self.rng.choice(np.arange(self.size).astype(int),
-                                  size=self.batch_size,
-                                  p=norm_sample_p)
+        # Data that makes up each transition
+        k, s, o, ns, r, d, p = self._extract_transitions(df)
+        self.k = k
+        self.state = s
+        self.option = o
+        self.next_state = ns
+        self.reward = r
+        self.done = d
+        self.sample_prob = p
 
-        k = np.array(self.k.iloc[idx])
-        state = np.array(self.state.iloc[idx])
-        option = np.array(self.option.iloc[idx])
-        next_state = np.array(self.next_state.iloc[idx])
-        reward = np.array(self.next_state.iloc[idx])
-        done = np.array(self.done.iloc[idx])
+        # Number of transitions in the buffer
+        self.size = len(self.state)
 
-        return (torch.from_numpy(k).to(self.device),
-                torch.from_numpy(state).to(self.device),
-                torch.from_numpy(option).to(self.device),
-                torch.from_numpy(next_state).to(self.device),
-                torch.from_numpy(reward).to(self.device),
-                torch.from_numpy(done).to(self.device))
-
-    @staticmethod
-    def from_data(df, rel_event_sample_prob: int = 1):
+    def _extract_transitions(self, df):
         id_cols = ["TRIAL", "SUBJID", "TRAJID", "STUDY_DAY"]
         df = df.set_index(id_cols)
 
@@ -82,19 +59,63 @@ class WarfarinReplayBuffer:
         ).shift(-1).copy()
         option = extract_observed_decision(df.copy())
         k = compute_k(df.copy())
-        reward = compute_reward(df.copy())
+        reward = compute_reward(df.copy(), self.discount_factor)
         done = compute_done(df.copy())
         sample_prob = compute_sample_probability(df.copy(),
                                                  rel_event_sample_prob)
 
-        import pdb; pdb.set_trace()
-        # TODO what are remaining dose change nulls??
+        nonmissing_state = (state.isnull().sum(axis=1) == 0)
+        num_missing_state_trans = len(nonmissing_state) - nonmissing_state.sum()
+        if num_missing_state_trans > 0:
+            warn("Looks like there are missing state values in "
+                 f"{num_missing_state_trans} transitions. Probably a bad thing")
 
-        return WarfarinReplayBuffer(k,
-                                    state,
-                                    option,
-                                    next_state,
-                                    reward,
-                                    done,
-                                    sample_prob,
-                                    state_transform_params)
+        # TODO we still need to maintain the un-subset data so that we can do
+        # e.g. proper TTR calc of the full trajectory
+        # Subset to transitions with no missing data
+        sel = (nonmissing_state &
+               (next_state.isnull().sum(axis=1) == 0) &
+               ~(k.isnull()) &
+               ~(reward.isnull()) &
+               ~(done.isnull()) &
+               ~(sample_prob.isnull()))
+        k = k.loc[sel]
+        state = state.loc[sel]
+        option = option.loc[sel]
+        next_state = next_state.loc[sel]
+        reward = reward.loc[sel]
+        done = done.loc[sel]
+        sample_prob = sample_prob.loc[sel]
+
+        return k, state, option, next_state, reward, done, sample_prob
+
+    def sample(self, idx=None):
+        if idx is None:
+            norm_sample_p = self.sample_prob / self.sample_prob.sum()
+            idx = self.rng.choice(np.arange(self.size).astype(int),
+                                  size=self.batch_size,
+                                  p=norm_sample_p)
+
+        if not self._cache:
+            k = np.array(self.k)
+            state = np.array(self.state)
+            option = np.array(self.option)
+            next_state = np.array(self.next_state)
+            reward = np.array(self.reward)
+            done = np.array(self.done)
+
+            self._cache["k"] = torch.from_numpy(k).to(self.device)
+            self._cache["state"] = torch.from_numpy(state).to(self.device)
+            self._cache["option"] = torch.from_numpy(option).to(self.device)
+            self._cache["next_state"] = torch.from_numpy(
+                next_state
+            ).to(self.device)
+            self._cache["reward"] = torch.from_numpy(reward).to(self.device)
+            self._cache["done"] = torch.from_numpy(done).to(self.device)
+
+        return (self._cache["k"][idx],
+                self._cache["state"][idx],
+                self._cache["option"][idx],
+                self._cache["next_state"][idx],
+                self._cache["reward"][idx],
+                self._cache["done"][idx])
