@@ -47,7 +47,8 @@ STATIC_STATE_COLS = ["SEX", "CONTINENT", "SMOKE", "BMED_ASPIRIN", "BMED_AMIOD",
 ADV_EVENTS = ["STROKE", "HEM_STROKE", "MAJOR_BLEED"]
 
 # Raw warfarin dose bins
-WARFARIN_DOSE_BOUNDS = [-0.001, 5, 12.5, 17.5, 22.5, 27.5, 30, 32.5, 35, 45, 1000]
+WARFARIN_DOSE_BOUNDS = [-0.001, 5, 12.5, 17.5, 22.5, 27.5, 30, 32.5, 35, 45,
+                        1000]
 WARFARIN_DOSE_BIN_LABELS = ["<=5", "(5, 12.5]", "(12.5, 17.5]", "(17.5, 22.5]",
                             "(22.5, 27.5]", "(27.5, 30]", "(30, 32.5]",
                             "(32.5, 35]", "(35, 45]", ">45"]

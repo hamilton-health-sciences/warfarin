@@ -1,8 +1,6 @@
+"""Quantitative evaluation metrics."""
+
 import numpy as np
-
-import torch
-
-import pandas as pd
 
 from sklearn.metrics import classification_report
 
