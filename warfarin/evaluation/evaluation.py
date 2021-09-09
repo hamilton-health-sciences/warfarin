@@ -16,7 +16,7 @@ from warfarin.evaluation.plotting import (plot_policy_heatmap,
                                           plot_agreement_ttr_curve)
 
 
-def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None):
+def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
     """
     Evaluate and plot a policy.
 
@@ -50,45 +50,45 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None):
         replay_buffer: The replay buffer of data to evaluate on.
         eval_state: A pass-through state var that should be modified and
                     returned.
+        plot: Whether or not to generate plots, because plotting is slow.
 
     Returns:
         metrics: The dictionary of quantitative metrics, mapping name to value.
-        plots: The dictionary of plots, mapping title to plot object.
+        plots: The dictionary of plots, mapping title to plot object. If the
+               `plot` argument is `False`, this will be an empty dictionary.
         eval_state: The pass-through state var, modified to be received in the
                     next call to this function.
     """
     # Extract policy decisions, observed decisions, and INR into dataframe
-    buffer_size = replay_buffer.crt_size
-    state = np.array(replay_buffer.get_state(replay_buffer.data))
-    obs_action = np.array(replay_buffer.data["ACTION"])
+    buffer_size = replay_buffer.size
+    state = np.array(replay_buffer.observed_state)
+    obs_action = np.array(replay_buffer.observed_option)
     policy_action = policy.select_action(state, eval=True)[:, 0]
-    inr = state[:, 0] * 4 + 0.5
+
     df = pd.DataFrame(
         {"OBSERVED_ACTION": obs_action,
          "POLICY_ACTION": policy_action,
-         "INR": inr},
-        index=replay_buffer.data["USUBJID_O_NEW"]
+         "INR": replay_buffer.df["INR_VALUE"],
+         "CONTINENT": replay_buffer.df["CONTINENT"]},
+        index=replay_buffer.df.index
     )
 
+
     # Next INR and whether it's in range
-    df["NEXT_INR"] = df["INR"].shift(-1)
+    df["NEXT_INR"] = df.groupby(
+        ["TRIAL", "SUBJID", "TRAJID"]
+    )["INR"].shift(-1)
     df["NEXT_INR_IN_RANGE"] = (
         (df["NEXT_INR"] >= 2.) & (df["NEXT_INR"] <= 3.)
     ).astype(int)
-
-    # Extract continent
-    continent_cols = [c for c in replay_buffer.data.columns if "CONTINENT" in c]
-    df["CONTINENT"] = pd.Categorical(
-        replay_buffer.data[continent_cols].idxmax(axis=1).apply(
-            lambda s: s.split("_")[1]
-        )
-    )
 
     # Extract baseline policy decisions
     tm = ThresholdModel()
     rm = RandomModel()
     mm = MaintainModel()
-    df["PREVIOUS_INR"] = df.groupby("USUBJID_O_NEW")["INR"].shift(1)
+    df["PREVIOUS_INR"] = df.groupby(
+        ["TRIAL", "SUBJID", "TRAJID"]
+    )["INR"].shift(1)
     df["THRESHOLD_ACTION"] = tm.select_action(
         np.array(df["PREVIOUS_INR"]),
         np.array(df["INR"])
@@ -126,15 +126,22 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None):
     # Compute algorithm-observed differences
     action_diff_cols = [c for c in df.columns if "ACTION_DIFF" in c]
 
-    traj_length = df.groupby("USUBJID_O_NEW")["NEXT_INR_IN_RANGE"].count()
+    traj_length = df.groupby(
+        ["TRIAL", "SUBJID", "TRAJID"]
+    )["NEXT_INR_IN_RANGE"].count()
     traj_length.name = "TRAJECTORY_LENGTH"
     disagreement_ttr = np.abs(df[action_diff_cols + ["NEXT_INR_IN_RANGE"]])
-    disagreement_ttr = disagreement_ttr.groupby("USUBJID_O_NEW").mean()
+    disagreement_ttr = disagreement_ttr.groupby(
+        ["TRIAL", "SUBJID", "TRAJID"]
+    ).mean()
     disagreement_ttr = disagreement_ttr.join(traj_length)
 
     # Compute results
     metrics = compute_metrics(df, disagreement_ttr)
-    plots = compute_plots(df, disagreement_ttr)
+    if plot:
+        plots = compute_plots(df, disagreement_ttr)
+    else:
+        plots = {}
     eval_state = {"prev_selected_actions": policy_action}
 
     return metrics, plots, eval_state

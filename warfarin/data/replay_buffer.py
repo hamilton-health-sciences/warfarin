@@ -27,10 +27,6 @@ class WarfarinReplayBuffer:
     Specifically, we take in the processed and merged dataset (specifically,
     either the train, val or test split) and build the state, option, reward,
     and transition flags needed for training.
-
-    TODO: implement method that allows model inference + merging with the
-          original dataframe, in its current form the last INR measurement will
-          likely be dropped
     """
 
     # TODO paramterize event reward magnitude
@@ -41,7 +37,22 @@ class WarfarinReplayBuffer:
                  batch_size: int = None,
                  device: str = "cpu",
                  seed: int = 42) -> None:
-        self.df = df
+        """
+        Args:
+            df: The processed data frame, containing the information required to
+                compute the transitions.
+            discount_factor: The discount factor used to compute option rewards.
+            rel_event_sample_prob: The factor by which to increase the
+                                   probability of sampling transitions from
+                                   trajectories with adverse events. When set to
+                                   1 (default), this corresponds to no
+                                   difference between events transitions and
+                                   non-events transitions.
+            batch_size: The size of the batch used during the training process.
+            device: The device to store the data on.
+            seed: The seed for randomly sampling batches.
+        """
+        self.df = df.set_index(["TRIAL", "SUBJID", "TRAJID", "STUDY_DAY"])
         self.discount_factor = discount_factor
         self.rel_event_sample_prob = rel_event_sample_prob
 
@@ -55,7 +66,7 @@ class WarfarinReplayBuffer:
         self.rng = np.random.default_rng(seed)
 
         # Data that makes up each transition
-        k, s, o, ns, r, nd, p = self._extract_transitions(df)
+        k, s, o, ns, r, nd, p = self._extract_transitions()
         self.k = k
         self.state = s
         self.option = o
@@ -70,20 +81,26 @@ class WarfarinReplayBuffer:
         # Cache for tensor representations of the buffer for fast training/eval
         self._cache = {}
 
-    def _extract_transitions(self, df):
-        id_cols = ["TRIAL", "SUBJID", "TRAJID", "STUDY_DAY"]
-        df = df.set_index(id_cols)
-
-        state, state_transform_params = engineer_state_features(df.copy())
+    def _extract_transitions(self):
+        """
+        Extract the observed state, next state, options, reward, time elapsed,
+        trajectory done flags, and transition sample probabilities.
+        """
+        state, state_transform_params = engineer_state_features(self.df.copy())
         next_state = state.groupby(
             ["TRIAL", "SUBJID", "TRAJID"]
         ).shift(-1).copy()
-        option = extract_observed_decision(df.copy())
-        k = compute_k(df.copy())
-        reward = compute_reward(df.copy(), self.discount_factor)
-        done = compute_done(df.copy())
-        sample_prob = compute_sample_probability(df.copy(),
+        option = extract_observed_decision(self.df.copy())
+        k = compute_k(self.df.copy())
+        reward = compute_reward(self.df.copy(), self.discount_factor)
+        done = compute_done(self.df.copy())
+        sample_prob = compute_sample_probability(self.df.copy(),
                                                  self.rel_event_sample_prob)
+        
+        # Maintain all state and observed actions, even missing ones, for
+        # evaluation
+        self.observed_state = state
+        self.observed_option = option
 
         nonmissing_state = (state.isnull().sum(axis=1) == 0)
         num_missing_state_trans = len(nonmissing_state) - nonmissing_state.sum()
@@ -115,6 +132,13 @@ class WarfarinReplayBuffer:
         return k, state, option, next_state, reward, not_done, sample_prob
 
     def sample(self, idx=None):
+        """
+        Sample a batch of transitions.
+
+        Args:
+            idx: If given, will sample the prescribed indices. Otherwise, will
+                 sample a random batch of size `self.batch_size`.
+        """
         if idx is None:
             norm_sample_p = self.sample_prob / self.sample_prob.sum()
             idx = self.rng.choice(np.arange(self.size).astype(int),

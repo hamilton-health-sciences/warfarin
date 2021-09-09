@@ -103,13 +103,13 @@ def plot_agreement_ttr_curve(df):
     # df = df.dropna()
 
     # Plot absolute agreement vs. TTR
-    plot_df = df.groupby("USUBJID_O_NEW")[
+    plot_df = df.groupby(["TRIAL", "SUBJID", "TRAJID"])[
         ["RL_AGREEMENT", "THRESHOLD_AGREEMENT", "NEXT_IN_RANGE"]
     ].mean()
     plot_df.columns = ["MEAN_RL_AGREEMENT",
                        "MEAN_THRESHOLD_AGREEMENT",
                        "APPROXIMATE_TTR"]
-    plot_df["TRAJECTORY_LENGTH"] = df.groupby("USUBJID_O_NEW")[
+    plot_df["TRAJECTORY_LENGTH"] = df.groupby(["TRIAL", "SUBJID", "TRAJID"])[
         "NEXT_IN_RANGE"
     ].count()
 
@@ -163,78 +163,3 @@ def plot_agreement_ttr_curve(df):
     )
 
     return agreement_ttr, agreement_histogram
-
-
-def plot_policy(policy, replay_buffer):
-    """
-    Plot a policy using all available plots.
-
-    Args:
-        policy: The BCQ policy.
-        replay_buffer: The replay buffer of data to evaluate on.
-
-    Returns:
-        plots: Dictionary mapping the name of the plot to the plot object.
-    """
-    # Extract policy decisions, observed decisions, and INR into dataframe
-    buffer_size = replay_buffer.crt_size
-    state = np.array(replay_buffer.get_state(replay_buffer.data))
-    obs_action = np.array(replay_buffer.data["ACTION"])
-    policy_action = policy.select_action(state, eval=True)
-    inr = state[:, 0] * 4 + 0.5
-    df = pd.DataFrame(
-        {"OBSERVED_ACTION": obs_action,
-         "POLICY_ACTION": policy_action[:, 0],
-         "INR": inr},
-        index=replay_buffer.data["USUBJID_O_NEW"]
-    )
-
-    # Extract continent
-    continent_cols = [c for c in replay_buffer.data.columns if "CONTINENT" in c]
-    df["CONTINENT"] = pd.Categorical(
-        replay_buffer.data[continent_cols].idxmax(axis=1).apply(
-            lambda s: s.split("_")[1]
-        )
-    )
-
-    # Extract threshold policy decisions
-    tm = ThresholdModel()
-    df["PREVIOUS_INR"] = df.groupby("USUBJID_O_NEW")["INR"].shift(1)
-    df["THRESHOLD_ACTION"] = tm.select_action(
-        np.array(df["PREVIOUS_INR"]),
-        np.array(df["INR"])
-    )
-
-    plots = {}
-
-    # Observed policy heatmap
-    obs_df = df[["OBSERVED_ACTION", "INR", "CONTINENT"]].copy()
-    obs_df.columns = ["ACTION", "INR", "CONTINENT"]
-    plots["observed_policy_heatmap"] = (
-        plot_policy_heatmap(obs_df) +
-        ggtitle("Observed Policy")
-    )
-
-    # RL policy heatmap
-    rl_df = df[["POLICY_ACTION", "INR", "CONTINENT"]].copy()
-    rl_df.columns = ["ACTION", "INR", "CONTINENT"]
-    plots["learned_policy_heatmap"] = (
-        plot_policy_heatmap(rl_df) +
-        ggtitle("RL Policy")
-    )
-
-    # Agreement curves and histograms
-    agreement_curve, agreement_histogram = plot_agreement_ttr_curve(
-        df.copy()
-    )
-    plots["absolute_agreement_curve"] = agreement_curve
-    plots["absolute_agreement_histogram"] = agreement_histogram
-
-    # Break out all plots by continent
-    plots_all = {}
-    for plot_name, plot in plots.items():
-        plots_all[plot_name] = plot
-        # for subvar in ["CONTINENT"]:
-        #     plots_all[f"{plot_name}_{subvar}"] = plot + facet_wrap(subvar)
- 
-    return plots_all
