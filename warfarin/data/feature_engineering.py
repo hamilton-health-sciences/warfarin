@@ -1,3 +1,5 @@
+"""Transforms processed data into a format suitable for RL modeling."""
+
 import pandas as pd
 
 import numpy as np
@@ -282,7 +284,7 @@ def compute_done(df):
     df["LAST"] = 0
     df.loc[last_entries, "LAST"] = 1
     df["DONE"] = df.groupby(["TRIAL", "SUBJID", "TRAJID"])["LAST"].shift(-1)
-    
+
     done = df["DONE"]
 
     return done
