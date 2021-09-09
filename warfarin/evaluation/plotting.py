@@ -2,7 +2,7 @@ import numpy as np
 
 import pandas as pd
 
-from plotnine import *
+from plotnine import *  # pylint: disable=wildcard-import,unused-wildcard-import
 
 from warfarin import config
 

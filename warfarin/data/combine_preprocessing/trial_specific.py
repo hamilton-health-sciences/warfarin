@@ -1,3 +1,5 @@
+"""Processing steps for specific trials in COMBINE-AF."""
+
 import numpy as np
 
 from warfarin.data.auditing import auditable

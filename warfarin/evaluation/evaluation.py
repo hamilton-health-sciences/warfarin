@@ -1,7 +1,5 @@
 """Entry point for evaluation metric and plots for a given learned policy."""
 
-from warnings import warn
-
 import numpy as np
 
 import pandas as pd
@@ -60,7 +58,6 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
                     next call to this function.
     """
     # Extract policy decisions, observed decisions, and INR into dataframe
-    buffer_size = replay_buffer.size
     state = np.array(replay_buffer.observed_state)
     obs_action = np.array(replay_buffer.observed_option)
     policy_action = policy.select_action(state, eval=True)[:, 0]
@@ -220,5 +217,5 @@ def compute_plots(df, disagreement_ttr):
         plots_all[plot_name] = plot
         for subvar in ["CONTINENT"]:
             plots_all[f"{plot_name}_{subvar}"] = plot + facet_wrap(subvar)
- 
+
     return plots_all

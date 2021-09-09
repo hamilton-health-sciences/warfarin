@@ -34,7 +34,7 @@ class WarfarinReplayBuffer:
                  df: pd.DataFrame,
                  discount_factor: float,
                  rel_event_sample_prob: int = 1,
-                 batch_size: int = None,
+                 batch_size: Optional[int] = None,
                  device: str = "cpu",
                  seed: int = 42) -> None:
         """
@@ -86,6 +86,7 @@ class WarfarinReplayBuffer:
         Extract the observed state, next state, options, reward, time elapsed,
         trajectory done flags, and transition sample probabilities.
         """
+        # TODO actually use these state transform params!
         state, state_transform_params = engineer_state_features(self.df.copy())
         next_state = state.groupby(
             ["TRIAL", "SUBJID", "TRAJID"]
@@ -96,7 +97,7 @@ class WarfarinReplayBuffer:
         done = compute_done(self.df.copy())
         sample_prob = compute_sample_probability(self.df.copy(),
                                                  self.rel_event_sample_prob)
-        
+
         # Maintain all state and observed actions, even missing ones, for
         # evaluation
         self.observed_state = state

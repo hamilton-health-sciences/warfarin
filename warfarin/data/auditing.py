@@ -1,3 +1,5 @@
+"""Helpers for auditing data processing."""
+
 from warnings import warn
 
 import os

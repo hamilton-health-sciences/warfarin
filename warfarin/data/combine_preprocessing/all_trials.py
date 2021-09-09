@@ -1,3 +1,5 @@
+"""Shared data processing steps that are used for all RCTs in COMBINE-AF."""
+
 import numpy as np
 
 import pandas as pd
@@ -371,7 +373,7 @@ def merge_inr_baseline(inr_merged, baseline):
 def split_data(inr_merged, test_ids):
     """
     Split data into train, validation, and test data.
-    
+
     Args:
         inr_merged: The dataframe containing the preprocessed, merged data.
 

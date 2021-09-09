@@ -1,3 +1,5 @@
+"""Data processing for the COMBINE-AF dataset."""
+
 from .all_trials import (preprocess_all,
                          remove_outlying_doses,
                          merge_inr_events,
