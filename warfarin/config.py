@@ -18,6 +18,9 @@ MIN_INR_COUNTS = 10
 # The reward associated with INRs that are in therapeutic range
 INR_REWARD = 1
 
+# The reward associated with adverse events (ADV_EVENTS)
+EVENT_REWARD = 0
+
 # These are the adverse events that are extracted from the events data and
 # merged with the rest of the data. Note that STROKE indicates ischemic stroke.
 EVENTS_TO_KEEP = ["DEATH", "STROKE", "MAJOR_BLEED", "MINOR_BLEED", "HEM_STROKE",
@@ -38,7 +41,8 @@ STATIC_STATE_COLS = ["SEX", "CONTINENT", "SMOKE", "BMED_ASPIRIN", "BMED_AMIOD",
                      "DIABETES", "HX_CHF", "HYPERTENSION", "HX_MI",
                      "BMED_THIENO", "AGE_DEIDENTIFIED", "WEIGHT"]
 
-# The adverse events we want to consider in Warfarin dosing
+# The adverse events we want to consider when defining rewards based on events
+# and upsampling trajectories with events.
 ADV_EVENTS = ["STROKE", "HEM_STROKE", "MAJOR_BLEED"]
 
 # Raw warfarin dose bins

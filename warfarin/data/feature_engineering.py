@@ -80,7 +80,7 @@ def engineer_state_features(df, params=None):
     # Join as state cols
     df = df_cat_ohe.join(df_cts_scaled)
 
-    # Provide previous INRs
+    # Provide previous INRs in state
     df["INR_VALUE_PREV_1"] = df.groupby(
         ["SUBJID", "TRAJID"]
     )["INR_VALUE"].shift(1).fillna(df["INR_VALUE"])
@@ -129,12 +129,82 @@ def compute_k(df):
 
 
 def compute_reward(df):
-    pass
+    # Explode an empty dataframe to be indexed by every study day, including
+    # those where we don't have observations.
+    df = df[["INR_VALUE"] + config.ADV_EVENTS].copy()
+    days = df.reset_index().groupby(
+        ["TRIAL", "SUBJID", "TRAJID"]
+    )["STUDY_DAY"].min().to_frame().rename(
+        columns={"STUDY_DAY": "FIRST_DAY"}
+    ).join(
+        df.reset_index().groupby(
+            ["TRIAL", "SUBJID", "TRAJID"]
+        )["STUDY_DAY"].max()
+    ).rename(columns={"STUDY_DAY": "LAST_DAY"})
+    days["STUDY_DAY"] = [
+        np.arange(start, end + 1).astype(int)
+        for start, end in zip(days["FIRST_DAY"], days["LAST_DAY"])
+    ]
+    days = days.explode(column="STUDY_DAY")
+    days = days.drop(columns=["FIRST_DAY", "LAST_DAY"])
+
+    # Put the observed values into the empty exploded frame.
+    df_interp = days.reset_index().set_index(
+        ["TRIAL", "SUBJID", "TRAJID", "STUDY_DAY"]
+    ).join(df)
+
+    # Linearly interpolate INR. We don't need a groupby here because INRs are
+    # always observed at the start and end of a trajectory.
+    # TODO do we need a groupby?
+    df_interp["INR_VALUE"] = df_interp["INR_VALUE"].interpolate()
+
+    # Impute adverse events as having not occurred on days without an
+    # observation
+    df_interp[config.ADV_EVENTS] = df_interp[config.ADV_EVENTS].fillna(0)
+
+    # Compute whether interpolated INR is in range.
+    df_interp["IN_RANGE"] = ((df_interp["INR_VALUE"] >= 2) &
+                             (df_interp["INR_VALUE"] <= 3))
+
+    # Compute daily rewards
+    is_event = (df_interp[config.ADV_EVENTS].sum(axis=1) > 0).fillna(0)
+    df_interp["REWARD"] = (df_interp["IN_RANGE"] * config.INR_REWARD +
+                           is_event * config.EVENT_REWARD)
+
+    # Compute intermediate time index between visits
+    df_interp.loc[df.index, "IS_OBSERVED"] = 1
+    df_interp["IS_OBSERVED"] = df_interp["IS_OBSERVED"].fillna(0).astype(int)
+    df_interp["NUM_INR_MEASURED"] = df_interp.groupby(
+        ["TRIAL", "SUBJID", "TRAJID"]
+    )["IS_OBSERVED"].cumsum()
+    df_interp = df_interp.reset_index().set_index(
+        ["TRIAL", "SUBJID", "TRAJID", "NUM_INR_MEASURED"]
+    )
+    df_interp["LAST_VISIT_DAY"] = df_interp.groupby(
+        ["TRIAL", "SUBJID", "TRAJID", "NUM_INR_MEASURED"]
+    )["STUDY_DAY"].min().rename("LAST_VISIT_DAY")
+    df_interp = df_interp.reset_index().set_index(["TRIAL", "SUBJID", "TRAJID"])
+    df_interp["t"] = df_interp["STUDY_DAY"] - df_interp["LAST_VISIT_DAY"] - 1
+
+    # 
+    import pdb; pdb.set_trace()
 
 
 def compute_done(df):
-    pass
+    last_entries = df.groupby(["TRIAL", "SUBJID", "TRAJID"]).apply(
+        pd.DataFrame.last_valid_index
+    )
+    df["LAST"] = 0
+    df.loc[last_entries, "LAST"] = 1
+    df["DONE"] = df.groupby(["TRIAL", "SUBJID", "TRAJID"])["LAST"].shift(-1)
+    
+    return df["DONE"]
 
 
 def compute_sample_probability(df, relative_event_sample_probability):
-    pass
+    df["IS_EVENT"] = df[config.ADV_EVENTS].sum(axis=1)
+    exp_event = df.groupby(["TRIAL", "SUBJID", "TRAJID"])["IS_EVENT"] > 0
+    df["SAMPLE_PROB"] = 1.
+    df.loc[exp_event == 1, "SAMPLE_PROB"] = relative_event_sample_probability
+
+    return df["SAMPLE_PROB"]

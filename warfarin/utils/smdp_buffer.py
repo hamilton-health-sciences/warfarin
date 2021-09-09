@@ -280,6 +280,7 @@ class SMDPReplayBuffer(object):
                       on=["USUBJID_O_NEW", "CUMU_INR_MEASURED"])
 
         self.data.loc[:, "REWARD"] = df["DISC_REWARD"].values
+        import pdb; pdb.set_trace()
 
     def get_ttr(self, colname="INR_VALUE"):
         df = self.data
