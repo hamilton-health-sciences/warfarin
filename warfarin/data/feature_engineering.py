@@ -8,6 +8,23 @@ from warfarin import config
 
 
 def engineer_state_features(df, params=None):
+    """
+    Construct the state vectors.
+
+    Use sklearn transforms to one-hot encode certain categorical variables, and
+    transform continuous variables into the range [0, 1].
+
+    Args:
+        df: Merged longitudinal data, indexed by "TRIAL", "SUBJID", "TRAJID",
+            and "STUDY_DAY".
+        params: Parameters to the transforms. If left to None, the parameters of
+                the transforms will be learned from the data (meant to be
+                applied to training data).
+
+    Returns:
+        df: The engineered state features.
+        params: The parameters of the transforms.
+    """
     if params is None:
         params = {}
 
@@ -45,6 +62,8 @@ def engineer_state_features(df, params=None):
         encoder.set_params(params["categorical"])
     else:
         encoder.fit(df_cat)
+        # TODO turns out this does not actually extract the learned parameters
+        # of the transform... will need to do this separately
         params["categorical"] = encoder.get_params()
     colnames = [
         "_".join((df_cat.columns[i], str(level)))
@@ -70,6 +89,7 @@ def engineer_state_features(df, params=None):
         encoder.set_params(params["continuous"])
     else:
         encoder.fit(df_cts)
+        # TODO see above
         params["continuous"] = encoder.get_params()
     df_cts_scaled = pd.DataFrame(
         encoder.transform(df_cts),
@@ -93,6 +113,15 @@ def engineer_state_features(df, params=None):
 
 
 def extract_observed_decision(df):
+    """
+    Extract the observed clinician option.
+
+    Args:
+        df: The merged longitudinal data.
+
+    Returns:
+        option: The observed dose adjustment options in the data as a pd.Series.
+    """
     # Compute the dose change undertaken by the clinician
     df["WARFARIN_DOSE_MULT"] = df.groupby(
         ["TRIAL", "SUBJID", "TRAJID"]
@@ -115,11 +144,22 @@ def extract_observed_decision(df):
     )
     action_code = action.codes.astype(float)
     action_code[action_code < 0] = np.nan
+    df["OPTION"] = action_code
+    option = df["OPTION"]
 
-    return action_code
+    return option
 
 
 def compute_k(df):
+    """
+    Compute the number of days elapsed between the current and next visit.
+
+    Args:
+        df: The merged longitudinal data.
+
+    Returns:
+        k: The number of days elapsed as a pd.Series.
+    """
     k = df.reset_index().groupby(
         ["TRIAL", "SUBJID", "TRAJID"]
     )["STUDY_DAY"].diff().shift(-1)
@@ -129,6 +169,15 @@ def compute_k(df):
 
 
 def compute_reward(df, discount_factor=0.99):
+    """
+    Compute the reward associated with each SMDP transition.
+
+    Args:
+        df: The merged longitudinal data.
+
+    Returns:
+        reward: The cumulative discounted reward.
+    """
     # Explode an empty dataframe to be indexed by every study day, including
     # those where we don't have observations.
     df = df[["INR_VALUE"] + config.ADV_EVENTS].copy()
@@ -210,11 +259,21 @@ def compute_reward(df, discount_factor=0.99):
     ).set_index(["TRIAL", "SUBJID", "TRAJID", "STUDY_DAY"])
 
     df = df.join(cum_disc_reward)
+    reward = df["CUM_DISC_REWARD"]
 
-    return df["CUM_DISC_REWARD"]
+    return reward
 
 
 def compute_done(df):
+    """
+    Compute whether the transition is the last in a given trajectory.
+
+    Args:
+        df: The merged longitudinal data.
+
+    Returns:
+        done: Whether or not this is the last transition in the trajectory.
+    """
     last_entries = df.groupby(["TRIAL", "SUBJID", "TRAJID"]).apply(
         pd.DataFrame.last_valid_index
     )
@@ -222,13 +281,32 @@ def compute_done(df):
     df.loc[last_entries, "LAST"] = 1
     df["DONE"] = df.groupby(["TRIAL", "SUBJID", "TRAJID"])["LAST"].shift(-1)
     
-    return df["DONE"]
+    done = df["DONE"]
+
+    return done
 
 
 def compute_sample_probability(df, relative_event_sample_probability):
+    """
+    Compute the probability of sampling a given transition.
+
+    Specifically, we assign a sample probability of 1 to all transitions. If the
+    transition is a part of a trajectory which experiences an adverse event as
+    defined in `config.ADV_EVENTS`, we assign a relative sampling probability of
+    `relative_event_sample_probability`.
+
+    Args:
+        df: The merged longitudinal data.
+        relative_event_sample_probability: The probability of sampling a
+                                           transition in an event trajectory
+                                           (relative to 1).
+
+    Returns:
+        sample_prob: The probability of sampling a given transition.
+    """
     df["IS_EVENT"] = df[config.ADV_EVENTS].sum(axis=1)
-    exp_event = df.groupby(["TRIAL", "SUBJID", "TRAJID"])["IS_EVENT"] > 0
+    exp_event = df.groupby(["TRIAL", "SUBJID", "TRAJID"])["IS_EVENT"].sum() > 0
     df["SAMPLE_PROB"] = 1.
-    df.loc[exp_event == 1, "SAMPLE_PROB"] = relative_event_sample_probability
+    df.loc[exp_event, "SAMPLE_PROB"] = relative_event_sample_probability
 
     return df["SAMPLE_PROB"]

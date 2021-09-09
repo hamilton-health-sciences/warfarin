@@ -87,6 +87,7 @@ class WarfarinReplayBuffer:
         sample_prob = compute_sample_probability(df.copy(),
                                                  rel_event_sample_prob)
 
+        import pdb; pdb.set_trace()
         # TODO what are remaining dose change nulls??
 
         return WarfarinReplayBuffer(k,
