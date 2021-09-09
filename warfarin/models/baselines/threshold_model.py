@@ -35,7 +35,8 @@ class ThresholdModel:
             (current_inr < 1.) | (current_inr > 4.),
             current_inr < 2.,
             (current_inr >= 2.) & (current_inr <= 3.),
-            (current_inr > 3.) & (np.isnan(previous_inr) | (previous_inr <= 3.)),
+            (current_inr > 3.) & (np.isnan(previous_inr) |
+                                  (previous_inr <= 3.)),
             (current_inr > 3.) & (previous_inr > 3.)
         ]
         actions = [np.nan, 5, 3, 3, 1]

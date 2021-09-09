@@ -14,7 +14,7 @@ class RandomModel:
             seed: The seed to the RNG.
         """
         self.rng = np.random.default_rng(seed)
-    
+
     def select_action(self, num):
         """
         Return the chosen actions.

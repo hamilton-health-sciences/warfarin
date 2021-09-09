@@ -1,3 +1,5 @@
+"""Miscellaneous utilities for data processing."""
+
 import numpy as np
 
 

@@ -1,9 +1,19 @@
+"""Timer utility for timing individual steps in the pipeline."""
+
 from typing import Optional
 
 import time
 
 
 class timer:
+    """
+    Supports timing an individual step in the pipeline, and will output the time
+    taken to `stdout`.
+
+    >>> with timer("the name of the step"):
+    ...     do_something_that_takes_2_minutes()
+    Finished 'the name of the step' in 120.02 seconds
+    """
     def __init__(self, name: Optional[str] = None):
         self.name = name
 
