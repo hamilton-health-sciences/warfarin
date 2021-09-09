@@ -111,18 +111,17 @@ class discrete_BCQ(object):
             actions = np.array([[x] for x in np.array((imt * q + (1. - imt) * -1e8).argmax(1).to("cpu"))])
             return actions
 
-    def train(self, replay_buffer, events_buffer, is_behav=False):
+    def train(self, replay_buffer, is_behav=False):
 
         # Sample replay buffer
-        k, state, action, next_state, reward, done = replay_buffer.sample()
-        events_k, events_state, events_action, events_next_state, events_reward, events_done = events_buffer.sample()
+        k, state, action, next_state, reward, not_done = replay_buffer.sample()
 
-        state = torch.cat((state, events_state), 0)
-        k = torch.cat((k, events_k), 0)
-        action = torch.cat((action, events_action), 0)
-        next_state = torch.cat((next_state, events_next_state), 0)
-        reward = torch.cat((reward, events_reward), 0)
-        done = torch.cat((done, events_done), 0)
+        # state = torch.cat((state, events_state), 0)
+        # k = torch.cat((k, events_k), 0)
+        # action = torch.cat((action, events_action), 0)
+        # next_state = torch.cat((next_state, events_next_state), 0)
+        # reward = torch.cat((reward, events_reward), 0)
+        # done = torch.cat((done, events_done), 0)
 
         # Compute the target Q value
         with torch.no_grad():
@@ -134,7 +133,7 @@ class discrete_BCQ(object):
             next_action = (imt * q + (1 - imt) * -1e8).argmax(1, keepdim=True)
 
             q, imt, i = self.Q_target(next_state)
-            target_Q = reward + done * (self.discount ** k) * q.gather(1, next_action).reshape(-1, 1)
+            target_Q = reward + not_done * (self.discount ** k) * q.gather(1, next_action).reshape(-1, 1)
 
         # Get current Q estimate
         current_Q, imt, i = self.Q(state)

@@ -10,6 +10,8 @@ from uuid import uuid4
 
 import argparse
 
+import pandas as pd
+
 import numpy as np
 
 import torch
@@ -22,7 +24,7 @@ from ray.tune.schedulers import AsyncHyperBandScheduler
 import tensorflow as tf
 
 from warfarin import config as global_config
-from warfarin.utils.smdp_buffer import SMDPReplayBuffer
+from warfarin.data import WarfarinReplayBuffer
 from warfarin.models.smdp_dBCQ import discrete_BCQ
 from warfarin.evaluation import evaluate_and_plot_policy
 
@@ -57,9 +59,9 @@ def store_plot_tensorboard(plot_name, plot, step, writer):
 def train_run(config: dict,
               checkpoint_dir: str,
               train_buffer_path: str,
-              events_buffer_path: str,
               val_buffer_path: str,
-              init_seed: int):
+              init_seed: int,
+              smoke_test: bool = False):
     """
     Train a model with a given set of hyperparameters.
 
@@ -67,42 +69,33 @@ def train_run(config: dict,
         config: The hyperparameters of interest.
         checkpoint_dir: The checkpointing directory path created by Ray Tune.
         train_buffer_path: The path to the training buffer.
-        events_buffer_path: The path to the events buffer.
         val_buffer_path: The path to the validation buffer.
         init_seed: Random seed for reproducibility within a set of
                    hyperparameters.
     """
     # Load the data
-    train_buffer = SMDPReplayBuffer.from_filename(
-        data_path=train_buffer_path,
+    train_df = pd.read_feather(train_buffer_path)
+    train_buffer = WarfarinReplayBuffer(
+        df=train_df,
+        discount_factor=config["discount"],
         batch_size=config["batch_size"],
-        buffer_size=1e7,
         device="cuda"
     )
-    train_buffer.max_size = len(train_buffer.data)
-    events_buffer = SMDPReplayBuffer.from_filename(
-        data_path=events_buffer_path,
+    val_df = pd.read_feather(val_buffer_path)
+    val_buffer = WarfarinReplayBuffer(
+        df=val_df,
+        discount_factor=config["discount"],
         batch_size=config["batch_size"],
-        buffer_size=1e6,
         device="cuda"
     )
-    events_buffer.max_size = len(events_buffer.data)
-    val_buffer = SMDPReplayBuffer.from_filename(
-        data_path=val_buffer_path,
-        batch_size=config["batch_size"],
-        buffer_size=1e6,
-        device="cuda"
-    )
-    val_buffer.max_size = len(val_buffer.data)
 
     # Data dimensionality from buffers
     num_actions = 7  # TODO
-    state_dim = 56  # ...
 
     # Build the model trainer
     policy = discrete_BCQ(
         num_actions,
-        state_dim,
+        train_buffer.state_dim,
         "cuda",
         config["bcq_threshold"],
         config["discount"],
@@ -134,24 +127,37 @@ def train_run(config: dict,
 
     # Train the model
     running_state = None
-    trial_dir = tune.get_trial_dir()
+    if smoke_test:
+        trial_dir = "./smoke_test"
+    else:
+        trial_dir = tune.get_trial_dir()
     writer = tf.summary.create_file_writer(trial_dir)
     for epoch in range(start, global_config.MAX_TRAINING_EPOCHS):
         # Number of batches for approximate coverage of the full buffer
-        num_batches = int(
-            np.ceil(len(train_buffer.data) / config["batch_size"])
-        )
+        if smoke_test:
+            num_batches = 1
+        else:
+            num_batches = int(
+                np.ceil(train_buffer.size / config["batch_size"])
+            )
 
         # Train on the full buffer approximately once
         for _ in range(num_batches):
-            qloss = policy.train(train_buffer, events_buffer)
+            qloss = policy.train(train_buffer)
 
         # Evaluate the policy
+        plot_epoch = (epoch % global_config.PLOT_EVERY == 0)
         train_metrics, train_plots, running_state = evaluate_and_plot_policy(
-            policy, train_buffer, running_state
+            policy,
+            train_buffer,
+            running_state,
+            plot=plot_epoch
         )
         val_metrics, val_plots, running_state = evaluate_and_plot_policy(
-            policy, val_buffer, running_state
+            policy,
+            val_buffer,
+            running_state,
+            plot=plot_epoch
         )
         metrics = {**{f"train_{k}": v for k, v in train_metrics.items()},
                    **{f"val_{k}": v for k, v in val_metrics.items()}}
@@ -165,7 +171,7 @@ def train_run(config: dict,
             torch.save(policy.Q.state_dict(), ckpt_fn)
 
             # Store plots for Tensorboard
-            if epoch % global_config.PLOT_EVERY == 0:
+            if plot_epoch:
                 for plot_name, plot in plots.items():
                     try:
                         store_plot_tensorboard(plot_name,
@@ -190,17 +196,14 @@ def tune_run(num_samples: int,
              output_dir: str,
              resume_errored: bool,
              train_buffer_path: str,
-             events_buffer_path: str,
              val_buffer_path: str,
              target_metric: str,
-             mode: str):
+             mode: str,
+             smoke_test: bool,
+             tune_smoke_test: bool):
     # TODO: make number of layers searchable over a wider space by generalizing
     # the model class
     tune_config = {
-        # Data
-        "train_buffer_path": train_buffer_path,
-        "val_buffer_path": val_buffer_path,
-        "events_buffer_path": events_buffer_path,
         # Fixed hyperparams
         "optimizer": "Adam",
         "polyak_target_update": True,
@@ -214,6 +217,20 @@ def tune_run(num_samples: int,
         "hidden_dim": tune.choice([16, 32, 64, 128, 256]),
         "bcq_threshold": tune.choice([0.2, 0.3])
     }
+
+    if smoke_test:
+        global_config.MAX_TRAINING_EPOCHS = 1
+        train_conf = tune_config
+        for k, v in train_conf.items():
+            if hasattr(v, "sample"):
+                train_conf[k] = v.sample()
+        train_run(train_conf,
+                  checkpoint_dir=None,
+                  train_buffer_path=train_buffer_path,
+                  val_buffer_path=val_buffer_path,
+                  init_seed=init_seed,
+                  smoke_test=True)
+        exit()
 
     # Specify algorithm for selecting the next set of hyperparameters to try
     # intelligently (TPE algo)
@@ -250,7 +267,6 @@ def tune_run(num_samples: int,
         partial(
             train_run,
             train_buffer_path=train_buffer_path,
-            events_buffer_path=events_buffer_path,
             val_buffer_path=val_buffer_path,
             init_seed=init_seed
         ),
@@ -277,12 +293,6 @@ def main():
         type=str,
         required=True,
         help="Path to training buffer"
-    )
-    parser.add_argument(
-        "--events_buffer",
-        type=str,
-        required=False,
-        help="Path to events buffer, if using"
     )
     parser.add_argument(
         "--val_buffer",
@@ -333,6 +343,18 @@ def main():
         default="./ray_logs",
         help="The output directory for the hyperparameter optimizer logs"
     )
+    parser.add_argument(
+        "--smoke_test",
+        default=False,
+        action="store_true",
+        help="Perform a smoke test of the `train` call and exit"
+    )
+    parser.add_argument(
+        "--tune_smoke_test",
+        default=False,
+        action="store_true",
+        help="Perform a smoke test of the tuning procedure and exit"
+    )
     args = parser.parse_args()
 
     if args.num_samples is None:
@@ -351,8 +373,10 @@ def main():
         mode=args.mode,
         # Model/data parameters
         train_buffer_path=args.train_buffer,
-        events_buffer_path=args.events_buffer,
-        val_buffer_path=args.val_buffer
+        val_buffer_path=args.val_buffer,
+        # Smoke tests for faster iteration on tuning procedure
+        smoke_test=args.smoke_test,
+        tune_smoke_test=args.tune_smoke_test
     )
 
 

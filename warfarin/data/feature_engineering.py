@@ -41,6 +41,7 @@ def engineer_state_features(df, params=None):
         )
 
     # Discretize continuous features
+    # TODO levaing continuous features in the state space?
     df["WARFARIN_DOSE_BIN"] = pd.cut(df["WARFARIN_DOSE"],
                                      bins=config.WARFARIN_DOSE_BOUNDS,
                                      labels=config.WARFARIN_DOSE_BIN_LABELS)

@@ -4,6 +4,7 @@
 # individual step of the preprocessing pipeline to this path, named by the
 # preprocessing function.
 AUDIT_PATH = "./data/auditing"
+AUDIT_PLOT_PATH = "./data/auditing"
 
 # Patients with weekly mg doses above this will be removed
 DOSE_OUTLIER_THRESHOLD = 140
