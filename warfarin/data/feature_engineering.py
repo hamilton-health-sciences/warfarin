@@ -128,7 +128,7 @@ def compute_k(df):
     return k
 
 
-def compute_reward(df):
+def compute_reward(df, discount_factor=0.99):
     # Explode an empty dataframe to be indexed by every study day, including
     # those where we don't have observations.
     df = df[["INR_VALUE"] + config.ADV_EVENTS].copy()
@@ -183,11 +183,35 @@ def compute_reward(df):
     df_interp["LAST_VISIT_DAY"] = df_interp.groupby(
         ["TRIAL", "SUBJID", "TRAJID", "NUM_INR_MEASURED"]
     )["STUDY_DAY"].min().rename("LAST_VISIT_DAY")
+    df_interp["LAST_VISIT_DAY"] = df_interp.groupby(
+        ["TRIAL", "SUBJID", "TRAJID"]
+    )["LAST_VISIT_DAY"].shift(1)
     df_interp = df_interp.reset_index().set_index(["TRIAL", "SUBJID", "TRAJID"])
     df_interp["t"] = df_interp["STUDY_DAY"] - df_interp["LAST_VISIT_DAY"] - 1
+    df_interp["LAST_VISIT_DAY"] = df_interp[
+        "LAST_VISIT_DAY"
+    ].fillna(-1).astype(int)
 
-    # 
-    import pdb; pdb.set_trace()
+    # Compute reward
+    df_interp["DISC_REWARD"] = (
+        df_interp["REWARD"] * discount_factor**df_interp["t"]
+    )
+
+    # TODO previously, if the INRs were observed on days 5 and 7, the reward
+    # signal from day 7 was not included in the reward for the transition at
+    # day 5 (I think). validate that the new assumption (as illustrated in our
+    # figure) is what we actually want.
+    # Compute cumulative discounted reward
+    cum_disc_reward = df_interp.groupby(
+        ["TRIAL", "SUBJID", "TRAJID", "LAST_VISIT_DAY"]
+    )["DISC_REWARD"].sum().reset_index().rename(
+        columns={"LAST_VISIT_DAY": "STUDY_DAY",
+                 "DISC_REWARD": "CUM_DISC_REWARD"}
+    ).set_index(["TRIAL", "SUBJID", "TRAJID", "STUDY_DAY"])
+
+    df = df.join(cum_disc_reward)
+
+    return df["CUM_DISC_REWARD"]
 
 
 def compute_done(df):
