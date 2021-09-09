@@ -20,15 +20,19 @@ Point Python at the cloned directory:
 ## Preprocessing
 
 Run the preprocessing steps. This will first convert the input SAS files into
-Feather dataframes and store them, then preprocess the data and create replay
-buffers for RL modeling, splitting off the test set from the IDs listed in
-`./data/test_subject_ids.txt`. This list of IDs was randomly generated.
+Feather dataframes and store them, then preprocess the data and ready it for RL
+modeling, splitting off the test set from the IDs listed in
+`./data/test_subject_ids.txt`. This list of IDs was randomly generated during
+an earlier phase of the project.
 
     $ bash script/preprocess.sh \
         ./data/raw_data/baseline.sas7bdat \
         ./data/raw_data/inr.sas7bdat
         ./data/raw_data/events.sas7bdat
         ./data/test_subject_ids.txt
+
+This will create an audit log in `output/` that can be comparison-checked for
+correctness.
 
 ## Model training
 

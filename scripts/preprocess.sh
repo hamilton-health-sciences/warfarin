@@ -30,3 +30,6 @@ python3 scripts/preprocess_combine_af.py \
     --events_path $OUTPUT_DIR/raw_data/events.feather \
     --output_directory $OUTPUT_DIR/clean_data \
     --test_ids_path $TEST_IDS_PATH
+
+python3 scripts/audit_combine_preprocessing.py \
+    > output/combine_preprocess_audit.txt
