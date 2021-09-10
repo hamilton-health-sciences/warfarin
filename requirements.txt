@@ -1,5 +1,4 @@
 absl-py==0.13.0
-apex @ file:///tmp/apex
 astunparse==1.6.3
 attrs==21.2.0
 cachetools==4.2.2
@@ -7,18 +6,17 @@ certifi==2021.5.30
 charset-normalizer==2.0.4
 clang==5.0
 click==8.0.1
-cloudpickle==1.6.0
+cloudpickle==2.0.0
 cycler==0.10.0
 descartes==1.1.0
 filelock==3.0.12
 flatbuffers==1.12
 future==0.18.2
 gast==0.4.0
-geotorch @ git+https://github.com/Lezcano/geotorch/@55a91ca973ddeeb12d193d464af4b23da93d5ab4
 google-auth==1.35.0
 google-auth-oauthlib==0.4.6
 google-pasta==0.2.0
-grpcio==1.39.0
+grpcio==1.40.0
 h5py==3.1.0
 hyperopt==0.2.5
 idna==3.2
@@ -30,18 +28,17 @@ Markdown==3.3.4
 matplotlib==3.4.3
 mizani==0.7.3
 msgpack==1.0.2
-networkx==2.6.2
+networkx==2.6.3
 numpy==1.19.5
 oauthlib==3.1.1
 opt-einsum==3.3.0
 palettable==3.3.0
 pandas==1.3.2
 patsy==0.5.1
-Pillow==8.3.1
+Pillow==8.3.2
 plotnine==0.8.0
 protobuf==3.17.3
-psycopg2==2.9.1
-pyarrow==5.0.0
+pyarrow==3.0.0
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
 pyparsing==2.4.7
@@ -55,10 +52,8 @@ requests-oauthlib==1.3.0
 rsa==4.7.2
 scikit-learn==0.24.2
 scipy==1.7.1
-seaborn==0.11.2
 six==1.15.0
 statsmodels==0.12.2
-tabulate==0.8.9
 tensorboard==2.6.0
 tensorboard-data-server==0.6.1
 tensorboard-plugin-wit==1.8.0
