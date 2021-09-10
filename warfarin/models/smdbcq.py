@@ -5,12 +5,11 @@ import copy
 import numpy as np
 
 import torch
-import torch.nn as nn
+from torch import nn
 import torch.nn.functional as F
-from torch.autograd import Variable
 
 
-class FC_Q(nn.Module):
+class FCQ(nn.Module):
     """
     A feed-forward MLP implementation of the Q network.
     """
@@ -23,7 +22,7 @@ class FC_Q(nn.Module):
             hidden_states: The number of hidden units in each hidden layer.
             num_layers: The number of layers of the Q-network.
         """
-        super(FC_Q, self).__init__()
+        super().__init__()
 
         if num_layers == 3:
             self.q1 = nn.Linear(state_dim, hidden_states)
@@ -75,7 +74,7 @@ class FC_Q(nn.Module):
         return qval, lp, i
 
 
-class discrete_BCQ(object):
+class SMDBCQ(object):
     """
     Trainer class for the semi-Markov decision process formulation of the
     discrete batch-constrained Q-learning model.
@@ -88,7 +87,7 @@ class discrete_BCQ(object):
                  BCQ_threshold=0.3,
                  discount=0.99,
                  optimizer="Adam",
-                 optimizer_parameters={},
+                 optimizer_parameters=None,
                  polyak_target_update=False,
                  target_update_frequency=8e3,
                  tau=0.005,
@@ -104,13 +103,15 @@ class discrete_BCQ(object):
         self.device = device
 
         # Build the network and optimizer
-        self.Q = FC_Q(state_dim,
-                      num_actions,
-                      hidden_states=hidden_states,
-                      num_layers=num_layers).to(self.device)
-        self.Q_target = copy.deepcopy(self.Q)
-        self.Q_optimizer = getattr(torch.optim, optimizer)(
-            self.Q.parameters(), **optimizer_parameters
+        self.q = FCQ(state_dim,
+                     num_actions,
+                     hidden_states=hidden_states,
+                     num_layers=num_layers).to(self.device)
+        self.q_target = copy.deepcopy(self.q)
+        if optimizer_parameters is None:
+            optimizer_parameters = {}
+        self.q_optimizer = getattr(torch.optim, optimizer)(
+            self.q.parameters(), **optimizer_parameters
         )
 
         # Discount factor
@@ -142,7 +143,7 @@ class discrete_BCQ(object):
             actions: The actions selected by the model.
         """
         with torch.no_grad():
-            q, imt, i = self.Q(state)
+            q, imt, _ = self.q(state)
             imt = imt.exp()
             imt = (imt / imt.max(1, keepdim=True)[0] > self.threshold).float()
             actions = np.array(
@@ -168,15 +169,15 @@ class discrete_BCQ(object):
 
         # Compute the target Q value
         with torch.no_grad():
-            q, imt, i = self.Q(next_state)
+            q, imt, i = self.q(next_state)
             imt = imt.exp()
             imt = (imt / imt.max(1, keepdim=True)[0] >= self.threshold).float()
 
             # Use large negative number to mask actions from argmax
             next_action = (imt * q + (1 - imt) * -1e8).argmax(1, keepdim=True)
 
-            q, imt, i = self.Q_target(next_state)
-            target_Q = (
+            q, imt, i = self.q_target(next_state)
+            target_q = (
                 reward +
                 not_done * (self.discount**k) * q.gather(
                     1, next_action
@@ -184,32 +185,32 @@ class discrete_BCQ(object):
             )
 
         # Get current Q estimate
-        current_Q, imt, i = self.Q(state)
-        current_Q = current_Q.gather(1, action)
+        current_q, imt, i = self.q(state)
+        current_q = current_q.gather(1, action)
 
         # Compute Q loss
-        q_loss = F.smooth_l1_loss(current_Q, target_Q)
+        q_loss = F.smooth_l1_loss(current_q, target_q)
         i_loss = F.nll_loss(imt, action.reshape(-1))
 
-        Q_loss = q_loss + i_loss + 1e-2 * i.pow(2).mean()
+        total_loss = q_loss + i_loss + 1e-2 * i.pow(2).mean()
 
         # Optimize the Q
-        self.Q_optimizer.zero_grad()
-        Q_loss.backward()
-        self.Q_optimizer.step()
+        self.q_optimizer.zero_grad()
+        total_loss.backward()
+        self.q_optimizer.step()
 
         # Update target network by polyak or full copy every X iterations.
         self.iterations += 1
         self.maybe_update_target()
 
-        return Q_loss
+        return total_loss
 
     def polyak_target_update(self):
         """
         Perform a moving average update of the target Q-network.
         """
-        for param, target_param in zip(self.Q.parameters(),
-                                       self.Q_target.parameters()):
+        for param, target_param in zip(self.q.parameters(),
+                                       self.q_target.parameters()):
             target_param.data.copy_(
                 self.tau * param.data + (1 - self.tau) * target_param.data
             )
@@ -219,5 +220,5 @@ class discrete_BCQ(object):
         Perform a copy update of the target Q-network.
         """
         if self.iterations % self.target_update_frequency == 0:
-            print(f"Updating target Q Network")
-            self.Q_target.load_state_dict(self.Q.state_dict())
+            print("Updating target Q Network")
+            self.q_target.load_state_dict(self.q.state_dict())

@@ -27,7 +27,7 @@ import tensorflow as tf
 
 from warfarin import config as global_config
 from warfarin.data import WarfarinReplayBuffer
-from warfarin.models.smdp_dBCQ import discrete_BCQ
+from warfarin.models import SMDBCQ
 from warfarin.evaluation import evaluate_and_plot_policy
 
 
@@ -95,7 +95,7 @@ def train_run(config: dict,
     num_actions = 7  # TODO
 
     # Build the model trainer
-    policy = discrete_BCQ(
+    policy = SMDBCQ(
         num_actions=num_actions,
         state_dim=train_data.state_dim,
         device="cuda",
@@ -166,7 +166,7 @@ def train_run(config: dict,
             # Checkpoint the model
             # TODO do we also need to store the target Q network of the policy?
             ckpt_fn = os.path.join(ckpt_dir_write, "model.pt")
-            torch.save(policy.Q.state_dict(), ckpt_fn)
+            torch.save(policy.q.state_dict(), ckpt_fn)
 
             # Store plots for Tensorboard
             if plot_epoch:
