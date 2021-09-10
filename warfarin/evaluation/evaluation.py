@@ -85,7 +85,9 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
 
     # Extract baseline policy decisions
     tm = ThresholdModel()
-    rm = RandomModel()
+    rm = RandomModel(
+        np.array(df["OBSERVED_ACTION"][~df["OBSERVED_ACTION"].isnull()])
+    )
     mm = MaintainModel()
     df["PREVIOUS_INR"] = df.groupby(
         ["TRIAL", "SUBJID", "TRAJID"]
@@ -98,7 +100,7 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
     df["MAINTAIN_ACTION"] = mm.select_action(len(df))
 
     # Map actions to the means of their bins
-    # TODO use empirical means?
+    # TODO use empirical means? use the actual prescribed % for threhsold model?
     code_to_quant = {
         0: -0.25,
         1: -0.15,

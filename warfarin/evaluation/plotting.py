@@ -92,6 +92,12 @@ def plot_agreement_ttr_curve(df):
     df["THRESHOLD_AGREEMENT"] = np.abs(
         df["THRESHOLD_ACTION"] - df["OBSERVED_ACTION"]
     )
+    df["RANDOM_AGREEMENT"] = np.abs(
+        df["RANDOM_ACTION"] - df["OBSERVED_ACTION"]
+    )
+    df["MAINTAIN_AGREEMENT"] = np.abs(
+        df["MAINTAIN_ACTION"] - df["OBSERVED_ACTION"]
+    )
     df["NEXT_INR"] = df["INR"].shift(-1)
     df["NEXT_IN_RANGE"] = (df["NEXT_INR"] >= 2.) & (df["NEXT_INR"] <= 3.)
 
@@ -106,10 +112,13 @@ def plot_agreement_ttr_curve(df):
 
     # Plot absolute agreement vs. TTR
     plot_df = df.groupby(["TRIAL", "SUBJID", "TRAJID"])[
-        ["RL_AGREEMENT", "THRESHOLD_AGREEMENT", "NEXT_IN_RANGE"]
+        ["RL_AGREEMENT", "THRESHOLD_AGREEMENT", "MAINTAIN_AGREEMENT",
+         "RANDOM_AGREEMENT", "NEXT_IN_RANGE"]
     ].mean()
     plot_df.columns = ["MEAN_RL_AGREEMENT",
                        "MEAN_THRESHOLD_AGREEMENT",
+                       "MEAN_MAINTAIN_AGREEMENT",
+                       "MEAN_RANDOM_AGREEMENT",
                        "APPROXIMATE_TTR"]
     plot_df["TRAJECTORY_LENGTH"] = df.groupby(["TRIAL", "SUBJID", "TRAJID"])[
         "NEXT_IN_RANGE"
@@ -127,7 +136,9 @@ def plot_agreement_ttr_curve(df):
                        "MEAN_ABSOLUTE_AGREEMENT"]
     plot_df["MODEL"] = plot_df["MODEL"].map({
         "MEAN_RL_AGREEMENT": "RL Algorithm",
-        "MEAN_THRESHOLD_AGREEMENT": "Benchmark Algorithm"
+        "MEAN_THRESHOLD_AGREEMENT": "Benchmark Algorithm",
+        "MEAN_MAINTAIN_AGREEMENT": "Always Maintain",
+        "MEAN_RANDOM_AGREEMENT": "Random"
     })
     plot_df["APPROXIMATE_TTR"] *= 100.
     plot_df["MEAN_ABSOLUTE_AGREEMENT"] *= 100.
