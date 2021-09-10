@@ -92,7 +92,9 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
     df["PREVIOUS_INR"] = df.groupby(
         ["TRIAL", "SUBJID", "TRAJID"]
     )["INR"].shift(1)
-    df["THRESHOLD_ACTION"] = tm.select_action(
+    # The threshold model prescribes exact changes, so these come out as percent
+    # change while the other models use the discrete action space.
+    df["THRESHOLD_ACTION_QUANT"] = tm.select_action_quant(
         np.array(df["PREVIOUS_INR"]),
         np.array(df["INR"])
     )
@@ -112,7 +114,6 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
     }
     df["OBSERVED_ACTION_QUANT"] = df["OBSERVED_ACTION"].map(code_to_quant)
     df["POLICY_ACTION_QUANT"] = df["POLICY_ACTION"].map(code_to_quant)
-    df["THRESHOLD_ACTION_QUANT"] = df["THRESHOLD_ACTION"].map(code_to_quant)
     df["RANDOM_ACTION_QUANT"] = df["RANDOM_ACTION"].map(code_to_quant)
     df["MAINTAIN_ACTION_QUANT"] = df["MAINTAIN_ACTION"].map(code_to_quant)
 

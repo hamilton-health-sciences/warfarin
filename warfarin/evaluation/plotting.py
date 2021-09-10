@@ -66,6 +66,9 @@ def plot_agreement_ttr_curve(df, disagreement_ttr):
     """
     Plot absolute agreement vs. TTR.
 
+    Both returned plots are weighted by trajectory length to avoid spurious
+    differences due to short trajectories.
+
     Args:
         df: Dataframe with raw decision information.
         disagreement_ttr: Dataframe with information on TTR and agreeement levels.
@@ -131,8 +134,8 @@ def plot_agreement_ttr_curve(df, disagreement_ttr):
         ggplot(plot_df,
                aes(x="MEAN_ABSOLUTE_AGREEMENT",
                    group="MODEL",
-                   # color="MODEL",
-                   fill="MODEL")) +
+                   fill="MODEL",
+                   weight="TRAJECTORY_LENGTH")) +
         geom_histogram(binwidth=1.) +
         xlim([0., 50.]) +
         xlab(mean_abs_diff_label) +

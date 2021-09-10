@@ -43,3 +43,27 @@ class ThresholdModel:
         model_actions = np.select(conditions, actions)
 
         return model_actions
+
+    def select_action_quant(self, previous_inr, current_inr):
+        """
+        Give the threshold algorithm's action in value of dose change.
+
+        Args:
+            previous_inr: The INR at the previous check-in.
+            current_inr: The INR at the current check-in.
+
+        Returns:
+            model_actions: The decision of the algorithm based on the rules.
+        """
+        conditions = [
+            (current_inr < 1.) | (current_inr > 4.),
+            current_inr < 2.,
+            (current_inr >= 2.) & (current_inr <= 3.),
+            (current_inr > 3.) & (np.isnan(previous_inr) |
+                                  (previous_inr <= 3.)),
+            (current_inr > 3.) & (previous_inr > 3.)
+        ]
+        actions = [np.nan, 0.15, 0., 0., -0.1]
+        model_actions = np.select(conditions, actions)
+
+        return model_actions
