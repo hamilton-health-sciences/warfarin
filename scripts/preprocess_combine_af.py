@@ -19,10 +19,10 @@ from warfarin.data.combine_preprocessing import (preprocess_all,
                                                  split_data,
                                                  remove_short_trajectories)
 
-from warfarin.utils.combine_preprocessing import (load_raw_data,
-                                                  remove_clinically_unintuitive,
-                                                  remove_phys_implausible,
-                                                  prepare_features)
+# from warfarin.utils.combine_preprocessing import (load_raw_data,
+#                                                   remove_clinically_unintuitive,
+#                                                   remove_phys_implausible,
+#                                                   prepare_features)
 from warfarin.utils import timer
 from warfarin import config
 
@@ -30,6 +30,9 @@ from warfarin import config
 def preprocess(args):
     """
     Run the preprocessing pipeline end-to-end.
+
+    Args:
+        args: The command-line args.
     """
     # Load the data from feather files
     baseline = pd.read_feather(args.baseline_path)
@@ -59,10 +62,10 @@ def preprocess(args):
     merged_all = remove_short_trajectories(merged_all, min_length=2)
 
     # Save the output prior to splitting
-    baseline_path = os.path.join(args.output_directory, f"baseline.feather")
-    inr_path = os.path.join(args.output_directory, f"inr.feather")
-    events_path = os.path.join(args.output_directory, f"events.feather")
-    merged_path = os.path.join(args.output_directory, f"merged.feather")
+    baseline_path = os.path.join(args.output_directory, "baseline.feather")
+    inr_path = os.path.join(args.output_directory, "inr.feather")
+    events_path = os.path.join(args.output_directory, "events.feather")
+    merged_path = os.path.join(args.output_directory, "merged.feather")
     baseline.reset_index(drop=True).to_feather(baseline_path)
     inr.reset_index(drop=True).to_feather(inr_path)
     events.reset_index(drop=True).to_feather(events_path)
@@ -73,9 +76,9 @@ def preprocess(args):
     train_data, val_data, test_data = split_data(merged_all, test_ids)
 
     # Save the split output
-    train_path = os.path.join(args.output_directory, f"train_data.feather")
-    val_path = os.path.join(args.output_directory, f"val_data.feather")
-    test_path = os.path.join(args.output_directory, f"test_data.feather")
+    train_path = os.path.join(args.output_directory, "train_data.feather")
+    val_path = os.path.join(args.output_directory, "val_data.feather")
+    test_path = os.path.join(args.output_directory, "test_data.feather")
     train_data.reset_index(drop=True).to_feather(train_path)
     val_data.reset_index(drop=True).to_feather(val_path)
     test_data.reset_index(drop=True).to_feather(test_path)

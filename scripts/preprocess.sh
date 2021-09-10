@@ -24,6 +24,7 @@ python3 scripts/convert_sas_to_feather.py \
     --input_filename $EVENTS_SAS_FILENAME \
     --output_filename $OUTPUT_DIR/raw_data/events.feather
 
+echo Preprocessing data...
 python3 scripts/preprocess_combine_af.py \
     --baseline_path $OUTPUT_DIR/raw_data/baseline.feather \
     --inr_path $OUTPUT_DIR/raw_data/inr.feather \
@@ -31,5 +32,6 @@ python3 scripts/preprocess_combine_af.py \
     --output_directory $OUTPUT_DIR/clean_data \
     --test_ids_path $TEST_IDS_PATH
 
+echo Auditing processing pipeline...
 python3 scripts/audit_combine_preprocessing.py \
     > output/combine_preprocess_audit.txt

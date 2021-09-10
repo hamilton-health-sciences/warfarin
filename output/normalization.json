@@ -1,1 +1,0 @@
-{"WARFARIN_DOSE": {"min": 0.0, "max": 133.0}, "INR_VALUE": {"min": 0.5, "max": 4.5}, "AGE_DEIDENTIFIED": {"min": 23.0, "max": 90.0}, "WEIGHT": {"min": 30.0, "max": 194.09090909090907}}

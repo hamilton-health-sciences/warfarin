@@ -1,3 +1,5 @@
+"""Plotting the results of the modeling."""
+
 import numpy as np
 
 import pandas as pd
@@ -39,7 +41,7 @@ def plot_policy_heatmap(df):
     # Plot
     plot_df = df[["INR_BIN", "ACTION"]].value_counts()
     plot_df.name = "COUNT"
-    plot_df = plot_df / plot_df.reset_index().groupby("INR_BIN")["COUNT"].sum() 
+    plot_df = plot_df / plot_df.reset_index().groupby("INR_BIN")["COUNT"].sum()
     plot_df.name = "PROPORTION"
     plot_df = plot_df.reset_index()
     plot_df["PERCENTAGE"] = plot_df["PROPORTION"].map(

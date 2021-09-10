@@ -289,13 +289,13 @@ def tune_run(num_samples: int,
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--train_buffer",
+        "--train_data",
         type=str,
         required=True,
         help="Path to training buffer"
     )
     parser.add_argument(
-        "--val_buffer",
+        "--val_data",
         type=str,
         required=True,
         help="Path to validation buffer"

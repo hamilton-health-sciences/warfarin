@@ -25,10 +25,10 @@ modeling, splitting off the test set from the IDs listed in
 `./data/test_subject_ids.txt`. This list of IDs was randomly generated during
 an earlier phase of the project.
 
-    $ bash script/preprocess.sh \
+    $ bash scripts/preprocess.sh \
         ./data/raw_data/baseline.sas7bdat \
-        ./data/raw_data/inr.sas7bdat
-        ./data/raw_data/events.sas7bdat
+        ./data/raw_data/inr.sas7bdat \
+        ./data/raw_data/events.sas7bdat \
         ./data/test_subject_ids.txt
 
 This will create an audit log in `output/` that can be comparison-checked for
@@ -39,18 +39,17 @@ correctness.
 With a GPU available, train and tune the dBCQ model on the development set:
 
     $ python3 scripts/tune_smdp_dbcq.py \
-        --train_buffer `pwd`/data/replay_buffers/train_data \
-        --events_buffer `pwd`/data/replay_buffers/events_data \
-        --val_buffer `pwd`/data/replay_buffers/val_data \
+        --train_data `pwd`/data/clean_data/train_data.feather \
+        --val_data `pwd`/data/clean_data/val_data.feather \
         --target_metric val_jindex_good_actions \
         --mode max
 
-Evaluations and plots can be accessed through Tensorboard:
+Evaluations and plots can be accessed during training through Tensorboard:
 
     $ python3 -m tensorboard.main --logdir=./ray_logs
     Serving TensorBoard on localhost; to expose to the network, use a proxy or pass --bind_all
     TensorBoard 2.6.0 at http://localhost:6006/ (Press CTRL+C to quit)
 
-## Evaluations and figures
+## TODO: Final evaluations and figures
 
     $ bash script/evaluate_combine_af.sh # ...
