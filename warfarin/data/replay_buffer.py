@@ -109,9 +109,6 @@ class WarfarinReplayBuffer:
             warn("Looks like there are missing state values in "
                  f"{num_missing_state_trans} transitions. Probably a bad thing")
 
-        # TODO we still need to maintain the un-subset data so that we can do
-        # e.g. proper TTR calc of the full trajectory
-
         # TODO why are things null here
 
         # Subset to transitions with no missing data
