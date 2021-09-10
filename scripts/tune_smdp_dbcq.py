@@ -1,3 +1,5 @@
+"""Hyperparameter tuning and model training."""
+
 from functools import partial
 
 import os
@@ -58,8 +60,8 @@ def store_plot_tensorboard(plot_name, plot, step, writer):
 
 def train_run(config: dict,
               checkpoint_dir: str,
-              train_buffer_path: str,
-              val_buffer_path: str,
+              train_data_path: str,
+              val_data_path: str,
               init_seed: int,
               smoke_test: bool = False):
     """
@@ -68,21 +70,21 @@ def train_run(config: dict,
     Args:
         config: The hyperparameters of interest.
         checkpoint_dir: The checkpointing directory path created by Ray Tune.
-        train_buffer_path: The path to the training buffer.
-        val_buffer_path: The path to the validation buffer.
+        train_data_path: The path to the training buffer.
+        val_data_path: The path to the validation buffer.
         init_seed: Random seed for reproducibility within a set of
                    hyperparameters.
     """
     # Load the data
-    train_df = pd.read_feather(train_buffer_path)
-    train_buffer = WarfarinReplayBuffer(
+    train_df = pd.read_feather(train_data_path)
+    train_data = WarfarinReplayBuffer(
         df=train_df,
         discount_factor=config["discount"],
         batch_size=config["batch_size"],
         device="cuda"
     )
-    val_df = pd.read_feather(val_buffer_path)
-    val_buffer = WarfarinReplayBuffer(
+    val_df = pd.read_feather(val_data_path)
+    val_data = WarfarinReplayBuffer(
         df=val_df,
         discount_factor=config["discount"],
         batch_size=config["batch_size"],
@@ -94,22 +96,18 @@ def train_run(config: dict,
 
     # Build the model trainer
     policy = discrete_BCQ(
-        num_actions,
-        train_buffer.state_dim,
-        "cuda",
-        config["bcq_threshold"],
-        config["discount"],
-        config["optimizer"],
-        {"lr": config["learning_rate"]},
-        config["polyak_target_update"],
-        config["target_update_freq"],
-        config["tau"],
-        0.1,
-        0.1,
-        1,
-        0.,
-        config["hidden_dim"],
-        config["num_layers"]
+        num_actions=num_actions,
+        state_dim=train_data.state_dim,
+        device="cuda",
+        BCQ_threshold=config["bcq_threshold"],
+        discount=config["discount"],
+        optimizer=config["optimizer"],
+        optimizer_parameters={"lr": config["learning_rate"]},
+        polyak_target_update=config["polyak_target_update"],
+        target_update_frequency=config["target_update_freq"],
+        tau=config["tau"],
+        hidden_states=config["hidden_dim"],
+        num_layers=config["num_layers"]
     )
 
     start = 0
@@ -138,24 +136,24 @@ def train_run(config: dict,
             num_batches = 1
         else:
             num_batches = int(
-                np.ceil(train_buffer.size / config["batch_size"])
+                np.ceil(train_data.size / config["batch_size"])
             )
 
         # Train on the full buffer approximately once
         for _ in range(num_batches):
-            qloss = policy.train(train_buffer)
+            qloss = policy.train(train_data)
 
         # Evaluate the policy
         plot_epoch = (epoch % global_config.PLOT_EVERY == 0)
         train_metrics, train_plots, running_state = evaluate_and_plot_policy(
             policy,
-            train_buffer,
+            train_data,
             running_state,
             plot=plot_epoch
         )
         val_metrics, val_plots, running_state = evaluate_and_plot_policy(
             policy,
-            val_buffer,
+            val_data,
             running_state,
             plot=plot_epoch
         )
@@ -195,8 +193,8 @@ def tune_run(num_samples: int,
              init_seed: int,
              output_dir: str,
              resume_errored: bool,
-             train_buffer_path: str,
-             val_buffer_path: str,
+             train_data_path: str,
+             val_data_path: str,
              target_metric: str,
              mode: str,
              smoke_test: bool,
@@ -226,8 +224,8 @@ def tune_run(num_samples: int,
                 train_conf[k] = v.sample()
         train_run(train_conf,
                   checkpoint_dir=None,
-                  train_buffer_path=train_buffer_path,
-                  val_buffer_path=val_buffer_path,
+                  train_data_path=train_data_path,
+                  val_data_path=val_data_path,
                   init_seed=init_seed,
                   smoke_test=True)
         exit()
@@ -266,8 +264,8 @@ def tune_run(num_samples: int,
     tune.run(
         partial(
             train_run,
-            train_buffer_path=train_buffer_path,
-            val_buffer_path=val_buffer_path,
+            train_data_path=train_data_path,
+            val_data_path=val_data_path,
             init_seed=init_seed
         ),
         resources_per_trial={
@@ -372,8 +370,8 @@ def main():
         target_metric=args.target_metric,
         mode=args.mode,
         # Model/data parameters
-        train_buffer_path=args.train_buffer,
-        val_buffer_path=args.val_buffer,
+        train_data_path=args.train_data,
+        val_data_path=args.val_data,
         # Smoke tests for faster iteration on tuning procedure
         smoke_test=args.smoke_test,
         tune_smoke_test=args.tune_smoke_test

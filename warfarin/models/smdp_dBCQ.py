@@ -92,9 +92,6 @@ class discrete_BCQ(object):
                  polyak_target_update=False,
                  target_update_frequency=8e3,
                  tau=0.005,
-                 initial_eps=1,
-                 end_eps=0.001,
-                 eps_decay_period=25e4,
                  hidden_states=25,
                  num_layers=3):
         # Dimensionality of action space

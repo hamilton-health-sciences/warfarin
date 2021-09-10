@@ -2,6 +2,8 @@
 
 import numpy as np
 
+import torch
+
 import pandas as pd
 
 from plotnine import ggtitle, facet_wrap
@@ -58,9 +60,11 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
                     next call to this function.
     """
     # Extract policy decisions, observed decisions, and INR into dataframe
-    state = np.array(replay_buffer.observed_state)
+    state = torch.from_numpy(
+        np.array(replay_buffer.observed_state).astype(np.float32)
+    ).to(policy.device)
     obs_action = np.array(replay_buffer.observed_option)
-    policy_action = policy.select_action(state, eval=True)[:, 0]
+    policy_action = policy.select_action(state)[:, 0]
 
     df = pd.DataFrame(
         {"OBSERVED_ACTION": obs_action,

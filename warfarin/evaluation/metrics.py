@@ -7,10 +7,6 @@ from sklearn.metrics import classification_report
 from warfarin import config
 
 
-# TODO get the device from the policy object?
-device = "cuda"
-
-
 def eval_reasonable_actions(df):
     """
     Evaluate the proportion of actions that are "reasonable", defined as
