@@ -90,7 +90,7 @@ def eval_ttr_at_agreement(disagreement_ttr):
 
     Args:
         disagreement_ttr: Dataframe indexed by trajectory containing columns
-                          containing "ACTION_DIFF" and "NEXT_INR_IN_RANGE".
+                          containing "ACTION_DIFF" and "APPROXIMATE_TTR".
 
     Returns:
         ttr_stats: The dictionary of metrics.
@@ -105,7 +105,7 @@ def eval_ttr_at_agreement(disagreement_ttr):
         for threshold in config.AGREEMENT_THRESHOLDS:
             sel = (disagreement_ttr[algo_diff_col] < threshold)
             weighted_ttr = (
-                disagreement_ttr[sel]["NEXT_INR_IN_RANGE"] *
+                disagreement_ttr[sel]["APPROXIMATE_TTR"] *
                 disagreement_ttr[sel]["TRAJECTORY_LENGTH"]
             ).sum() / disagreement_ttr[sel]["TRAJECTORY_LENGTH"].sum()
             ttr_stats[f"{threshold}_{algo}_ttr"] = weighted_ttr

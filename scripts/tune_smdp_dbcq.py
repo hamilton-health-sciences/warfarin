@@ -47,7 +47,7 @@ def store_plot_tensorboard(plot_name, plot, step, writer):
     # Put the figure in a TF image object
     buf = io.BytesIO()
     fig = plot.draw()
-    fig.savefig(buf, format="png")
+    fig.savefig(buf, format="png", bbox_inches="tight")
     buf.seek(0)
     image = tf.image.decode_png(buf.getvalue(), channels=4)
     image = tf.expand_dims(image, 0)
@@ -76,20 +76,28 @@ def train_run(config: dict,
                    hyperparameters.
     """
     # Load the data
-    train_df = pd.read_feather(train_data_path)
-    train_data = WarfarinReplayBuffer(
-        df=train_df,
-        discount_factor=config["discount"],
-        batch_size=config["batch_size"],
-        device="cuda"
-    )
-    val_df = pd.read_feather(val_data_path)
-    val_data = WarfarinReplayBuffer(
-        df=val_df,
-        discount_factor=config["discount"],
-        batch_size=config["batch_size"],
-        device="cuda"
-    )
+    # TEMPORARY - enable caching off the buffers TODO remove
+    import pickle
+    if os.path.exists("train_buffer_cache.pkl"):
+        train_data = pickle.load(open("train_buffer_cache.pkl", "rb"))
+        val_data = pickle.load(open("val_buffer_cache.pkl", "rb"))
+    else:
+        train_df = pd.read_feather(train_data_path)
+        train_data = WarfarinReplayBuffer(
+            df=train_df,
+            discount_factor=config["discount"],
+            batch_size=config["batch_size"],
+            device="cuda"
+        )
+        val_df = pd.read_feather(val_data_path)
+        val_data = WarfarinReplayBuffer(
+            df=val_df,
+            discount_factor=config["discount"],
+            batch_size=config["batch_size"],
+            device="cuda"
+        )
+        pickle.dump(train_data, open("train_buffer_cache.pkl", "wb"))
+        pickle.dump(val_data, open("val_buffer_cache.pkl", "wb"))
 
     # Data dimensionality from buffers
     num_actions = 7  # TODO

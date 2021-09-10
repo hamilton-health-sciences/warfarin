@@ -121,7 +121,7 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
                                 df["OBSERVED_ACTION_QUANT"])
     df["THRESHOLD_ACTION_DIFF"] = (df["THRESHOLD_ACTION_QUANT"] -
                                    df["OBSERVED_ACTION_QUANT"])
-    df["RANDOM_ACTION_DIFF"] = (df["THRESHOLD_ACTION_QUANT"] -
+    df["RANDOM_ACTION_DIFF"] = (df["RANDOM_ACTION_QUANT"] -
                                 df["OBSERVED_ACTION_QUANT"])
     df["MAINTAIN_ACTION_DIFF"] = (df["MAINTAIN_ACTION_QUANT"] -
                                   df["OBSERVED_ACTION_QUANT"])
@@ -129,6 +129,7 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
     # Compute algorithm-observed differences
     action_diff_cols = [c for c in df.columns if "ACTION_DIFF" in c]
 
+    # TODO use explosion to compute TTR
     traj_length = df.groupby(
         ["TRIAL", "SUBJID", "TRAJID"]
     )["NEXT_INR_IN_RANGE"].count()
@@ -138,6 +139,9 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
         ["TRIAL", "SUBJID", "TRAJID"]
     ).mean()
     disagreement_ttr = disagreement_ttr.join(traj_length)
+    disagreement_ttr = disagreement_ttr.rename(
+        columns={"NEXT_INR_IN_RANGE": "APPROXIMATE_TTR"}
+    )
 
     # Compute results
     metrics = compute_metrics(df, disagreement_ttr)
@@ -212,7 +216,7 @@ def compute_plots(df, disagreement_ttr):
 
     # Agreement curves and histograms
     agreement_curve, agreement_histogram = plot_agreement_ttr_curve(
-        df.copy()
+        df, disagreement_ttr
     )
     plots["absolute_agreement_curve"] = agreement_curve
     plots["absolute_agreement_histogram"] = agreement_histogram

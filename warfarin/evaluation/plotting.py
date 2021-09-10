@@ -62,45 +62,23 @@ def plot_policy_heatmap(df):
     return plot
 
 
-def plot_agreement_ttr_curve(df):
+def plot_agreement_ttr_curve(df, disagreement_ttr):
     """
     Plot absolute agreement vs. TTR.
 
     Args:
-        df: Dataframe with columns "OBSERVED_ACTION", "POLICY_ACTION", and
-            "NEXT_INR".
+        df: Dataframe with raw decision information.
+        disagreement_ttr: Dataframe with information on TTR and agreeement levels.
 
     Returns:
         agreement_curve: The agreement curve plot object.
-        histogram_curve: The histogram curve plot object.
+        histogram_curve: The histogram plot object.
     """
-    action_map = {
-        0: -0.25,
-        1: -0.15,
-        2: -0.05,
-        3: 0.,
-        4: 0.05,
-        5: 0.15,
-        6: 0.25
-    }
-    df["OBSERVED_ACTION"] = df["OBSERVED_ACTION"].map(action_map)
-    df["POLICY_ACTION"] = df["POLICY_ACTION"].map(action_map)
-    df["THRESHOLD_ACTION"] = df["THRESHOLD_ACTION"].map(action_map)
-    df["RL_AGREEMENT"] = np.abs(
-        df["POLICY_ACTION"] - df["OBSERVED_ACTION"]
-    )
-    df["THRESHOLD_AGREEMENT"] = np.abs(
-        df["THRESHOLD_ACTION"] - df["OBSERVED_ACTION"]
-    )
-    df["RANDOM_AGREEMENT"] = np.abs(
-        df["RANDOM_ACTION"] - df["OBSERVED_ACTION"]
-    )
-    df["MAINTAIN_AGREEMENT"] = np.abs(
-        df["MAINTAIN_ACTION"] - df["OBSERVED_ACTION"]
-    )
-    df["NEXT_INR"] = df["INR"].shift(-1)
-    df["NEXT_IN_RANGE"] = (df["NEXT_INR"] >= 2.) & (df["NEXT_INR"] <= 3.)
+    df = df.reset_index().drop_duplicates(
+        subset=["TRIAL", "SUBJID", "TRAJID"]
+    ).set_index(["TRIAL", "SUBJID", "TRAJID"])
 
+    # TODO determine whether we need to drop transitions
     # Drop transitions where threshold model does not provide prediction
     # df = df.loc[~pd.isnull(df["THRESHOLD_ACTION"])]
 
@@ -111,20 +89,7 @@ def plot_agreement_ttr_curve(df):
     # df = df.dropna()
 
     # Plot absolute agreement vs. TTR
-    plot_df = df.groupby(["TRIAL", "SUBJID", "TRAJID"])[
-        ["RL_AGREEMENT", "THRESHOLD_AGREEMENT", "MAINTAIN_AGREEMENT",
-         "RANDOM_AGREEMENT", "NEXT_IN_RANGE"]
-    ].mean()
-    plot_df.columns = ["MEAN_RL_AGREEMENT",
-                       "MEAN_THRESHOLD_AGREEMENT",
-                       "MEAN_MAINTAIN_AGREEMENT",
-                       "MEAN_RANDOM_AGREEMENT",
-                       "APPROXIMATE_TTR"]
-    plot_df["TRAJECTORY_LENGTH"] = df.groupby(["TRIAL", "SUBJID", "TRAJID"])[
-        "NEXT_IN_RANGE"
-    ].count()
-
-    plot_df = plot_df.join(df[["CONTINENT"]])
+    plot_df = disagreement_ttr.join(df[["CONTINENT"]])
 
     plot_df = plot_df.melt(id_vars=["APPROXIMATE_TTR",
                                     "TRAJECTORY_LENGTH",
@@ -135,10 +100,10 @@ def plot_agreement_ttr_curve(df):
                        "MODEL",
                        "MEAN_ABSOLUTE_AGREEMENT"]
     plot_df["MODEL"] = plot_df["MODEL"].map({
-        "MEAN_RL_AGREEMENT": "RL Algorithm",
-        "MEAN_THRESHOLD_AGREEMENT": "Benchmark Algorithm",
-        "MEAN_MAINTAIN_AGREEMENT": "Always Maintain",
-        "MEAN_RANDOM_AGREEMENT": "Random"
+        "POLICY_ACTION_DIFF": "RL Algorithm",
+        "THRESHOLD_ACTION_DIFF": "Rule-Based",
+        "MAINTAIN_ACTION_DIFF": "Always Maintain",
+        "RANDOM_ACTION_DIFF": "Random"
     })
     plot_df["APPROXIMATE_TTR"] *= 100.
     plot_df["MEAN_ABSOLUTE_AGREEMENT"] *= 100.
