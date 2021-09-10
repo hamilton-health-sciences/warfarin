@@ -64,16 +64,19 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
         np.array(replay_buffer.observed_state).astype(np.float32)
     ).to(policy.device)
     obs_action = np.array(replay_buffer.observed_option)
+    obs_action_quant = replay_buffer.df.groupby(
+        ["TRIAL", "SUBJID", "TRAJID"]
+    )["WARFARIN_DOSE"].shift(-1) / replay_buffer.df["WARFARIN_DOSE"] - 1.
     policy_action = policy.select_action(state)[:, 0]
 
     df = pd.DataFrame(
         {"OBSERVED_ACTION": obs_action,
+         "OBSERVED_ACTION_QUANT": obs_action_quant,
          "POLICY_ACTION": policy_action,
          "INR": replay_buffer.df["INR_VALUE"],
          "CONTINENT": replay_buffer.df["CONTINENT"]},
         index=replay_buffer.df.index
     )
-
 
     # Next INR and whether it's in range
     df["NEXT_INR"] = df.groupby(
@@ -102,17 +105,11 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
     df["MAINTAIN_ACTION"] = mm.select_action(len(df))
 
     # Map actions to the means of their bins
-    # TODO use empirical means? use the actual prescribed % for threhsold model?
-    code_to_quant = {
-        0: -0.25,
-        1: -0.15,
-        2: -0.05,
-        3: 0.,
-        4: 0.05,
-        6: 0.15,
-        7: 0.25
-    }
-    df["OBSERVED_ACTION_QUANT"] = df["OBSERVED_ACTION"].map(code_to_quant)
+    sel = np.isfinite(df["OBSERVED_ACTION_QUANT"])
+    code_to_quant = df[sel].groupby(
+        "OBSERVED_ACTION"
+    )["OBSERVED_ACTION_QUANT"].mean().to_dict()
+
     df["POLICY_ACTION_QUANT"] = df["POLICY_ACTION"].map(code_to_quant)
     df["RANDOM_ACTION_QUANT"] = df["RANDOM_ACTION"].map(code_to_quant)
     df["MAINTAIN_ACTION_QUANT"] = df["MAINTAIN_ACTION"].map(code_to_quant)

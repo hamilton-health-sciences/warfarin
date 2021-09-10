@@ -18,17 +18,6 @@ class ThresholdModel:
         algorithm  versus a computerised anticoagulation management system for
         control of warfarin maintenance therapy. Thromb Haemost, 2012.
     """
-    def __init__(self):
-        self.conditions = [
-            (current_inr < 1.) | (current_inr > 4.),
-            current_inr < 1.5,
-            current_inr < 2.,
-            (current_inr >= 2.) & (current_inr <= 3.),
-            (current_inr > 3.) & (np.isnan(previous_inr) |
-                                  (previous_inr <= 3.)),
-            (current_inr > 3.) & (previous_inr > 3.)
-        ]
-
     def select_action(self, previous_inr, current_inr):
         """
         Give the threshold algorithm's action.
@@ -42,6 +31,15 @@ class ThresholdModel:
         Returns:
             model_actions: The decision of the algorithm based on the rules.
         """
+        conditions = [
+            (current_inr < 1.) | (current_inr > 4.),
+            current_inr < 1.5,
+            current_inr < 2.,
+            (current_inr >= 2.) & (current_inr <= 3.),
+            (current_inr > 3.) & (np.isnan(previous_inr) |
+                                  (previous_inr <= 3.)),
+            (current_inr > 3.) & (previous_inr > 3.)
+        ]
         actions = [np.nan, 5, 4, 3, 3, 2]
         model_actions = np.select(conditions, actions)
 
@@ -58,7 +56,16 @@ class ThresholdModel:
         Returns:
             model_actions: The decision of the algorithm based on the rules.
         """
+        conditions = [
+            (current_inr < 1.) | (current_inr > 4.),
+            current_inr < 1.5,
+            current_inr < 2.,
+            (current_inr >= 2.) & (current_inr <= 3.),
+            (current_inr > 3.) & (np.isnan(previous_inr) |
+                                  (previous_inr <= 3.)),
+            (current_inr > 3.) & (previous_inr > 3.)
+        ]
         actions = [np.nan, 0.15, 0.1, 0., 0., -0.1]
-        model_actions = np.select(self.conditions, actions)
+        model_actions = np.select(conditions, actions)
 
         return model_actions
