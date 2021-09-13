@@ -2,6 +2,8 @@
 
 from functools import partial
 
+from warnings import warn
+
 import os
 
 import io
@@ -88,21 +90,34 @@ def train_run(config: dict,
             batch_size=config["batch_size"],
             device="cuda"
         )
-        os.makedirs("./cache", exist_ok=True)
-        pickle.dump(train_data, open("./cache/train_buffer.pkl", "wb"))
+        os.makedirs(global_config.CACHE_PATH, exist_ok=True)
+        train_buffer_path = os.path.join(global_config.CACHE_PATH,
+                                         "train_buffer.pkl")
+        pickle.dump(train_data, open(train_buffer_path, "wb"))
+
+    # Store transforms
+    if checkpoint_dir:
+        state_transforms_path = os.path.join(checkpoint_dir, "transforms.pkl")
+        pickle.dump(train_data.state_transforms,
+                    open(state_transforms_path, "wb"))
+    else:
+        warn("No checkpoint directory. Will not store training transforms.")
 
     if os.path.splitext(val_data_path)[-1] == ".pkl":
         val_data = pickle.load(open(val_data_path, "rb"))
     else:
         val_df = pd.read_feather(val_data_path)
         val_data = WarfarinReplayBuffer(
+            state_transforms=train_data.state_transforms,
             df=val_df,
             discount_factor=config["discount"],
             batch_size=config["batch_size"],
             device="cuda"
         )
-        os.makedirs("./cache", exist_ok=True)
-        pickle.dump(val_data, open("./cache/val_buffer.pkl", "wb"))
+        os.makedirs(global_config.CACHE_PATH, exist_ok=True)
+        val_buffer_path = os.path.join(global_config.CACHE_PATH,
+                                       "val_buffer.pkl")
+        pickle.dump(val_data, open(val_buffer_path, "wb"))
 
     # Build the model trainer
     num_actions = len(global_config.ACTION_LABELS)
@@ -304,12 +319,6 @@ def main():
         type=str,
         required=True,
         help="Path to validation data or buffer"
-    )
-    parser.add_argument(
-        "--cache_data",
-        action="store_true",
-        default=False,
-        help="Whether to cache replay buffers"
     )
     parser.add_argument(
         "--target_metric",

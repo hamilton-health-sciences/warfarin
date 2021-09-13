@@ -33,6 +33,7 @@ class WarfarinReplayBuffer:
     def __init__(self,
                  df: pd.DataFrame,
                  discount_factor: float,
+                 state_transforms = None,
                  rel_event_sample_prob: int = 1,
                  batch_size: Optional[int] = None,
                  device: str = "cpu",
@@ -42,6 +43,8 @@ class WarfarinReplayBuffer:
             df: The processed data frame, containing the information required to
                 compute the transitions.
             discount_factor: The discount factor used to compute option rewards.
+            state_transforms: If not None, will use these transforms to engineer
+                              state features.
             rel_event_sample_prob: The factor by which to increase the
                                    probability of sampling transitions from
                                    trajectories with adverse events. When set to
@@ -65,6 +68,9 @@ class WarfarinReplayBuffer:
         # Seeded RNG for reproducibility
         self.rng = np.random.default_rng(seed)
 
+        # Feature engineering transforms
+        self.state_transforms = state_transforms
+
         # Data that makes up each transition
         k, s, o, ns, r, nd, p = self._extract_transitions()
         self.k = k
@@ -86,8 +92,9 @@ class WarfarinReplayBuffer:
         Extract the observed state, next state, options, reward, time elapsed,
         trajectory done flags, and transition sample probabilities.
         """
-        # TODO actually use these state transform params!
-        state, state_transform_params = engineer_state_features(self.df.copy())
+        state, self.state_transforms = engineer_state_features(
+            self.df.copy(), self.state_transforms
+        )
         next_state = state.groupby(
             ["TRIAL", "SUBJID", "TRAJID"]
         ).shift(-1).copy()

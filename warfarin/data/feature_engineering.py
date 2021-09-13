@@ -9,7 +9,7 @@ from sklearn.preprocessing import OneHotEncoder, MinMaxScaler
 from warfarin import config
 
 
-def engineer_state_features(df, params=None):
+def engineer_state_features(df, transforms=None):
     """
     Construct the state vectors.
 
@@ -19,16 +19,16 @@ def engineer_state_features(df, params=None):
     Args:
         df: Merged longitudinal data, indexed by "TRIAL", "SUBJID", "TRAJID",
             and "STUDY_DAY".
-        params: Parameters to the transforms. If left to None, the parameters of
-                the transforms will be learned from the data (meant to be
-                applied to training data).
+        transforms: Transform objects. If left to None, the parameters of the
+                    transforms will be learned from the data (meant to be
+                    applied to training data).
 
     Returns:
         df: The engineered state features.
-        params: The parameters of the transforms.
+        transforms: The transform objects.
     """
-    if params is None:
-        params = {}
+    if transforms is None:
+        transforms = {}
 
     # TODO can we do this more gracefully?
     # Clamp INR in [0.5, 4.5]
@@ -60,14 +60,12 @@ def engineer_state_features(df, params=None):
 
     # One-hot encode categorical features
     df_cat = df.select_dtypes("category")
-    encoder = OneHotEncoder(drop="first")
-    if "categorical" in params:
-        encoder.set_params(params["categorical"])
+    if "categorical" in transforms:
+        encoder = transforms["categorical"]
     else:
+        encoder = OneHotEncoder(drop="first")
         encoder.fit(df_cat)
-        # TODO turns out this does not actually extract the learned parameters
-        # of the transform... will need to do this separately
-        params["categorical"] = encoder.get_params()
+        transforms["categorical"] = encoder
     colnames = [
         "_".join((df_cat.columns[i], str(level)))
         for i in range(len(df_cat.columns))
@@ -87,13 +85,12 @@ def engineer_state_features(df, params=None):
 
     # Scale continuous features to [0, 1]
     df_cts = df.select_dtypes("number")
-    encoder = MinMaxScaler()
-    if "continuous" in params:
-        encoder.set_params(params["continuous"])
+    if "continuous" in transforms:
+        encoder = transforms["continuous"]
     else:
+        encoder = MinMaxScaler()
         encoder.fit(df_cts)
-        # TODO see above
-        params["continuous"] = encoder.get_params()
+        transforms["continuous"] = encoder
     df_cts_scaled = pd.DataFrame(
         encoder.transform(df_cts),
         index=df_cts.index,
@@ -112,7 +109,7 @@ def engineer_state_features(df, params=None):
             ["SUBJID", "TRAJID"]
         )["INR_VALUE"].shift(i).fillna(df[f"INR_VALUE_PREV_{i - 1}"])
 
-    return df, params
+    return df, transforms
 
 
 def extract_observed_decision(df):

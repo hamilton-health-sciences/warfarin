@@ -6,6 +6,9 @@
 AUDIT_PATH = "./data/auditing"
 AUDIT_PLOT_PATH = "./data/auditing"
 
+# Path to cache things.
+CACHE_PATH = "./cache"
+
 # Patients with weekly mg doses above this will be removed
 DOSE_OUTLIER_THRESHOLD = 140
 
