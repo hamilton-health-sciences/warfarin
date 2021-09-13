@@ -82,16 +82,7 @@ def plot_agreement_ttr_curve(df, disagreement_ttr):
     ).set_index(["TRIAL", "SUBJID", "TRAJID"])
 
     # TODO determine whether we need to drop transitions
-    # Drop transitions where threshold model does not provide prediction
-    # df = df.loc[~pd.isnull(df["THRESHOLD_ACTION"])]
 
-    # Drop trajectories where one of the models does not provide a prediction
-    # df = df.loc[
-    #     pd.isnull(df["THRESHOLD_ACTION"]).groupby("USUBJID_O_NEW").sum() == 0
-    # ]
-    # df = df.dropna()
-
-    # Plot absolute agreement vs. TTR
     plot_df = disagreement_ttr.join(df[["CONTINENT"]])
 
     plot_df = plot_df.melt(id_vars=["APPROXIMATE_TTR",
