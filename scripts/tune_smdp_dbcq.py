@@ -177,15 +177,11 @@ def train_run(config: dict,
             torch.save(policy.q.state_dict(), ckpt_fn)
 
             # Store plots for Tensorboard
-            if plot_epoch:
-                for plot_name, plot in plots.items():
-                    try:
-                        store_plot_tensorboard(plot_name,
-                                               plot,
-                                               epoch,
-                                               writer)
-                    except PlotnineError:
-                        pass
+            for plot_name, plot in plots.items():
+                try:
+                    store_plot_tensorboard(plot_name, plot, epoch, writer)
+                except PlotnineError:
+                    pass
 
         # TODO: implement WIS ?
         tune.report(**metrics)

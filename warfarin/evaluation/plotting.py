@@ -101,7 +101,6 @@ def plot_agreement_ttr_curve(df, disagreement_ttr):
     })
     plot_df["APPROXIMATE_TTR"] *= 100.
     plot_df["MEAN_ABSOLUTE_AGREEMENT"] *= 100.
-    # TODO figure out why loess segfaults or add CIs manually
     mean_abs_diff_label = ("Mean Absolute Difference Between Algorithm & "
                            "Observed Dose Change (%)")
     agreement_ttr = (
@@ -111,7 +110,7 @@ def plot_agreement_ttr_curve(df, disagreement_ttr):
                    weight="TRAJECTORY_LENGTH",
                    group="MODEL",
                    color="MODEL")) +
-        geom_smooth(method="lowess") +
+        geom_smooth(method="loess") +
         # geom_point() +
         xlim([0., 50.]) +
         ylim([0., 100.]) +
