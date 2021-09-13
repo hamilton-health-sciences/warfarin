@@ -380,10 +380,10 @@ def main():
     )
     args = parser.parse_args()
 
-    if args.tune_smoke_test is None:
-        num_samples = global_config.NUM_HYPERPARAMETER_SAMPLES
-    else:
+    if args.tune_smoke_test:
         num_samples = 1
+    else:
+        num_samples = global_config.NUM_HYPERPARAMETER_SAMPLES
 
     tune_run(
         # Hyperparameter optimizer parameters
