@@ -78,7 +78,6 @@ def train_run(config: dict,
                    hyperparameters.
     """
     # Load the data
-    # TEMPORARY - enable caching off the buffers TODO remove
     if os.path.splitext(train_data_path)[-1] == ".pkl":
         train_data = pickle.load(open(train_data_path, "rb"))
     else:
