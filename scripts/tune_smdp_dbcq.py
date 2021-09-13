@@ -6,6 +6,8 @@ import os
 
 import io
 
+import pickle
+
 from plotnine.exceptions import PlotnineError
 
 from uuid import uuid4
@@ -77,10 +79,8 @@ def train_run(config: dict,
     """
     # Load the data
     # TEMPORARY - enable caching off the buffers TODO remove
-    import pickle
-    if os.path.exists("train_buffer_cache.pkl"):
-        train_data = pickle.load(open("train_buffer_cache.pkl", "rb"))
-        val_data = pickle.load(open("val_buffer_cache.pkl", "rb"))
+    if os.path.splitext(train_data_path)[-1] == ".pkl":
+        train_data = pickle.load(open(train_data_path, "rb"))
     else:
         train_df = pd.read_feather(train_data_path)
         train_data = WarfarinReplayBuffer(
@@ -89,6 +89,12 @@ def train_run(config: dict,
             batch_size=config["batch_size"],
             device="cuda"
         )
+        os.makedirs("./cache", exist_ok=True)
+        pickle.dump(train_data, open("./cache/train_buffer.pkl", "wb"))
+
+    if os.path.splitext(val_data_path)[-1] == ".pkl":
+        val_data = pickle.load(open(val_data_path, "rb"))
+    else:
         val_df = pd.read_feather(val_data_path)
         val_data = WarfarinReplayBuffer(
             df=val_df,
@@ -96,13 +102,11 @@ def train_run(config: dict,
             batch_size=config["batch_size"],
             device="cuda"
         )
-        pickle.dump(train_data, open("train_buffer_cache.pkl", "wb"))
-        pickle.dump(val_data, open("val_buffer_cache.pkl", "wb"))
-
-    # Data dimensionality from buffers
-    num_actions = 7  # TODO
+        os.makedirs("./cache", exist_ok=True)
+        pickle.dump(val_data, open("./cache/val_buffer.pkl", "wb"))
 
     # Build the model trainer
+    num_actions = len(global_config.ACTION_LABELS)
     policy = SMDBCQ(
         num_actions=num_actions,
         state_dim=train_data.state_dim,
@@ -139,10 +143,10 @@ def train_run(config: dict,
         trial_dir = tune.get_trial_dir()
     writer = tf.summary.create_file_writer(trial_dir)
     for epoch in range(start, global_config.MAX_TRAINING_EPOCHS):
-        # Number of batches for approximate coverage of the full buffer
         if smoke_test:
             num_batches = 1
         else:
+            # Number of batches for approximate coverage of the full buffer
             num_batches = int(
                 np.ceil(train_data.size / config["batch_size"])
             )
@@ -294,13 +298,19 @@ def main():
         "--train_data",
         type=str,
         required=True,
-        help="Path to training buffer"
+        help="Path to training data or buffer"
     )
     parser.add_argument(
         "--val_data",
         type=str,
         required=True,
-        help="Path to validation buffer"
+        help="Path to validation data or buffer"
+    )
+    parser.add_argument(
+        "--cache_data",
+        action="store_true",
+        default=False,
+        help="Whether to cache replay buffers"
     )
     parser.add_argument(
         "--target_metric",

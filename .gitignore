@@ -9,3 +9,4 @@ ray_logs*
 *.swp
 new_data
 smoke_test
+cache
