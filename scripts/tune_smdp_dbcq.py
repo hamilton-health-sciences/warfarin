@@ -79,7 +79,7 @@ def train_run(config: dict,
         init_seed: Random seed for reproducibility within a set of
                    hyperparameters.
     """
-    # Load the data
+    # Load the train data
     if os.path.splitext(train_data_path)[-1] == ".pkl":
         train_data = pickle.load(open(train_data_path, "rb"))
     else:
@@ -95,14 +95,7 @@ def train_run(config: dict,
                                          "train_buffer.pkl")
         pickle.dump(train_data, open(train_buffer_path, "wb"))
 
-    # Store transforms
-    if checkpoint_dir:
-        state_transforms_path = os.path.join(checkpoint_dir, "transforms.pkl")
-        pickle.dump(train_data.state_transforms,
-                    open(state_transforms_path, "wb"))
-    else:
-        warn("No checkpoint directory. Will not store training transforms.")
-
+    # Load the val data and use train transforms
     if os.path.splitext(val_data_path)[-1] == ".pkl":
         val_data = pickle.load(open(val_data_path, "rb"))
     else:
@@ -118,6 +111,16 @@ def train_run(config: dict,
         val_buffer_path = os.path.join(global_config.CACHE_PATH,
                                        "val_buffer.pkl")
         pickle.dump(val_data, open(val_buffer_path, "wb"))
+
+    # Get the trial directory
+    trial_dir = tune.get_trial_dir()
+    if trial_dir is None:
+        trial_dir = "./smoke_test"
+
+    # Store transforms
+    state_transforms_path = os.path.join(trial_dir, "transforms.pkl")
+    pickle.dump(train_data.state_transforms,
+                open(state_transforms_path, "wb"))
 
     # Build the model trainer
     num_actions = len(global_config.ACTION_LABELS)
@@ -151,10 +154,6 @@ def train_run(config: dict,
 
     # Train the model
     running_state = None
-    if smoke_test:
-        trial_dir = "./smoke_test"
-    else:
-        trial_dir = tune.get_trial_dir()
     writer = tf.summary.create_file_writer(trial_dir)
     for epoch in range(start, global_config.MAX_TRAINING_EPOCHS):
         if smoke_test:
@@ -238,8 +237,11 @@ def tune_run(num_samples: int,
         "bcq_threshold": tune.choice([0.2, 0.3])
     }
 
-    if smoke_test:
+    if smoke_test or tune_smoke_test:
+        global_config.MIN_TRAINING_EPOCHS = 1
         global_config.MAX_TRAINING_EPOCHS = 1
+
+    if smoke_test:
         train_conf = tune_config
         for k, v in train_conf.items():
             if hasattr(v, "sample"):
@@ -288,7 +290,8 @@ def tune_run(num_samples: int,
             train_run,
             train_data_path=train_data_path,
             val_data_path=val_data_path,
-            init_seed=init_seed
+            init_seed=init_seed,
+            smoke_test=tune_smoke_test
         ),
         resources_per_trial={
             "cpu": 8,
@@ -377,10 +380,10 @@ def main():
     )
     args = parser.parse_args()
 
-    if args.num_samples is None:
+    if args.tune_smoke_test is None:
         num_samples = global_config.NUM_HYPERPARAMETER_SAMPLES
     else:
-        num_samples = args.num_samples
+        num_samples = 1
 
     tune_run(
         # Hyperparameter optimizer parameters
