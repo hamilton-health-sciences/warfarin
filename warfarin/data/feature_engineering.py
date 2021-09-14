@@ -7,6 +7,7 @@ import numpy as np
 from sklearn.preprocessing import OneHotEncoder, MinMaxScaler
 
 from warfarin import config
+from warfarin.utils import interpolate_inr
 
 
 def engineer_state_features(df, transforms=None):
@@ -182,31 +183,7 @@ def compute_reward(df, discount_factor):
     # Explode an empty dataframe to be indexed by every study day, including
     # those where we don't have observations.
     df = df[["INR_VALUE"] + config.ADV_EVENTS].copy()
-    days = df.reset_index().groupby(
-        ["TRIAL", "SUBJID", "TRAJID"]
-    )["STUDY_DAY"].min().to_frame().rename(
-        columns={"STUDY_DAY": "FIRST_DAY"}
-    ).join(
-        df.reset_index().groupby(
-            ["TRIAL", "SUBJID", "TRAJID"]
-        )["STUDY_DAY"].max()
-    ).rename(columns={"STUDY_DAY": "LAST_DAY"})
-    days["STUDY_DAY"] = [
-        np.arange(start, end + 1).astype(int)
-        for start, end in zip(days["FIRST_DAY"], days["LAST_DAY"])
-    ]
-    days = days.explode(column="STUDY_DAY")
-    days = days.drop(columns=["FIRST_DAY", "LAST_DAY"])
-
-    # Put the observed values into the empty exploded frame.
-    df_interp = days.reset_index().set_index(
-        ["TRIAL", "SUBJID", "TRAJID", "STUDY_DAY"]
-    ).join(df)
-
-    # Linearly interpolate INR. We don't need a groupby here because INRs are
-    # always observed at the start and end of a trajectory.
-    # TODO do we need a groupby?
-    df_interp["INR_VALUE"] = df_interp["INR_VALUE"].interpolate()
+    df_interp = interpolate_inr(df)
 
     # Impute adverse events as having not occurred on days without an
     # observation

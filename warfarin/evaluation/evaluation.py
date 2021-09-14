@@ -8,6 +8,7 @@ import pandas as pd
 
 from plotnine import ggtitle, facet_wrap
 
+from warfarin.utils import interpolate_inr
 from warfarin.models.baselines import ThresholdModel, RandomModel, MaintainModel
 from warfarin.evaluation.metrics import (eval_reasonable_actions,
                                          eval_classification,
@@ -73,7 +74,7 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
         {"OBSERVED_ACTION": obs_action,
          "OBSERVED_ACTION_QUANT": obs_action_quant,
          "POLICY_ACTION": policy_action,
-         "INR": replay_buffer.df["INR_VALUE"],
+         "INR_VALUE": replay_buffer.df["INR_VALUE"],
          "CONTINENT": replay_buffer.df["CONTINENT"]},
         index=replay_buffer.df.index
     )
@@ -81,7 +82,7 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
     # Next INR and whether it's in range
     df["NEXT_INR"] = df.groupby(
         ["TRIAL", "SUBJID", "TRAJID"]
-    )["INR"].shift(-1)
+    )["INR_VALUE"].shift(-1)
     df["NEXT_INR_IN_RANGE"] = (
         (df["NEXT_INR"] >= 2.) & (df["NEXT_INR"] <= 3.)
     ).astype(int)
@@ -94,12 +95,12 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
     mm = MaintainModel()
     df["PREVIOUS_INR"] = df.groupby(
         ["TRIAL", "SUBJID", "TRAJID"]
-    )["INR"].shift(1)
+    )["INR_VALUE"].shift(1)
     # The threshold model prescribes exact changes, so these come out as percent
     # change while the other models use the discrete action space.
     df["THRESHOLD_ACTION_QUANT"] = tm.select_action_quant(
         np.array(df["PREVIOUS_INR"]),
-        np.array(df["INR"])
+        np.array(df["INR_VALUE"])
     )
     df["RANDOM_ACTION"] = rm.select_action(len(df))
     df["MAINTAIN_ACTION"] = mm.select_action(len(df))
@@ -128,17 +129,29 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
     action_diff_cols = [c for c in df.columns if "ACTION_DIFF" in c]
 
     # TODO use explosion to compute TTR
-    traj_length = df.groupby(
+    inr_interp = interpolate_inr(df[["INR_VALUE"]])
+    inr_interp["INR_IN_RANGE"] = ((inr_interp["INR_VALUE"] >= 2.) &
+                                  (inr_interp["INR_VALUE"] <= 3.))
+    ttr = inr_interp.groupby(
         ["TRIAL", "SUBJID", "TRAJID"]
-    )["NEXT_INR_IN_RANGE"].count()
+    )["INR_IN_RANGE"].mean().to_frame()[["INR_IN_RANGE"]]
+    traj_length = (
+        df.reset_index().groupby(
+            ["TRIAL", "SUBJID", "TRAJID"]
+        )["STUDY_DAY"].max() -
+        df.reset_index().groupby(
+            ["TRIAL", "SUBJID", "TRAJID"]
+        )["STUDY_DAY"].min()
+    )
     traj_length.name = "TRAJECTORY_LENGTH"
-    disagreement_ttr = np.abs(df[action_diff_cols + ["NEXT_INR_IN_RANGE"]])
+    disagreement = np.abs(df[action_diff_cols])
+    disagreement_ttr = disagreement.join(ttr)
     disagreement_ttr = disagreement_ttr.groupby(
         ["TRIAL", "SUBJID", "TRAJID"]
     ).mean()
     disagreement_ttr = disagreement_ttr.join(traj_length)
     disagreement_ttr = disagreement_ttr.rename(
-        columns={"NEXT_INR_IN_RANGE": "APPROXIMATE_TTR"}
+        columns={"INR_IN_RANGE": "APPROXIMATE_TTR"}
     )
 
     # Compute results
@@ -197,16 +210,16 @@ def compute_plots(df, disagreement_ttr):
     plots = {}
 
     # Observed policy heatmap
-    obs_df = df[["OBSERVED_ACTION", "INR", "CONTINENT"]].copy()
-    obs_df.columns = ["ACTION", "INR", "CONTINENT"]
+    obs_df = df[["OBSERVED_ACTION", "INR_VALUE", "CONTINENT"]].copy()
+    obs_df.columns = ["ACTION", "INR_VALUE", "CONTINENT"]
     plots["observed_policy_heatmap"] = (
         plot_policy_heatmap(obs_df) +
         ggtitle("Observed Policy")
     )
 
     # RL policy heatmap
-    rl_df = df[["POLICY_ACTION", "INR", "CONTINENT"]].copy()
-    rl_df.columns = ["ACTION", "INR", "CONTINENT"]
+    rl_df = df[["POLICY_ACTION", "INR_VALUE", "CONTINENT"]].copy()
+    rl_df.columns = ["ACTION", "INR_VALUE", "CONTINENT"]
     plots["learned_policy_heatmap"] = (
         plot_policy_heatmap(rl_df) +
         ggtitle("RL Policy")

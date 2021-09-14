@@ -201,8 +201,8 @@ def train_run(config: dict,
             for plot_name, plot in plots.items():
                 try:
                     store_plot_tensorboard(plot_name, plot, epoch, writer)
-                except PlotnineError:
-                    pass
+                except PlotnineError as exc:
+                    warn(str(exc))
 
         # TODO: implement WIS ?
         tune.report(**metrics)

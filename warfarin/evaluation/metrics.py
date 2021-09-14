@@ -21,11 +21,12 @@ def eval_reasonable_actions(df):
     """
     reasonable = np.sum(
         # Current INR is in range and the model chooses to maintain dose
-        (((df["INR"] >= 2.) & (df["INR"] <= 3.)) & (df["POLICY_ACTION"] == 3)) |
+        (((df["INR_VALUE"] >= 2.) & (df["INR_VALUE"] <= 3.))
+         & (df["POLICY_ACTION"] == 3)) |
         # Current INR is below range and model chooses to raise dose
-        ((df["INR"] < 2.) & (df["POLICY_ACTION"] > 3)) |
+        ((df["INR_VALUE"] < 2.) & (df["POLICY_ACTION"] > 3)) |
         # Current INR is above range and model chooses to lower dose
-        ((df["INR"] > 3.) & (df["POLICY_ACTION"] < 3))
+        ((df["INR_VALUE"] > 3.) & (df["POLICY_ACTION"] < 3))
     )
     total = len(df)
     prop = reasonable / total

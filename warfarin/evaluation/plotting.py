@@ -29,14 +29,14 @@ def plot_policy_heatmap(df):
     )
 
     # Bin INR
-    df["INR_BIN"] = pd.cut(df["INR"],
+    df["INR_BIN"] = pd.cut(df["INR_VALUE"],
                            config.INR_BIN_BOUNDARIES,
                            right=False,
                            labels=config.INR_BIN_LABELS)
     if "2 - 3" in config.INR_BIN_LABELS:
-        df.loc[df["INR"] == 3., "INR_BIN"] = "2 - 3"
+        df.loc[df["INR_VALUE"] == 3., "INR_BIN"] = "2 - 3"
     if "3 - 4" in config.INR_BIN_LABELS:
-        df.loc[df["INR"] == 4., "INR_BIN"] = "3 - 4"
+        df.loc[df["INR_VALUE"] == 4., "INR_BIN"] = "3 - 4"
 
     # Plot
     plot_df = df[["INR_BIN", "ACTION"]].value_counts()
