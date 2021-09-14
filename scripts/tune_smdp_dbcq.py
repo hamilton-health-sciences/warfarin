@@ -88,6 +88,7 @@ def train_run(config: dict,
             df=train_df,
             discount_factor=config["discount"],
             batch_size=config["batch_size"],
+            min_trajectory_length=global_config.MIN_TRAIN_TRAJECTORY_LENGTH,
             device="cuda"
         )
         os.makedirs(global_config.CACHE_PATH, exist_ok=True)

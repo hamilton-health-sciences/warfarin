@@ -33,6 +33,7 @@ class WarfarinReplayBuffer:
     def __init__(self,
                  df: pd.DataFrame,
                  discount_factor: float,
+                 min_trajectory_length: int = 0,
                  state_transforms = None,
                  rel_event_sample_prob: int = 1,
                  batch_size: Optional[int] = None,
@@ -45,6 +46,8 @@ class WarfarinReplayBuffer:
             discount_factor: The discount factor used to compute option rewards.
             state_transforms: If not None, will use these transforms to engineer
                               state features.
+            min_trajectory_length: The minimum length of trajectories in the
+                                   buffer.
             rel_event_sample_prob: The factor by which to increase the
                                    probability of sampling transitions from
                                    trajectories with adverse events. When set to
@@ -71,6 +74,9 @@ class WarfarinReplayBuffer:
         # Feature engineering transforms
         self.state_transforms = state_transforms
 
+        # Threshold for eliminating short trajectories
+        self.min_trajectory_length = min_trajectory_length
+
         # Data that makes up each transition
         k, s, o, ns, r, nd, p = self._extract_transitions()
         self.k = k
@@ -92,6 +98,13 @@ class WarfarinReplayBuffer:
         Extract the observed state, next state, options, reward, time elapsed,
         trajectory done flags, and transition sample probabilities.
         """
+        # Subset to trajectories with min length
+        sel = self.df.groupby(
+            ["TRIAL", "SUBJID", "TRAJID"]
+        )["INR_VALUE"].count() > self.min_trajectory_length
+        self.df = self.df.loc[sel].copy()
+
+        # Generate features
         state, self.state_transforms = engineer_state_features(
             self.df.copy(), self.state_transforms
         )

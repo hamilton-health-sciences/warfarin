@@ -16,8 +16,9 @@ DOSE_OUTLIER_THRESHOLD = 140
 # trajectories
 MAX_TIME_ELAPSED = 90
 
-# Trajectories with fewer than MIN_INR_COUNTS entries will be removed
-MIN_INR_COUNTS = 10
+# Trajectories with fewer than MIN_TRAINING_TRAJECTORY_LENGTH transitions will
+# be removed
+MIN_TRAIN_TRAJECTORY_LENGTH = 10
 
 # The reward associated with INRs that are in therapeutic range
 INR_REWARD = 1
@@ -83,7 +84,7 @@ NUM_HYPERPARAMETER_SAMPLES = 100
 MIN_TRAINING_EPOCHS = 250
 
 # Maximum number of training epochs for each combination of hyperparameters.
-MAX_TRAINING_EPOCHS = 1_000
+MAX_TRAINING_EPOCHS = 2_000
 
 # How often to plot in epochs.
 PLOT_EVERY = 25
