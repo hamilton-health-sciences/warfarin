@@ -102,7 +102,7 @@ def audit_preprocess_all():
     message("Event rate (per patient) by trial:")
     message(
         events.groupby("TRIAL")[config.EVENTS_TO_KEEP].sum() /
-        np.asarray(events.groupby("TRIAL")["SUBJID"].nunique()).reshape(-1, 1),
+        np.asarray(inr.groupby("TRIAL")["SUBJID"].nunique()).reshape(-1, 1),
         2
     )
 
@@ -201,10 +201,14 @@ def audit_remove_outlying_doses():
     df_path = os.path.join(config.AUDIT_PATH, "remove_outlying_doses.feather")
     df = pd.read_feather(df_path)
 
+    df = df[df["INR_TYPE"] == "Y"]
+
     message("Auditing results of `remove_outlying_doses`...", 0)
 
     message("Warfarin dose summary stats:")
     message(df["WARFARIN_DOSE"].describe(), 2)
+
+    trajectory_length_stats(df, ["TRIAL", "SUBJID", "TRAJID"])
 
 
 def audit_merge_inr_events():
