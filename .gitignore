@@ -10,3 +10,4 @@ ray_logs*
 new_data
 smoke_test
 cache
+*.pt

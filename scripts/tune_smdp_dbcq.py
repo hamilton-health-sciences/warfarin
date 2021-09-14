@@ -232,7 +232,7 @@ def tune_run(num_samples: int,
         "polyak_target_update": True,
         "target_update_freq": 100,
         # Searchable hyperparams
-        "discount": tune.loguniform(0.95, 0.999),
+        "discount": 0.99,  # TODO: grid search?
         "batch_size": tune.choice([2, 4, 8, 32, 64, 128, 256]),
         "learning_rate": tune.loguniform(1e-7, 1e-4),
         "tau": tune.loguniform(1e-5, 1e-2),
