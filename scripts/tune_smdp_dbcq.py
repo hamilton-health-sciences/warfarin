@@ -166,8 +166,11 @@ def train_run(config: dict,
             )
 
         # Train on the full buffer approximately once
+        batch_qloss = 0.
         for _ in range(num_batches):
             qloss = policy.train(train_data)
+            batch_qloss += qloss.item()
+        batch_qloss = batch_qloss / num_batches
 
         # Evaluate the policy
         plot_epoch = (epoch % global_config.PLOT_EVERY == 0)
@@ -183,6 +186,7 @@ def train_run(config: dict,
             running_state,
             plot=plot_epoch
         )
+        train_metrics["mean_batch_qloss"] = batch_qloss
         metrics = {**{f"train_{k}": v for k, v in train_metrics.items()},
                    **{f"val_{k}": v for k, v in val_metrics.items()}}
         plots = {**{f"train_{k}": v for k, v in train_plots.items()},
@@ -190,9 +194,8 @@ def train_run(config: dict,
 
         with tune.checkpoint_dir(step=epoch) as ckpt_dir_write:
             # Checkpoint the model
-            # TODO do we also need to store the target Q network of the policy?
             ckpt_fn = os.path.join(ckpt_dir_write, "model.pt")
-            torch.save(policy.q.state_dict(), ckpt_fn)
+            policy.save(ckpt_fn)
 
             # Store plots for Tensorboard
             for plot_name, plot in plots.items():

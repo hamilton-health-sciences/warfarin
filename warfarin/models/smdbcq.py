@@ -222,3 +222,11 @@ class SMDBCQ(object):
         if self.iterations % self.target_update_frequency == 0:
             print("Updating target Q Network")
             self.q_target.load_state_dict(self.q.state_dict())
+
+    def save(self, filename):
+        weights = {
+            "q": self.q.state_dict(),
+            "q_target": self.q_target.state_dict()
+        }
+
+        torch.save(weights, filename)
