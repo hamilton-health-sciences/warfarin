@@ -84,10 +84,10 @@ NUM_HYPERPARAMETER_SAMPLES = 100
 MIN_TRAINING_EPOCHS = 250
 
 # Maximum number of training epochs for each combination of hyperparameters.
-MAX_TRAINING_EPOCHS = 2_000
+MAX_TRAINING_EPOCHS = 1_000
 
 # How often to plot in epochs.
-PLOT_EVERY = 25
+PLOT_EVERY = 50
 
 # Evaluation constants
 

@@ -233,9 +233,9 @@ def tune_run(num_samples: int,
         "target_update_freq": 100,
         # Searchable hyperparams
         "discount": 0.99,  # TODO: grid search?
-        "batch_size": tune.choice([2, 4, 8, 32, 64, 128, 256]),
+        "batch_size": tune.choice([32, 64, 128, 256]),
         "learning_rate": tune.loguniform(1e-7, 1e-4),
-        "tau": tune.loguniform(1e-5, 1e-2),
+        "tau": tune.loguniform(1e-3, 5e-2),
         "num_layers": tune.choice([2, 3]),
         "hidden_dim": tune.choice([16, 32, 64, 128, 256]),
         "bcq_threshold": tune.choice([0.2, 0.3])
@@ -281,7 +281,7 @@ def tune_run(num_samples: int,
         resume = None
     
     # How progress will be reported to the CLI
-    par_cols = ["discount", "batch_size", "learning_rate", "num_layers",
+    par_cols = ["discount", "batch_size", "learning_rate", "tau", "num_layers",
                 "hidden_dim"]
     reporter = CLIReporter(
         parameter_columns=par_cols,
