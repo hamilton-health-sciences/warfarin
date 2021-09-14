@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 
 import torch
+from torch.utils.data import TensorDataset
 
 from warfarin.data.feature_engineering import (engineer_state_features,
                                                extract_observed_decision,
@@ -20,7 +21,7 @@ from warfarin.data.feature_engineering import (engineer_state_features,
                                                compute_sample_probability)
 
 
-class WarfarinReplayBuffer:
+class WarfarinReplayBuffer(TensorDataset):
     """
     Represent the data in a format suitable for RL modeling.
 
@@ -62,9 +63,6 @@ class WarfarinReplayBuffer:
         self.discount_factor = discount_factor
         self.rel_event_sample_prob = rel_event_sample_prob
 
-        # The size of batches to sample
-        self.batch_size = batch_size
-
         # The devices batches will reside on
         self.device = device
 
@@ -91,7 +89,34 @@ class WarfarinReplayBuffer:
         self.size = len(self.state)
 
         # Cache for tensor representations of the buffer for fast training/eval
-        self._cache = {}
+        self._tensors = {
+            "k": torch.from_numpy(
+                np.array(self.k).astype(np.float32)[:, np.newaxis]
+            ).to(self.device),
+            "state": torch.from_numpy(
+                np.array(self.state).astype(np.float32)
+            ).to(self.device),
+            "option": torch.from_numpy(
+                np.array(self.option).astype(int)[:, np.newaxis]
+            ).to(self.device),
+            "next_state": torch.from_numpy(
+                np.array(self.next_state).astype(np.float32)
+            ).to(self.device),
+            "reward": torch.from_numpy(
+                np.array(self.reward).astype(np.float32)[:, np.newaxis]
+            ).to(self.device),
+            "not_done": torch.from_numpy(
+                np.array(self.not_done).astype(np.float32)[:, np.newaxis]
+            ).to(self.device)
+        }
+
+        # Initialize as torch dataset to support on-device dataloading
+        super().__init__(self._tensors["k"],
+                         self._tensors["state"],
+                         self._tensors["option"],
+                         self._tensors["next_state"],
+                         self._tensors["reward"],
+                         self._tensors["not_done"])
 
     def _extract_transitions(self):
         """
@@ -145,47 +170,9 @@ class WarfarinReplayBuffer:
         next_state = next_state.loc[sel]
         reward = reward.loc[sel]
         not_done = 1. - done.loc[sel]
-        sample_prob = sample_prob.loc[sel]
+        sample_prob = np.array(sample_prob.loc[sel]) / np.sum(sample_prob)
 
         return k, state, option, next_state, reward, not_done, sample_prob
-
-    def sample(self, idx=None):
-        """
-        Sample a batch of transitions.
-
-        Args:
-            idx: If given, will sample the prescribed indices. Otherwise, will
-                 sample a random batch of size `self.batch_size`.
-        """
-        if idx is None:
-            norm_sample_p = self.sample_prob / self.sample_prob.sum()
-            idx = self.rng.choice(np.arange(self.size).astype(int),
-                                  size=self.batch_size,
-                                  p=norm_sample_p)
-
-        if not self._cache:
-            k = np.array(self.k).astype(np.float32)[:, np.newaxis]
-            state = np.array(self.state).astype(np.float32)
-            option = np.array(self.option).astype(int)[:, np.newaxis]
-            next_state = np.array(self.next_state).astype(np.float32)
-            reward = np.array(self.reward).astype(np.float32)[:, np.newaxis]
-            not_done = np.array(self.not_done).astype(np.float32)[:, np.newaxis]
-
-            self._cache["k"] = torch.from_numpy(k).to(self.device)
-            self._cache["state"] = torch.from_numpy(state).to(self.device)
-            self._cache["option"] = torch.from_numpy(option).to(self.device)
-            self._cache["next_state"] = torch.from_numpy(
-                next_state
-            ).to(self.device)
-            self._cache["reward"] = torch.from_numpy(reward).to(self.device)
-            self._cache["not_done"] = torch.from_numpy(not_done).to(self.device)
-
-        return (self._cache["k"][idx],
-                self._cache["state"][idx],
-                self._cache["option"][idx],
-                self._cache["next_state"][idx],
-                self._cache["reward"][idx],
-                self._cache["not_done"][idx])
 
     @property
     def state_dim(self):

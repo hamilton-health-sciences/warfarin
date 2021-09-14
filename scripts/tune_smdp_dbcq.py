@@ -21,6 +21,7 @@ import pandas as pd
 import numpy as np
 
 import torch
+from torch.utils.data import DataLoader
 
 from ray import tune
 from ray.tune import CLIReporter
@@ -95,6 +96,8 @@ def train_run(config: dict,
         train_buffer_path = os.path.join(global_config.CACHE_PATH,
                                          "train_buffer.pkl")
         pickle.dump(train_data, open(train_buffer_path, "wb"))
+    # TODO: weight by train_data.sample_prob and sample with replacement
+    train_loader = DataLoader(train_data, batch_size=config["batch_size"])
 
     # Load the val data and use train transforms
     if os.path.splitext(val_data_path)[-1] == ".pkl":
@@ -167,8 +170,8 @@ def train_run(config: dict,
 
         # Train on the full buffer approximately once
         batch_qloss = 0.
-        for _ in range(num_batches):
-            qloss = policy.train(train_data)
+        for batch in train_loader:
+            qloss = policy.train(batch)
             batch_qloss += qloss.item()
         batch_qloss = batch_qloss / num_batches
 
@@ -201,7 +204,7 @@ def train_run(config: dict,
             for plot_name, plot in plots.items():
                 try:
                     store_plot_tensorboard(plot_name, plot, epoch, writer)
-                except PlotnineError as exc:
+                except (ValueError, PlotnineError) as exc:
                     warn(str(exc))
 
         # TODO: implement WIS ?
@@ -235,7 +238,7 @@ def tune_run(num_samples: int,
         "discount": 0.99,  # TODO: grid search?
         "batch_size": tune.choice([32, 64, 128, 256]),
         "learning_rate": tune.loguniform(1e-7, 1e-4),
-        "tau": tune.loguniform(1e-3, 5e-2),
+        "tau": tune.loguniform(5e-4, 5e-2),
         "num_layers": tune.choice([2, 3]),
         "hidden_dim": tune.choice([16, 32, 64, 128, 256]),
         "bcq_threshold": tune.choice([0.2, 0.3])

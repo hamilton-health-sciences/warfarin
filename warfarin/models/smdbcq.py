@@ -153,7 +153,7 @@ class SMDBCQ(object):
 
             return actions
 
-    def train(self, replay_buffer):
+    def train(self, batch):
         """
         Train the DBCQ model for with one batch of transitions.
 
@@ -165,7 +165,7 @@ class SMDBCQ(object):
             q_loss: The Q-network loss.
         """
         # Sample replay buffer
-        k, state, action, next_state, reward, not_done = replay_buffer.sample()
+        k, state, action, next_state, reward, not_done = batch
 
         # Compute the target Q value
         with torch.no_grad():
