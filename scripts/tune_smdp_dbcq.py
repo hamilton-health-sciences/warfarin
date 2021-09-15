@@ -237,7 +237,7 @@ def tune_run(num_samples: int,
         # Searchable hyperparams
         "discount": 0.99,  # TODO: grid search?
         "batch_size": tune.choice([32, 64, 128, 256]),
-        "learning_rate": tune.loguniform(1e-7, 1e-4),
+        "learning_rate": tune.loguniform(1e-7, 1e-2),
         "tau": tune.loguniform(5e-4, 5e-2),
         "num_layers": tune.choice([2, 3]),
         "hidden_dim": tune.choice([16, 32, 64, 128, 256]),
