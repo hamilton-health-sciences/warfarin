@@ -36,12 +36,14 @@ correctness.
 
 ## Model training
 
-With a GPU available, train and tune the dBCQ model on the development set:
+With a GPU available, train and tune the dBCQ model on the development set,
+which will attempt to find hyperparameters that maximize TTR at agreement in
+the tuning set:
 
     $ python3 scripts/tune_smdp_dbcq.py \
         --train_data `pwd`/data/clean_data/train_data.feather \
         --val_data `pwd`/data/clean_data/val_data.feather \
-        --target_metric val_jindex_good_actions \
+        --target_metric "val/0.0025_POLICY_ttr" \
         --mode max
 
 Evaluations and plots can be accessed during training through Tensorboard:
