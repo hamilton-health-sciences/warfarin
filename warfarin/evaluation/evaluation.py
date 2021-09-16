@@ -176,12 +176,12 @@ def compute_metrics(df, disagreement_ttr):
     sens, spec, jstat, sens_dir, spec_dir, jstat_dir = eval_classification(
         df
     )
-    stats["sensitivity_good_actions"] = sens
-    stats["specificity_good_actions"] = spec
-    stats["jindex_good_actions"] = jstat
-    stats["sensitivity_good_actions_dir"] = sens_dir
-    stats["specificity_good_actions_dir"] = spec_dir
-    stats["jindex_good_actions_dir"] = jstat_dir
+    stats["good_action_classification/sensitivity"] = sens
+    stats["good_action_classification/specificity"] = spec
+    stats["good_action_classification/jindex"] = jstat
+    stats["good_action_dir_classification/sensitivity"] = sens_dir
+    stats["good_action_dir_classification/specificity"] = spec_dir
+    stats["good_action_dir_classification/jindex"] = jstat_dir
 
     # TTR at agreement
     agreement_ttr_stats = eval_ttr_at_agreement(disagreement_ttr)
@@ -212,7 +212,7 @@ def compute_plots(df, disagreement_ttr):
     # Observed policy heatmap
     obs_df = df[["OBSERVED_ACTION", "INR_VALUE", "CONTINENT"]].copy()
     obs_df.columns = ["ACTION", "INR_VALUE", "CONTINENT"]
-    plots["observed_policy_heatmap"] = (
+    plots["heatmap/observed"] = (
         plot_policy_heatmap(obs_df) +
         ggtitle("Observed Policy")
     )
@@ -220,7 +220,7 @@ def compute_plots(df, disagreement_ttr):
     # RL policy heatmap
     rl_df = df[["POLICY_ACTION", "INR_VALUE", "CONTINENT"]].copy()
     rl_df.columns = ["ACTION", "INR_VALUE", "CONTINENT"]
-    plots["learned_policy_heatmap"] = (
+    plots["heatmap/learned"] = (
         plot_policy_heatmap(rl_df) +
         ggtitle("RL Policy")
     )
@@ -229,14 +229,14 @@ def compute_plots(df, disagreement_ttr):
     agreement_curve, agreement_histogram = plot_agreement_ttr_curve(
         df, disagreement_ttr
     )
-    plots["absolute_agreement_curve"] = agreement_curve
-    plots["absolute_agreement_histogram"] = agreement_histogram
+    plots["absolute_agreement/curve"] = agreement_curve
+    plots["absolute_agreement/histogram"] = agreement_histogram
 
     # Break out all plots by continent
     plots_all = {}
     for plot_name, plot in plots.items():
         plots_all[plot_name] = plot
         for subvar in ["CONTINENT"]:
-            plots_all[f"{plot_name}_{subvar}"] = plot + facet_wrap(subvar)
+            plots_all[f"{plot_name}/{subvar}"] = plot + facet_wrap(subvar)
 
     return plots_all

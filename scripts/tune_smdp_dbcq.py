@@ -80,6 +80,13 @@ def train_run(config: dict,
         init_seed: Random seed for reproducibility within a set of
                    hyperparameters.
     """
+    # Random seed from trial name to initialize weights differently within each
+    # trial but reproducibly. If smoke testing, leave the init_seed as-is.
+    if not smoke_test:
+        trial_name_noid = tune.get_trial_name()[8:]
+        init_seed = init_seed + int.from_bytes(trial_name_noid.encode(), "little")
+        torch.manual_seed(init_seed % (2**32 - 1))
+
     # Load the train data
     if os.path.splitext(train_data_path)[-1] == ".pkl":
         train_data = pickle.load(open(train_data_path, "rb"))
@@ -152,6 +159,7 @@ def train_run(config: dict,
             state = json.loads(f.read())
             start = state["step"] + 1
 
+        # TODO this is out of date
         # Model
         state_dict = torch.load(os.path.join(checkpoint_dir, "model.pt"))
         policy.Q.load_state_dict(state_dict)
@@ -159,21 +167,14 @@ def train_run(config: dict,
     # Train the model
     running_state = None
     writer = tf.summary.create_file_writer(trial_dir)
-    for epoch in range(start, global_config.MAX_TRAINING_EPOCHS):
-        if smoke_test:
-            num_batches = 1
-        else:
-            # Number of batches for approximate coverage of the full buffer
-            num_batches = int(
-                np.ceil(train_data.size / config["batch_size"])
-            )
-
-        # Train on the full buffer approximately once
+    for epoch in range(global_config.MAX_TRAINING_EPOCHS):
         batch_qloss = 0.
-        for batch in train_loader:
+        for batch_idx, batch in enumerate(train_loader):
             qloss = policy.train(batch)
             batch_qloss += qloss.item()
-        batch_qloss = batch_qloss / num_batches
+            if smoke_test:
+                break
+        batch_qloss = batch_qloss / (batch_idx + 1)
 
         # Evaluate the policy
         plot_epoch = (epoch % global_config.PLOT_EVERY == 0)
@@ -189,31 +190,49 @@ def train_run(config: dict,
             running_state,
             plot=plot_epoch
         )
-        train_metrics["mean_batch_qloss"] = batch_qloss
-        metrics = {**{f"train_{k}": v for k, v in train_metrics.items()},
-                   **{f"val_{k}": v for k, v in val_metrics.items()}}
-        plots = {**{f"train_{k}": v for k, v in train_plots.items()},
-                 **{f"val_{k}": v for k, v in val_plots.items()}}
+        train_metrics["qloss"] = batch_qloss
+        metrics = {**{f"train/{k}": v for k, v in train_metrics.items()},
+                   **{f"val/{k}": v for k, v in val_metrics.items()}}
+        plots = {**{f"train/{k}": v for k, v in train_plots.items()},
+                 **{f"val/{k}": v for k, v in val_plots.items()}}
 
         with tune.checkpoint_dir(step=epoch) as ckpt_dir_write:
-            # Checkpoint the model
-            ckpt_fn = os.path.join(ckpt_dir_write, "model.pt")
-            policy.save(ckpt_fn)
+            if ckpt_dir_write:
+                # Checkpoint the model
+                ckpt_fn = os.path.join(ckpt_dir_write, "model.pt")
+                policy.save(ckpt_fn)
 
-            # Store plots for Tensorboard
-            for plot_name, plot in plots.items():
-                try:
-                    store_plot_tensorboard(plot_name, plot, epoch, writer)
-                except (ValueError, PlotnineError) as exc:
-                    warn(str(exc))
+                # Store plots for Tensorboard
+                for plot_name, plot in plots.items():
+                    try:
+                        store_plot_tensorboard(plot_name, plot, epoch, writer)
+                    except (ValueError, PlotnineError) as exc:
+                        warn(str(exc))
 
         # TODO: implement WIS ?
         tune.report(**metrics)
 
 
 def trial_namer(trial):
-    # TODO implement
-    return str(uuid4())
+    """
+    Name a trial.
+
+    Args:
+        trial: The Ray Tune trial to name.
+    """
+    trial_id = trial.trial_id
+    discount = trial.config["discount"]
+    bs = trial.config["batch_size"]
+    lr = trial.config["learning_rate"]
+    tau = trial.config["tau"]
+    num_layers = trial.config["num_layers"]
+    hidden_dim = trial.config["hidden_dim"]
+    bcq_t = trial.config["bcq_threshold"]
+    name = (f"{trial_id}_discount={discount}_bs={bs}_lr={lr:.2e}_tau={tau:.2e}_"
+            f"num_layers={num_layers}_hidden_dim={hidden_dim}_"
+            f"threshold={bcq_t:.1f}")
+
+    return name
 
 
 def tune_run(num_samples: int,
@@ -227,11 +246,34 @@ def tune_run(num_samples: int,
              mode: str,
              smoke_test: bool,
              tune_smoke_test: bool):
+    """
+    Run the hyperparameter tuning procedure.
+
+    Args:
+        num_samples: The number of hyperparameter combinations to try.
+        tune_seed: The seed for the hyperparameter selection process, used when
+                   any parameter employs random search.
+        init_seed: The seed to use within a given hyperparameter setting.
+        output_dir: The output directory for the `ray` logs.
+        resume_errored: Whether to resume errored trials or start from scratch.
+        train_data_path: The path to the training data.
+        val_data_path: The path to the validation data.
+        target_metric: The metric to optimize over the space of possible
+                       hyperparameters.
+        mode: Whether to "max" or "min" the target metric.
+        smoke_test: Whether to conduct a "smoke test" where hyperparameters are
+                    not tuned but the training loop is run once to ensure code
+                    validity.
+        tune_smoke_test: Whether to conduct a "smoke test" where hyperparameters
+                         are tuned with one hyperparameter sample and the
+                         training loop run once to ensure code validity.
+    """
     # TODO: make number of layers searchable over a wider space by generalizing
     # the model class
     tune_config = {
         # Fixed hyperparams
         "optimizer": "Adam",
+        # Fixed no-ops
         "polyak_target_update": True,
         "target_update_freq": 100,
         # Searchable hyperparams

@@ -78,16 +78,16 @@ STATE_COLS = ["AGE_DEIDENTIFIED", "SEX", "WEIGHT", "CONTINENT", "SMOKE",
 # Hyperparameter search options
 
 # Number of hyperparameter combinations to try.
-NUM_HYPERPARAMETER_SAMPLES = 100
+NUM_HYPERPARAMETER_SAMPLES = 50
 
 # Minimum number of training epochs before early termination of the model.
-MIN_TRAINING_EPOCHS = 250
+MIN_TRAINING_EPOCHS = 500
 
 # Maximum number of training epochs for each combination of hyperparameters.
-MAX_TRAINING_EPOCHS = 1_000
+MAX_TRAINING_EPOCHS = 2_500
 
 # How often to plot in epochs.
-PLOT_EVERY = 50
+PLOT_EVERY = 100
 
 # Evaluation constants
 
