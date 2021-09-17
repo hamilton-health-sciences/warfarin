@@ -25,23 +25,28 @@ class FCQ(nn.Module):
         """
         super().__init__()
 
-        if num_layers == 3:
-            self.q1 = nn.Linear(state_dim, hidden_states)
-            self.q2 = nn.Linear(hidden_states, hidden_states)
-            self.q3 = nn.Linear(hidden_states, num_actions)
-
-            self.i1 = nn.Linear(state_dim, hidden_states)
-            self.i2 = nn.Linear(hidden_states, hidden_states)
-            self.i3 = nn.Linear(hidden_states, num_actions)
-
-        if num_layers == 2:
-            self.q1 = nn.Linear(state_dim, hidden_states)
-            self.q3 = nn.Linear(hidden_states, num_actions)
-
-            self.i1 = nn.Linear(state_dim, hidden_states)
-            self.i3 = nn.Linear(hidden_states, num_actions)
-
         self.num_layers = num_layers
+        self.state_dim = state_dim
+        self.hidden_states = hidden_states
+        self.num_actions = num_actions
+
+        # Build nets
+        self.q = self._build_net()
+        self.i = self._build_net()
+
+    def _build_net(self):
+        layers = [
+            nn.Linear(self.state_dim, self.hidden_states),
+            nn.ReLU()
+        ]
+        for _ in range(self.num_layers - 2):
+            layers += [
+                nn.Linear(self.state_dim, self.hidden_states),
+                nn.ReLU()
+            ]
+        layers += [nn.Linear(self.hidden_states, self.num_actions)]
+
+        return nn.Sequential(*layers)
 
     def forward(self, state):
         """
@@ -57,19 +62,8 @@ class FCQ(nn.Module):
                 observed policy.
             i: The raw output of the generative model.
         """
-        if self.num_layers == 2:
-            q = F.relu(self.q1(state))
-            i = F.relu(self.i1(state))
-            i = F.relu(self.i3(i))
-
-        elif self.num_layers == 3:
-            q = F.leaky_relu(self.q1(state))
-            q = F.leaky_relu(self.q2(q))
-            i = F.leaky_relu(self.i1(state))
-            i = F.leaky_relu(self.i2(i))
-            i = F.leaky_relu(self.i3(i))
-
-        qval = self.q3(q)
+        qval = self.q(state)
+        i = self.i(state)
         lp = F.log_softmax(i, dim=1)
 
         return qval, lp, i
@@ -225,9 +219,30 @@ class SMDBCQ(object):
             self.q_target.load_state_dict(self.q.state_dict())
 
     def save(self, filename):
+        """
+        Save the weights of the network.
+
+        Args:
+            filename: The path to save to.
+        """
         weights = {
             "q": self.q.state_dict(),
             "q_target": self.q_target.state_dict()
         }
 
         torch.save(weights, filename)
+
+    def load(self, filename):
+        """
+        Load the model from its savefile.
+
+        Note that the optimizer parameters are not stored, so this is only
+        intended to go from training to testing, not from training to further
+        training.
+
+        Args:
+            filename: The path to the savefile.
+        """
+        state = torch.load(filename)
+        self.q.load_state_dict(state["q"])
+        self.q_target.load_state_dict(state["q_target"])
