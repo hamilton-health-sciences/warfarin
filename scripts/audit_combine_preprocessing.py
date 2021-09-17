@@ -325,7 +325,7 @@ def audit_split_data():
 
     msg = "Test set subject IDs not as prescribed! This represents an error"
 
-    assert set(test_subjid) == set(prescribed_test_subjid), msg
+    assert len(np.setdiff1d(test_subjid, prescribed_test_subjid)) == 0, msg
 
 
 def plot_transitions():

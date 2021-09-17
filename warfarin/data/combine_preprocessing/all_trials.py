@@ -58,6 +58,12 @@ def preprocess_all(inr, events, baseline):
     baseline.loc[baseline["AGE_DEIDENTIFIED"] == ">89", "AGE_DEIDENTIFIED"] = 90
     baseline["AGE_DEIDENTIFIED"] = baseline["AGE_DEIDENTIFIED"].astype(int)
 
+    # Remove patients with missing data in baseline columns
+    baseline = baseline[
+        baseline[config.STATIC_STATE_COLS].isnull().sum(axis=1) == 0
+    ].copy()
+    inr = inr[inr["SUBJID"].isin(baseline["SUBJID"])].copy()
+
     # One-hot encode adverse events
     events.loc[:, "DEATH"] = (
         events["EVENT_NAME"] == "All Cause Death"

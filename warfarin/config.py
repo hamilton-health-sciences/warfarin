@@ -45,7 +45,8 @@ EVENTS_TO_SPLIT = ["DEATH", "STROKE", "MAJOR_BLEED", "HEM_STROKE", "HOSP"]
 EVENT_RANGE = 90
 
 # These are the patient features that are extracted from the baseline data and
-# merged with the rest of the data
+# merged with the rest of the data. Patients without these columns will be
+# excluded.
 STATIC_STATE_COLS = ["SEX", "CONTINENT", "SMOKE", "BMED_ASPIRIN", "BMED_AMIOD",
                      "DIABETES", "HX_CHF", "HYPERTENSION", "HX_MI",
                      "BMED_THIENO", "AGE_DEIDENTIFIED", "WEIGHT"]
