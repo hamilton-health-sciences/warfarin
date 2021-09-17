@@ -11,7 +11,8 @@ import torch.nn.functional as F
 
 class FCQ(nn.Module):
     """
-    A feed-forward MLP implementation of the Q network.
+    A feed-forward MLP implementation of the Q network and its corresponding
+    generative network.
     """
 
     def __init__(self, state_dim, num_actions, hidden_states=10, num_layers=2):
