@@ -25,7 +25,6 @@ def interpolate_inr(df):
 
     # Linearly interpolate INR. We don't need a groupby here because INRs are
     # always observed at the start and end of a trajectory.
-    # TODO do we need a groupby?
     df_interp["INR_VALUE"] = df_interp["INR_VALUE"].interpolate()
 
     return df_interp

@@ -128,7 +128,7 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
     # Compute algorithm-observed differences
     action_diff_cols = [c for c in df.columns if "ACTION_DIFF" in c]
 
-    # TODO use explosion to compute TTR
+    # Use linearly interpolated INR to compute TTR
     inr_interp = interpolate_inr(df[["INR_VALUE"]])
     inr_interp["INR_IN_RANGE"] = ((inr_interp["INR_VALUE"] >= 2.) &
                                   (inr_interp["INR_VALUE"] <= 3.))

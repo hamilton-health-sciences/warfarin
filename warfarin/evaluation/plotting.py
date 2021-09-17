@@ -81,8 +81,6 @@ def plot_agreement_ttr_curve(df, disagreement_ttr):
         subset=["TRIAL", "SUBJID", "TRAJID"]
     ).set_index(["TRIAL", "SUBJID", "TRAJID"])
 
-    # TODO determine whether we need to drop transitions
-
     plot_df = disagreement_ttr.join(df[["CONTINENT"]])
 
     plot_df = plot_df.melt(id_vars=["APPROXIMATE_TTR",

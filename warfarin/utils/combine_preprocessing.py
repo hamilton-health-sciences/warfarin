@@ -8,7 +8,6 @@ from warfarin.data.auditing import auditable
 from warfarin.data.utils import split_traj
 
 
-# TODO fix this
 @auditable()
 def remove_clinically_unintuitive(df):
     """
@@ -88,7 +87,6 @@ def remove_clinically_unintuitive(df):
     return df_analyze
 
 
-# TODO fix this
 @auditable()
 def remove_phys_implausible(df, inr_buffer_range=0.25):
     """
