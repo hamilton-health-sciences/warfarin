@@ -15,7 +15,6 @@ def decode(df):
     """
     str_df = df.select_dtypes([np.object])
     for col in str_df:
-        # TODO fix bare except
         try:
             df[col] = str_df[col].str.decode("utf-8").str.strip()
         except:

@@ -138,11 +138,9 @@ def merge_inr_events(inr, events):
     Returns:
         inr_merged: The dataframe of INR and events, merged.
     """
-    # TODO: move this to a merge trials function?
     # Subset to non-imputed INRs, i.e. those actually observed
     inr = inr[inr["INR_TYPE"] == "Y"].copy()
 
-    # TODO Rankin score does not seem to be carrying over
     # Set Rankin score for ischemic strokes
     events["RANKIN_SCORE"] = np.where(
         events["RANKIN_SCORE"].isnull(),
@@ -289,7 +287,7 @@ def impute_inr_and_dose(inr_merged):
     # by trajectory here, in case the warfarin dose is reported after an adverse
     # event that terminates a trajectory. We may want to stick some time gap
     # limit on this in the future, possibly by splitting trajectories based on
-    # time elapsed (TODO).
+    # time elapsed.
     inr_merged["WARFARIN_DOSE"] = inr_merged.groupby(
         "SUBJID"
     )["WARFARIN_DOSE"].fillna(method="bfill")

@@ -31,7 +31,6 @@ class WarfarinReplayBuffer(TensorDataset):
     and transition flags needed for training.
     """
 
-    # TODO paramterize event reward magnitude
     def __init__(self,
                  df: pd.DataFrame,
                  discount_factor: float,
@@ -181,8 +180,6 @@ class WarfarinReplayBuffer(TensorDataset):
         if num_missing_state_trans > 0:
             warn("Looks like there are missing state values in "
                  f"{num_missing_state_trans} transitions. Probably a bad thing")
-
-        # TODO why are things null here
 
         # Subset to transitions with no missing data
         sel = (nonmissing_state &

@@ -128,7 +128,7 @@ def preprocess_aristotle(inr, baseline):
 
         1. Converts two typoed negative doses to their positive equivalent.
         2. When dose is NaN, we assume there isn't a visit, and backfill the
-           previous dose column accordingly. (TODO correct interpretation?)
+           previous dose column accordingly.
         3. Define interruptions as consecutive weekly doses of zero and split
            into trajectories along these interruptions.
 

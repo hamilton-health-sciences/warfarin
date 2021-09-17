@@ -103,7 +103,6 @@ def train_run(config: dict,
         train_buffer_path = os.path.join(global_config.CACHE_PATH,
                                          "train_buffer.pkl")
         pickle.dump(train_data, open(train_buffer_path, "wb"))
-    # TODO: weight by train_data.sample_prob and sample with replacement
     train_loader = DataLoader(train_data, batch_size=config["batch_size"])
 
     # Load the val data and use train transforms
@@ -159,7 +158,6 @@ def train_run(config: dict,
             state = json.loads(f.read())
             start = state["step"] + 1
 
-        # TODO this is out of date
         # Model
         state_dict = torch.load(os.path.join(checkpoint_dir, "model.pt"))
         policy.Q.load_state_dict(state_dict)
@@ -209,7 +207,6 @@ def train_run(config: dict,
                     except (ValueError, PlotnineError) as exc:
                         warn(str(exc))
 
-        # TODO: implement WIS ?
         tune.report(**metrics)
 
 
@@ -268,8 +265,6 @@ def tune_run(num_samples: int,
                          are tuned with one hyperparameter sample and the
                          training loop run once to ensure code validity.
     """
-    # TODO: make number of layers searchable over a wider space by generalizing
-    # the model class
     tune_config = {
         # Fixed hyperparams
         "optimizer": "Adam",
@@ -277,7 +272,7 @@ def tune_run(num_samples: int,
         "polyak_target_update": True,
         "target_update_freq": 100,
         # Searchable hyperparams
-        "discount": 0.99,  # TODO: grid search?
+        "discount": 0.99,
         "batch_size": tune.choice([32, 64, 128, 256]),
         "learning_rate": tune.loguniform(1e-7, 1e-2),
         "tau": tune.loguniform(5e-4, 5e-2),

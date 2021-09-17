@@ -125,10 +125,8 @@ def audit_preprocess_all():
         2
     )
 
-    # TODO figure out what to do when 1 or 2 -- missing data or assume 0
-    # dose on that day? look at examples to figure this out?
-    # In ENGAGE and ROCKET data, ensure we have three daily entries for each
-    # following INR_TYPE = Y
+    # In ENGAGE and ROCKET data, how often do we actually have three daily
+    # entries for each following observed INR
     subset = inr[inr["TRIAL"].isin(["ENGAGE", "ROCKET_AF"])].copy()
     subset["WARFARIN_DOSE_NONNULL"] = ~subset["WARFARIN_DOSE"].isnull()
     subset["NUM_DAILY_DOSES"] = subset.groupby(

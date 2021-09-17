@@ -31,7 +31,6 @@ def engineer_state_features(df, transforms=None):
     if transforms is None:
         transforms = {}
 
-    # TODO can we do this more gracefully?
     # Clamp INR in [0.5, 4.5]
     df["INR_VALUE"] = np.maximum(np.minimum(df["INR_VALUE"], 4.5), 0.5)
 
@@ -44,7 +43,6 @@ def engineer_state_features(df, transforms=None):
         )
 
     # Discretize continuous features
-    # TODO levaing continuous features in the state space?
     df["WARFARIN_DOSE_BIN"] = pd.cut(df["WARFARIN_DOSE"],
                                      bins=config.WARFARIN_DOSE_BOUNDS,
                                      labels=config.WARFARIN_DOSE_BIN_LABELS)
@@ -223,12 +221,6 @@ def compute_reward(df, discount_factor):
     df_interp["DISC_REWARD"] = (
         df_interp["REWARD"] * discount_factor**df_interp["t"]
     )
-
-    # TODO previously, if the INRs were observed on days 5 and 7, the reward
-    # signal from day 7 was not included in the reward for the transition at
-    # day 5 (I think). validate that the new assumption (as illustrated in our
-    # figure) is what we actually want.
-    # Compute cumulative discounted reward
     cum_disc_reward = df_interp.groupby(
         ["TRIAL", "SUBJID", "TRAJID", "LAST_VISIT_DAY"]
     )["DISC_REWARD"].sum().reset_index().rename(
