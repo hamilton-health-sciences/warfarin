@@ -13,6 +13,7 @@ import numpy as np
 import torch
 from torch.utils.data import TensorDataset
 
+from warfarin import config
 from warfarin.data.feature_engineering import (engineer_state_features,
                                                extract_observed_decision,
                                                compute_k,
@@ -123,11 +124,38 @@ class WarfarinReplayBuffer(TensorDataset):
         Extract the observed state, next state, options, reward, time elapsed,
         trajectory done flags, and transition sample probabilities.
         """
+        self._raw_df = self.df.copy()
+
         # Subset to trajectories with min length
         sel = self.df.groupby(
             ["TRIAL", "SUBJID", "TRAJID"]
         )["INR_VALUE"].count() > self.min_trajectory_length
         self.df = self.df.loc[sel].copy()
+
+        # When an adverse event that we don't split on occurs in the middle of
+        # a trajectory, it may have a missing INR and/or dose. To ensure the
+        # dynamics around this point are correct, we remove that row of the
+        # data frame, as if we're not splitting on it, the assumption is that
+        # the surrounding dose-response is correct, and no clinical decision
+        # was made at the time.
+        nonsplittable_events = np.setdiff1d(config.EVENTS_TO_KEEP,
+                                            config.EVENTS_TO_SPLIT)
+        if len(nonsplittable_events) > 0:
+            last = self.df.reset_index().groupby(
+                ["TRIAL", "SUBJID", "TRAJID"]
+            )["STUDY_DAY"].max().reset_index()
+            last["LAST"] = True
+            last = last.set_index(["TRIAL", "SUBJID", "TRAJID", "STUDY_DAY"])
+            last = self.df.join(last)["LAST"].fillna(False)
+            is_nonsplittable_event = (
+                self.df[nonsplittable_events].sum(axis=1) > 0
+            )
+            inr_null = self.df["INR_VALUE"].isnull()
+            dose_null = self.df["WARFARIN_DOSE"].isnull()
+            remove_sel = (~last &
+                          is_nonsplittable_event &
+                          (inr_null | dose_null))
+            self.df = self.df.loc[~remove_sel].copy()
 
         # Generate features
         state, self.state_transforms = engineer_state_features(

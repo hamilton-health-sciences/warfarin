@@ -35,8 +35,8 @@ def plot_policy_heatmap(df):
                            labels=config.INR_BIN_LABELS)
     if "2 - 3" in config.INR_BIN_LABELS:
         df.loc[df["INR_VALUE"] == 3., "INR_BIN"] = "2 - 3"
-    if "3 - 4" in config.INR_BIN_LABELS:
-        df.loc[df["INR_VALUE"] == 4., "INR_BIN"] = "3 - 4"
+    if "3 - 3.5" in config.INR_BIN_LABELS:
+        df.loc[df["INR_VALUE"] == 3.5, "INR_BIN"] = "3 - 3.5"
 
     # Plot
     plot_df = df[["INR_BIN", "ACTION"]].value_counts()

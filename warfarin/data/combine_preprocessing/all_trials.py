@@ -132,6 +132,7 @@ def merge_inr_events(inr, events):
     Returns:
         inr_merged: The dataframe of INR and events, merged.
     """
+    # TODO: move this to a merge trials function?
     # Subset to non-imputed INRs, i.e. those actually observed
     inr = inr[inr["INR_TYPE"] == "Y"].copy()
 
@@ -274,6 +275,10 @@ def impute_inr_and_dose(inr_merged):
     Returns:
         inr_merged: INR and events data with imputed INRs and doses.
     """
+    is_event = (inr_merged[config.EVENTS_TO_KEEP].sum(axis=1) > 0)
+    inr_null_valid = (inr_merged["INR_VALUE"].isnull() & is_event)
+    dose_null_valid = (inr_merged["WARFARIN_DOSE"].isnull() & is_event)
+
     # Backfill the warfarin dose within a subject. Note that we do not group
     # by trajectory here, in case the warfarin dose is reported after an adverse
     # event that terminates a trajectory. We may want to stick some time gap
@@ -287,11 +292,19 @@ def impute_inr_and_dose(inr_merged):
     # contain an adverse event, with no corresponding INR measurement. This
     # action forward fills INR and doses when a previous INR or dose is
     # available in a given trajectory. We then drop remaining null entries.
+    # We then reset "truly null" INRs and doses (i.e., not recorded in an event)
+    # to null so that these transitions aren't used for INR-based training or
+    # evaluation, as a clinical decision was not made at these timepoints when
+    # dose is null, and evaluation based on in-range-ness is not valid when
+    # INR is null. However, we preserve them in the merged data for cases when
+    # we are interested in evaluating events.
     inr_merged = inr_merged.groupby(
         ["SUBJID", "TRAJID"]
     ).apply(lambda df: df.fillna(method="ffill"))
     inr_merged = inr_merged[~inr_merged["INR_VALUE"].isnull() &
                             ~inr_merged["WARFARIN_DOSE"].isnull()].copy()
+    inr_merged.loc[inr_null_valid, "INR_VALUE"] = np.nan
+    inr_merged.loc[dose_null_valid, "WARFARIN_DOSE"] = np.nan
 
     return inr_merged
 

@@ -16,6 +16,10 @@ DOSE_OUTLIER_THRESHOLD = 140
 # trajectories
 MAX_TIME_ELAPSED = 90
 
+# Remove trajectories that are not useful for RL modeling because they contain
+# < 1 valid transition.
+MIN_INR_COUNTS = 2
+
 # Trajectories with fewer than MIN_TRAINING_TRAJECTORY_LENGTH transitions will
 # be removed
 MIN_TRAIN_TRAJECTORY_LENGTH = 10
@@ -33,7 +37,7 @@ EVENTS_TO_KEEP = ["DEATH", "STROKE", "MAJOR_BLEED", "MINOR_BLEED", "HEM_STROKE",
 
 # Events to split on. We don't split on minor bleeds as this would create way
 # too many short trajectories, particularly in RE-LY where the per-patient
-# rate of minor bleeding is 90%.
+# rate of minor bleeding is >90%.
 EVENTS_TO_SPLIT = ["DEATH", "STROKE", "MAJOR_BLEED", "HEM_STROKE", "HOSP"]
 
 # If an event occurs more than this many days away from the last entry,
@@ -98,8 +102,8 @@ AGREEMENT_THRESHOLDS = [0.001, 0.0025, 0.005, 0.01, 0.025]
 # For INR binning in evaluations. In practice, the closedness of the endpoints
 # are not prescribed here, so will need to be modified in the evaluations code
 # if changed.
-INR_BIN_BOUNDARIES = [-float("inf"), 1., 2., 3., 4., float("inf")]
-INR_BIN_LABELS = ["< 1", "1 - 2", "2 - 3", "3 - 4", "> 4"]
+INR_BIN_BOUNDARIES = [-float("inf"), 1.5, 2., 3., 3.5, float("inf")]
+INR_BIN_LABELS = ["< 1.5", "1.5 - 2", "2 - 3", "3 - 3.5", "> 3.5"]
 
 # Dose change labels
 ACTION_LABELS = ["Decrease > 20%",
