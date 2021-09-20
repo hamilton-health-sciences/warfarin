@@ -39,6 +39,6 @@ def interpolate_inr(df):
     # Linearly interpolate INR
     df_interp["INR_VALUE"] = df_interp.groupby(
         ["TRIAL", "SUBJID", "TRAJID"]
-    )["INR_VALUE"].interpolate()
+    )["INR_VALUE"].apply(lambda x: x.interpolate())
 
     return df_interp

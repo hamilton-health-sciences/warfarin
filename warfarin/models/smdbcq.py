@@ -41,7 +41,7 @@ class FCQ(nn.Module):
         ]
         for _ in range(self.num_layers - 2):
             layers += [
-                nn.Linear(self.state_dim, self.hidden_states),
+                nn.Linear(self.hidden_states, self.hidden_states),
                 nn.ReLU()
             ]
         layers += [nn.Linear(self.hidden_states, self.num_actions)]
