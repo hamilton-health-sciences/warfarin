@@ -77,31 +77,38 @@ def plot_agreement_ttr_curve(df, disagreement_ttr):
         agreement_curve: The agreement curve plot object.
         histogram_curve: The histogram plot object.
     """
+    plots = {}
+
+    diff_algo_name_map = {
+        "POLICY_ACTION_DIFF": "RL Algorithm",
+        "THRESHOLD_ACTION_DIFF": "Rule-Based",
+        "MAINTAIN_ACTION_DIFF": "Always Maintain",
+        "RANDOM_ACTION_DIFF": "Random"
+    }
     df = df.reset_index().drop_duplicates(
         subset=["TRIAL", "SUBJID", "TRAJID"]
     ).set_index(["TRIAL", "SUBJID", "TRAJID"])
 
     plot_df = disagreement_ttr.join(df[["CONTINENT"]])
 
-    plot_df = plot_df.melt(id_vars=["APPROXIMATE_TTR",
+    plot_df = plot_df.melt(id_vars=[*config.ADV_EVENTS,
+                                    "ANY_EVENT",
+                                    "APPROXIMATE_TTR",
                                     "TRAJECTORY_LENGTH",
                                     "CONTINENT"])
-    plot_df.columns = ["APPROXIMATE_TTR",
+    plot_df.columns = [*config.ADV_EVENTS,
+                       "ANY_EVENT",
+                       "APPROXIMATE_TTR",
                        "TRAJECTORY_LENGTH",
                        "CONTINENT",
                        "MODEL",
                        "MEAN_ABSOLUTE_AGREEMENT"]
-    plot_df["MODEL"] = plot_df["MODEL"].map({
-        "POLICY_ACTION_DIFF": "RL Algorithm",
-        "THRESHOLD_ACTION_DIFF": "Rule-Based",
-        "MAINTAIN_ACTION_DIFF": "Always Maintain",
-        "RANDOM_ACTION_DIFF": "Random"
-    })
+    plot_df["MODEL"] = plot_df["MODEL"].map(diff_algo_name_map)
     plot_df["APPROXIMATE_TTR"] *= 100.
     plot_df["MEAN_ABSOLUTE_AGREEMENT"] *= 100.
     mean_abs_diff_label = ("Mean Absolute Difference Between Algorithm & "
                            "Observed Dose Change (%)")
-    agreement_ttr = (
+    plots["absolute_agreement/ttr/curve"] = (
         ggplot(plot_df,
                aes(x="MEAN_ABSOLUTE_AGREEMENT",
                    y="APPROXIMATE_TTR",
@@ -117,8 +124,24 @@ def plot_agreement_ttr_curve(df, disagreement_ttr):
         scale_color_discrete(name="Algorithm")
     )
 
+    # Plot event curves
+    for event_name in config.ADV_EVENTS + ["ANY_EVENT"]:
+        plots[f"absolute_agreement/events/{event_name}/curve"] = (
+            ggplot(plot_df,
+                   aes(x="MEAN_ABSOLUTE_AGREEMENT",
+                       y=event_name,
+                       weight="TRAJECTORY_LENGTH",
+                       group="MODEL",
+                       color="MODEL")) +
+            geom_smooth(method="loess") +
+            coord_cartesian(xlim=[0., 50.], ylim=[0., 0.1]) +
+            xlab(mean_abs_diff_label) +
+            ylab(f"Rate of {event_name}") +
+            scale_color_discrete(name="Algorithm")
+        )
+
     # Plot histogram of agreement
-    agreement_histogram = (
+    plots["absolute_agreement/histogram"] = (
         ggplot(plot_df,
                aes(x="MEAN_ABSOLUTE_AGREEMENT",
                    group="MODEL",
@@ -131,4 +154,24 @@ def plot_agreement_ttr_curve(df, disagreement_ttr):
         scale_fill_discrete(name="Algorithm")
     )
 
-    return agreement_ttr, agreement_histogram
+    # Plot TTR @ agreement of each algorithm as boxplot at each threshold
+    for threshold in config.AGREEMENT_THRESHOLDS:
+        plot_df = disagreement_ttr.melt(
+            id_vars=["APPROXIMATE_TTR", "TRAJECTORY_LENGTH"]
+        ).dropna()
+        plot_df["Algorithm"] = plot_df["variable"].map(diff_algo_name_map)
+        plot_df = plot_df[plot_df["value"] < threshold]
+        plot_df["TTR (%)"] = plot_df["APPROXIMATE_TTR"] * 100
+        plots[f"absolute_agreement/ttr/{threshold}_scatter"] = (
+            ggplot(plot_df,
+                   aes(x="Algorithm",
+                       y="TTR (%)",
+                       group="Algorithm",
+                       fill="Algorithm",
+                       size="TRAJECTORY_LENGTH")) +
+            geom_jitter() +
+            scale_fill_discrete(guide=False) +
+            scale_size(guide=False)
+        )
+
+    return plots

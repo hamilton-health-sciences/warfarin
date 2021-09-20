@@ -8,6 +8,7 @@ import pandas as pd
 
 from plotnine import ggtitle, facet_wrap
 
+from warfarin import config
 from warfarin.utils import interpolate_inr
 from warfarin.models.baselines import ThresholdModel, RandomModel, MaintainModel
 from warfarin.evaluation.metrics import (eval_reasonable_actions,
@@ -45,6 +46,7 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
         (1) Heatmap of the current INR vs. policy option space.
         (2) Agreement curve and agreement histogram.
         (3) The above plots broken out by continent.
+        (4) The scatterplot of TTR at agreement by algorithm (per threshold).
 
     Args:
         policy: The learned policy.
@@ -154,10 +156,21 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
         columns={"INR_IN_RANGE": "APPROXIMATE_TTR"}
     )
 
+    # Extract event info
+    events = (
+        replay_buffer._raw_df[config.ADV_EVENTS].groupby(
+            ["TRIAL", "SUBJID", "TRAJID"]
+        ).sum() > 0
+    ).astype(int)
+    disagreement_ttr_events = disagreement_ttr.join(events)
+    disagreement_ttr_events["ANY_EVENT"] = (
+        disagreement_ttr_events[config.ADV_EVENTS].sum(axis=1) > 0
+    ).astype(int)
+
     # Compute results
-    metrics = compute_metrics(df, disagreement_ttr)
+    metrics = compute_metrics(df, disagreement_ttr_events, eval_state)
     if plot:
-        plots = compute_plots(df, disagreement_ttr)
+        plots = compute_plots(df, disagreement_ttr_events)
     else:
         plots = {}
     eval_state = {"prev_selected_actions": policy_action}
@@ -165,7 +178,7 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
     return metrics, plots, eval_state
 
 
-def compute_metrics(df, disagreement_ttr):
+def compute_metrics(df, disagreement_ttr, eval_state):
     stats = {}
 
     # Reasonable-ness
@@ -226,11 +239,10 @@ def compute_plots(df, disagreement_ttr):
     )
 
     # Agreement curves and histograms
-    agreement_curve, agreement_histogram = plot_agreement_ttr_curve(
+    agreement_plots = plot_agreement_ttr_curve(
         df, disagreement_ttr
     )
-    plots["absolute_agreement/curve"] = agreement_curve
-    plots["absolute_agreement/histogram"] = agreement_histogram
+    plots = {**plots, **agreement_plots}
 
     # Break out all plots by continent
     plots_all = {}
