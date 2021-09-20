@@ -194,7 +194,7 @@ class WarfarinReplayBuffer(TensorDataset):
         reward = reward.loc[sel]
         not_done = 1. - done.loc[sel]
         sample_prob = (np.array(sample_prob.loc[sel]) /
-                       np.sum(sample_prob.loc[sel])
+                       np.sum(sample_prob.loc[sel]))
 
         return k, state, option, next_state, reward, not_done, sample_prob
 
