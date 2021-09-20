@@ -21,7 +21,6 @@ import pandas as pd
 import numpy as np
 
 import torch
-from torch.utils.data import DataLoader
 
 from ray import tune
 from ray.tune import CLIReporter
@@ -31,7 +30,6 @@ from ray.tune.schedulers import AsyncHyperBandScheduler
 import tensorflow as tf
 
 from warfarin import config as global_config
-from warfarin.data import WarfarinReplayBuffer
 from warfarin.models import SMDBCQ
 from warfarin.utils.modeling import store_plot_tensorboard, get_dataloader
 from warfarin.evaluation import evaluate_and_plot_policy
@@ -118,7 +116,7 @@ def train_run(config: dict,
         state_dict = torch.load(os.path.join(checkpoint_dir, "model.pt"))
         policy.Q.load_state_dict(state_dict)
 
-    # Train the model
+    # Train the model. Epochs refer to approximate batch coverage.
     running_state = None
     writer = tf.summary.create_file_writer(trial_dir)
     for epoch in range(global_config.MAX_TRAINING_EPOCHS):
@@ -126,7 +124,12 @@ def train_run(config: dict,
         for batch_idx, batch in enumerate(train_loader):
             qloss = policy.train(batch)
             batch_qloss += qloss.item()
+            # Only look at one batch if smoke testing.
             if smoke_test:
+                break
+            # Otherwise, compute whether the replay buffer has been covered
+            # approximately once and treat that as an epoch.
+            if ((batch_idx + 1) * config["batch_size"]) > len(train_data):
                 break
         batch_qloss = batch_qloss / (batch_idx + 1)
 

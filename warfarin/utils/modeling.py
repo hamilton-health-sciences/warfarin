@@ -10,7 +10,7 @@ import tensorflow as tf
 
 import pandas as pd
 
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler, BatchSampler
 
 from warfarin import config
 from warfarin.data import WarfarinReplayBuffer
@@ -59,6 +59,7 @@ def get_dataloader(data_path: str,
         replay_buffer_params: Additional arguments to the replay buffer.
 
     Returns:
+        data: The replay buffer.
         dl: The dataloader.
     """
     if os.path.splitext(data_path)[-1] == ".pkl":
@@ -73,6 +74,14 @@ def get_dataloader(data_path: str,
         os.makedirs(config.CACHE_PATH, exist_ok=True)
         buffer_path = os.path.join(config.CACHE_PATH, cache_name)
         pickle.dump(data, open(buffer_path, "wb"))
-    dl = DataLoader(data, batch_size=batch_size)
+
+    sampler = BatchSampler(
+        WeightedRandomSampler(weights=data.sample_prob,
+                              num_samples=config.MAX_TRAINING_EPOCHS,
+                              replacement=True),
+        batch_size=batch_size,
+        drop_last=False
+    )
+    dl = DataLoader(data, batch_sampler=sampler)
 
     return data, dl
