@@ -37,7 +37,6 @@ class WarfarinReplayBuffer(TensorDataset):
                  min_trajectory_length: int = 0,
                  state_transforms = None,
                  rel_event_sample_prob: int = 1,
-                 batch_size: Optional[int] = None,
                  device: str = "cpu",
                  seed: int = 42) -> None:
         """
@@ -55,7 +54,6 @@ class WarfarinReplayBuffer(TensorDataset):
                                    1 (default), this corresponds to no
                                    difference between events transitions and
                                    non-events transitions.
-            batch_size: The size of the batch used during the training process.
             device: The device to store the data on.
             seed: The seed for randomly sampling batches.
         """

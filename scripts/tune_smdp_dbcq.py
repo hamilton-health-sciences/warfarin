@@ -33,34 +33,8 @@ import tensorflow as tf
 from warfarin import config as global_config
 from warfarin.data import WarfarinReplayBuffer
 from warfarin.models import SMDBCQ
+from warfarin.utils.modeling import store_plot_tensorboard, get_dataloader
 from warfarin.evaluation import evaluate_and_plot_policy
-
-
-def store_plot_tensorboard(plot_name, plot, step, writer):
-    """
-    Store a plot so that it's visible in Tensorboard.
-
-    Args:
-        plot_name: The name of the plot.
-        plot: The plotnine plot object.
-        step: The corresponding step (epoch).
-        writer: The TF writer to log the image to.
-
-    Raises:
-        PlotnineError if the plot could not be drawn.
-    """
-    # Put the figure in a TF image object
-    buf = io.BytesIO()
-    fig = plot.draw()
-    fig.savefig(buf, format="png", bbox_inches="tight")
-    buf.seek(0)
-    image = tf.image.decode_png(buf.getvalue(), channels=4)
-    image = tf.expand_dims(image, 0)
-
-    # Write the image
-    with writer.as_default():
-        tf.summary.image(plot_name, image, step=step)
-        writer.flush()
 
 
 def train_run(config: dict,
@@ -81,50 +55,32 @@ def train_run(config: dict,
                    hyperparameters.
     """
     # Random seed from trial name to initialize weights differently within each
-    # trial but reproducibly. If smoke testing, leave the init_seed as-is.
+    # trial but reproducibly. If smoke testing, leave the `init_seed` as-is
+    # (fixed to a constant).
     if not smoke_test:
         trial_name_noid = tune.get_trial_name()[8:]
         init_seed = init_seed + int.from_bytes(trial_name_noid.encode(), "little")
         torch.manual_seed(init_seed % (2**32 - 1))
 
     # Load the train data
-    if os.path.splitext(train_data_path)[-1] == ".pkl":
-        train_data = pickle.load(open(train_data_path, "rb"))
-    else:
-        train_df = pd.read_feather(train_data_path)
-        train_data = WarfarinReplayBuffer(
-            df=train_df,
-            discount_factor=config["discount"],
-            batch_size=config["batch_size"],
-            min_trajectory_length=global_config.MIN_TRAIN_TRAJECTORY_LENGTH,
-            device="cuda"
-        )
-        os.makedirs(global_config.CACHE_PATH, exist_ok=True)
-        train_buffer_path = os.path.join(global_config.CACHE_PATH,
-                                         "train_buffer.pkl")
-        pickle.dump(train_data, open(train_buffer_path, "wb"))
-    train_loader = DataLoader(train_data, batch_size=config["batch_size"])
-
-    # Load the val data and use train transforms
-    if os.path.splitext(val_data_path)[-1] == ".pkl":
-        val_data = pickle.load(open(val_data_path, "rb"))
-    else:
-        val_df = pd.read_feather(val_data_path)
-        val_data = WarfarinReplayBuffer(
-            state_transforms=train_data.state_transforms,
-            df=val_df,
-            discount_factor=config["discount"],
-            batch_size=config["batch_size"],
-            device="cuda"
-        )
-        os.makedirs(global_config.CACHE_PATH, exist_ok=True)
-        val_buffer_path = os.path.join(global_config.CACHE_PATH,
-                                       "val_buffer.pkl")
-        pickle.dump(val_data, open(val_buffer_path, "wb"))
+    train_data, train_loader = get_dataloader(
+        data_path=train_data_path,
+        cache_name="train_buffer.pkl",
+        batch_size=config["batch_size"],
+        discount_factor=config["discount"],
+        min_trajectory_length=global_config.MIN_TRAIN_TRAJECTORY_LENGTH
+    )
+    val_data, val_loader = get_dataloader(
+        data_path=val_data_path,
+        cache_name="val_buffer.pkl",
+        batch_size=config["batch_size"],
+        discount_factor=config["discount"],
+        state_transforms=train_data.state_transforms
+    )
 
     # Get the trial directory
     trial_dir = tune.get_trial_dir()
-    if trial_dir is None:
+    if not trial_dir:
         trial_dir = "./smoke_test"
 
     # Store transforms
@@ -216,6 +172,10 @@ def trial_namer(trial):
 
     Args:
         trial: The Ray Tune trial to name.
+
+    Returns:
+        name: The name of the trial, containing its id and relevant
+              hyperparameters.
     """
     trial_id = trial.trial_id
     discount = trial.config["discount"]
@@ -268,11 +228,11 @@ def tune_run(num_samples: int,
     tune_config = {
         # Fixed hyperparams
         "optimizer": "Adam",
+        "discount": 0.99,
         # Fixed no-ops
         "polyak_target_update": True,
         "target_update_freq": 100,
         # Searchable hyperparams
-        "discount": 0.99,
         "batch_size": tune.choice([32, 64, 128, 256]),
         "learning_rate": tune.loguniform(1e-7, 1e-2),
         "tau": tune.loguniform(5e-4, 5e-2),
@@ -319,7 +279,7 @@ def tune_run(num_samples: int,
         resume = "ERRORED_ONLY"
     else:
         resume = None
-    
+
     # How progress will be reported to the CLI
     par_cols = ["discount", "batch_size", "learning_rate", "tau", "num_layers",
                 "hidden_dim"]
