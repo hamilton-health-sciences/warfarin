@@ -124,13 +124,13 @@ def plot_agreement_ttr_curve(df, disagreement_ttr):
         scale_color_discrete(name="Algorithm")
     )
 
-    # Plot event curves
+    # Plot event curves. We don't weight these by trajectory length in days,
+    # unlike TTR, so as to be consistent with the event rate per unit time.
     for event_name in config.ADV_EVENTS + ["ANY_EVENT"]:
         plots[f"absolute_agreement/events/{event_name}/curve"] = (
             ggplot(plot_df,
                    aes(x="MEAN_ABSOLUTE_AGREEMENT",
                        y=event_name,
-                       weight="TRAJECTORY_LENGTH",
                        group="MODEL",
                        color="MODEL")) +
             geom_smooth(method="loess") +
@@ -156,7 +156,9 @@ def plot_agreement_ttr_curve(df, disagreement_ttr):
 
     # Plot TTR @ agreement of each algorithm as boxplot at each threshold
     for threshold in config.AGREEMENT_THRESHOLDS:
-        plot_df = disagreement_ttr.melt(
+        cols = ["APPROXIMATE_TTR", "TRAJECTORY_LENGTH",
+                *list(diff_algo_name_map.keys())]
+        plot_df = disagreement_ttr[cols].melt(
             id_vars=["APPROXIMATE_TTR", "TRAJECTORY_LENGTH"]
         ).dropna()
         plot_df["Algorithm"] = plot_df["variable"].map(diff_algo_name_map)

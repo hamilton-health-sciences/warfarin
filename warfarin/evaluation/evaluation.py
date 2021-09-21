@@ -13,7 +13,7 @@ from warfarin.utils import interpolate_inr
 from warfarin.models.baselines import ThresholdModel, RandomModel, MaintainModel
 from warfarin.evaluation.metrics import (eval_reasonable_actions,
                                          eval_classification,
-                                         eval_ttr_at_agreement)
+                                         eval_at_agreement)
 from warfarin.evaluation.plotting import (plot_policy_heatmap,
                                           plot_agreement_ttr_curve)
 
@@ -197,8 +197,8 @@ def compute_metrics(df, disagreement_ttr, eval_state):
     stats["good_action_dir_classification/jindex"] = jstat_dir
 
     # TTR at agreement
-    agreement_ttr_stats = eval_ttr_at_agreement(disagreement_ttr)
-    stats = {**stats, **agreement_ttr_stats}
+    agreement_stats = eval_at_agreement(disagreement_ttr)
+    stats = {**stats, **agreement_stats}
 
     # Ensure integer types are correct
     for k, v in stats.items():

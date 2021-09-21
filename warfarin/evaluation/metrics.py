@@ -85,22 +85,24 @@ def eval_classification(df):
     return sens, spec, jindex, sens_dir, spec_dir, jindex_dir
 
 
-def eval_ttr_at_agreement(disagreement_ttr):
+def eval_at_agreement(disagreement_ttr):
     """
-    Estimate the TTR in the trajectories which agree with the policy decisions.
+    Estimate the TTR and event rate n the trajectories which agree with the
+    policy decisions.
 
     Args:
         disagreement_ttr: Dataframe indexed by trajectory containing columns
-                          containing "ACTION_DIFF" and "APPROXIMATE_TTR".
+                          containing "ACTION_DIFF", "APPROXIMATE_TTR" and
+                          adverse event occurrences.
 
     Returns:
-        ttr_stats: The dictionary of metrics.
+        stats: The dictionary of metrics.
     """
     action_diff_cols = [
         c for c in disagreement_ttr.columns if "ACTION_DIFF" in c
     ]
 
-    ttr_stats = {}
+    stats = {}
     for algo_diff_col in action_diff_cols:
         algo = algo_diff_col.split("_")[0]
         for threshold in config.AGREEMENT_THRESHOLDS:
@@ -109,11 +111,17 @@ def eval_ttr_at_agreement(disagreement_ttr):
                 disagreement_ttr[sel]["APPROXIMATE_TTR"] *
                 disagreement_ttr[sel]["TRAJECTORY_LENGTH"]
             ).sum() / disagreement_ttr[sel]["TRAJECTORY_LENGTH"].sum()
-            ttr_stats[f"{threshold}_{algo}_ttr"] = weighted_ttr
-            ttr_stats[f"{threshold}_{algo}_num_traj"] = sel.sum()
-            ttr_stats[f"{threshold}_{algo}_num_trans"] = (
+            stats[f"{threshold}_{algo}/ttr"] = weighted_ttr
+            for event_name in config.ADV_EVENTS + ["ANY_EVENT"]:
+                stats[f"{threshold}_{algo}/{event_name}_per_yr"] = (
+                    disagreement_ttr[sel][event_name].sum() /
+                    disagreement_ttr[sel]["TRAJECTORY_LENGTH"].sum() *
+                    365.25
+                )
+            stats[f"{threshold}_{algo}/num_traj"] = sel.sum()
+            stats[f"{threshold}_{algo}/num_trans"] = (
                 disagreement_ttr["TRAJECTORY_LENGTH"][sel]
             ).sum()
-            ttr_stats[f"{threshold}_{algo}_prop_traj"] = sel.sum() / len(sel)
+            stats[f"{threshold}_{algo}/prop_traj"] = sel.sum() / len(sel)
 
-    return ttr_stats
+    return stats
