@@ -43,7 +43,7 @@ the tuning set:
     $ python3 scripts/tune_smdp_dbcq.py \
         --train_data `pwd`/data/clean_data/train_data.feather \
         --val_data `pwd`/data/clean_data/val_data.feather \
-        --target_metric "val/0.0025_POLICY_ttr" \
+        --target_metric "val/0.0025_POLICY/ttr" \
         --mode max
 
 Evaluations and plots can be accessed during training through Tensorboard:
