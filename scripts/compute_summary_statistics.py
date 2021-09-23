@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 
 from warfarin import config
+from warfarin.utils import interpolate_inr
 
 
 def compute_mean_std_fmt(df, var_name):
@@ -80,6 +81,19 @@ def main(args):
     for col in events.columns:
         events[col] = events[col].apply("{:.2f}".format)
     summary_df = pd.concat([summary_df, events.T], axis=1)
+
+    # TTR
+    inr_interp = interpolate_inr(
+        df_all.reset_index().set_index(
+            ["TRIAL", "SUBJID", "TRAJID", "STUDY_DAY"]
+        )[["INR_VALUE"]]
+    )
+    inr_interp["INR_IN_RANGE"] = ((inr_interp["INR_VALUE"] >= 2.) &
+                                  (inr_interp["INR_VALUE"] <= 3.))
+    ttr = inr_interp.groupby(
+        ["TRIAL", "SUBJID", "TRAJID"]
+    )["INR_IN_RANGE"].mean().to_frame()[["INR_IN_RANGE"]]
+    summary_df["TTR (%)"] = compute_pct_fmt(ttr, "INR_IN_RANGE")
 
     # Subset to the first occurrence in each subject for computing baseline
     # stats
