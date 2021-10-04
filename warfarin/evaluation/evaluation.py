@@ -13,12 +13,14 @@ from warfarin.utils import interpolate_inr
 from warfarin.models.baselines import ThresholdModel, RandomModel, MaintainModel
 from warfarin.evaluation.metrics import (eval_reasonable_actions,
                                          eval_classification,
-                                         eval_at_agreement)
+                                         eval_at_agreement,
+                                         compute_performance_tests)
 from warfarin.evaluation.plotting import (plot_policy_heatmap,
                                           plot_agreement_ttr_curve)
 
 
-def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
+def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True,
+                             include_tests=False):
     """
     Evaluate and plot a policy.
 
@@ -54,6 +56,7 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
         eval_state: A pass-through state var that should be modified and
                     returned.
         plot: Whether or not to generate plots, because plotting is slow.
+        include_tests: Whether or not to generate statistical tests.
 
     Returns:
         metrics: The dictionary of quantitative metrics, mapping name to value.
@@ -168,7 +171,8 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
     ).astype(int)
 
     # Compute results
-    metrics = compute_metrics(df, disagreement_ttr_events, eval_state)
+    metrics = compute_metrics(df, disagreement_ttr_events, eval_state,
+                              include_tests)
     if plot:
         plots = compute_plots(df, disagreement_ttr_events)
     else:
@@ -178,7 +182,7 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
     return metrics, plots, eval_state
 
 
-def compute_metrics(df, disagreement_ttr, eval_state):
+def compute_metrics(df, disagreement_ttr, eval_state, include_tests):
     stats = {}
 
     # Reasonable-ness
@@ -199,6 +203,11 @@ def compute_metrics(df, disagreement_ttr, eval_state):
     # TTR at agreement
     agreement_stats = eval_at_agreement(disagreement_ttr)
     stats = {**stats, **agreement_stats}
+
+    # Statistical tests
+    if include_tests:
+        performance_tests = compute_performance_tests(disagreement_ttr)
+        stats = {**stats, **performance_tests}
 
     # Ensure integer types are correct
     for k, v in stats.items():

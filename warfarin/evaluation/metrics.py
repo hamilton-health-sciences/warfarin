@@ -2,7 +2,11 @@
 
 import numpy as np
 
+import pandas as pd
+
 from sklearn.metrics import classification_report
+
+import statsmodels.api as sm
 
 from warfarin import config
 
@@ -125,3 +129,59 @@ def eval_at_agreement(disagreement_ttr):
             stats[f"{threshold}_{algo}/prop_traj"] = sel.sum() / len(sel)
 
     return stats
+
+
+def compute_performance_tests(disagreement_ttr):
+    performance_tests = {}
+
+    event_names = config.ADV_EVENTS + ["ANY_EVENT"]
+
+    sel = ((~np.isfinite(disagreement_ttr)).sum(axis=1) == 0)
+    df = disagreement_ttr[sel]
+    for thresh in config.AGREEMENT_THRESHOLDS:
+        policy_agree = (df["POLICY_ACTION_DIFF"] < thresh).astype(float)
+        threshold_agree = (df["THRESHOLD_ACTION_DIFF"] < thresh).astype(float)
+        both_agree = policy_agree * threshold_agree
+        lm_df = pd.DataFrame({
+            "policy_agree": policy_agree,
+            "threshold_agree": threshold_agree,
+            "both_agree": both_agree,
+            "ttr": df["APPROXIMATE_TTR"]
+        })
+        lm_df[event_names] = df[event_names]
+        # Test `H0: beta_{policy_agree} - beta_{threshold_agree} = 0`
+        # First for ttr
+        results = sm.WLS(
+            lm_df["ttr"],
+            sm.add_constant(
+                lm_df[["policy_agree", "threshold_agree", "both_agree"]]
+            ),
+            weights=df["TRAJECTORY_LENGTH"]
+        ).fit()
+        ttest = results.t_test(np.array([0., 1., -1., 0.])).summary_frame()
+        tval = float(ttest.iloc[:, 2])
+        pval = float(ttest.iloc[:, 3])
+        performance_tests[f"{thresh}_ttr_performance_t"] = tval
+        performance_tests[f"{thresh}_ttr_performance_p"] = pval
+
+        # Then for each event
+        for event in event_names:
+            try:
+                results = sm.Logit(
+                    lm_df[event],
+                    sm.add_constant(
+                        lm_df[["policy_agree", "threshold_agree", "both_agree"]]
+                    )
+                ).fit()
+                ttest = results.t_test(
+                    np.array([0., 1., -1., 0.])
+                ).summary_frame()
+                tval = float(ttest.iloc[:, 2])
+                pval = float(ttest.iloc[:, 3])
+                performance_tests[f"{thresh}_{event}_performance_t"] = tval
+                performance_tests[f"{thresh}_{event}_performance_p"] = pval
+            except np.linalg.LinAlgError:
+                print("Failed to compute improvement in {event} rate due to "
+                      "singularity issues with the model. Event rate too low.")
+
+    return performance_tests

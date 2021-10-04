@@ -101,7 +101,7 @@ PLOT_EVERY = 100
 
 # The upper thresholds for mean absolute agreement to consider a trajectory
 # agreed-upon.
-AGREEMENT_THRESHOLDS = [0.001, 0.0025, 0.005, 0.01, 0.025]
+AGREEMENT_THRESHOLDS = [0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.15]
 
 # For INR binning in evaluations. In practice, the closedness of the endpoints
 # are not prescribed here, so will need to be modified in the evaluations code

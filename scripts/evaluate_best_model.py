@@ -95,7 +95,8 @@ def main(args):
     policy.load(state_dict_path)
 
     # Compute evaluation metrics on the buffer
-    metrics, plots, _ = evaluate_and_plot_policy(policy, data)
+    metrics, plots, _ = evaluate_and_plot_policy(policy, data,
+                                                 include_tests=True)
 
     # Create output directories
     plots_dir = os.path.join(args.output_prefix, "plots")
