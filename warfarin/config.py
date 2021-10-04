@@ -110,10 +110,10 @@ INR_BIN_BOUNDARIES = [-float("inf"), 1.5, 2., 3., 3.5, float("inf")]
 INR_BIN_LABELS = ["< 1.5", "1.5 - 2", "2 - 3", "3 - 3.5", "> 3.5"]
 
 # Dose change labels
-ACTION_LABELS = ["Decrease > 20%",
-                 "Decrease 10-20%",
-                 "Decrease < 10%",
+ACTION_LABELS = ["↓ > 20%",
+                 "↓ 10-20%",
+                 "↓ < 10%",
                  "Maintain",
-                 "Increase < 10%",
-                 "Increase 10-20%",
-                 "Increase > 20%"]
+                 "↑ < 10%",
+                 "↑ 10-20%",
+                 "↑ > 20%"]
