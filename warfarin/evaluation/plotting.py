@@ -1,5 +1,7 @@
 """Plotting the results of the modeling."""
 
+import itertools
+
 import numpy as np
 
 import pandas as pd
@@ -40,20 +42,34 @@ def plot_policy_heatmap(df):
 
     # Plot
     plot_df = df[["INR_BIN", "ACTION"]].value_counts()
+    plot_df = plot_df.reindex(
+        list(itertools.product(df["INR_BIN"].cat.categories,
+                               df["ACTION"].cat.categories))
+    ).fillna(0)
     plot_df.name = "COUNT"
     plot_df = plot_df / plot_df.reset_index().groupby("INR_BIN")["COUNT"].sum()
     plot_df.name = "PROPORTION"
     plot_df = plot_df.reset_index()
+    plot_df["INR_BIN"] = pd.Categorical(plot_df["INR_BIN"],
+                                        categories=df["INR_BIN"].cat.categories,
+                                        ordered=True)
+    plot_df["ACTION"] = pd.Categorical(plot_df["ACTION"],
+                                       categories=df["ACTION"].cat.categories,
+                                       ordered=True)
     plot_df["PERCENTAGE"] = plot_df["PROPORTION"].map(
         lambda frac: f"{(frac*100):.2f}%"
     )
+    plot_df.loc[plot_df["PROPORTION"] == 0., "PERCENTAGE"] = ""
+    plot_df["SHOW"] = (plot_df["PROPORTION"] != 0.).astype(float)
     plot = (
-        ggplot(plot_df, aes(x="INR_BIN", y="ACTION")) +
-        geom_tile(aes(fill="PROPORTION")) +
+        ggplot(plot_df,
+               aes(x="INR_BIN", y="ACTION", fill="PROPORTION", alpha="SHOW")) +
+        geom_tile() +
         geom_text(aes(label="PERCENTAGE"), color="#43464B") +
         xlab("INR") +
         ylab("Decision") +
         scale_fill_gradient(low="#FFFFFF", high="#4682B4", guide=False) +
+        scale_alpha(guide=False) +
         theme(axis_line_x=element_blank(),
               axis_line_y=element_blank(),
               panel_grid=element_blank())

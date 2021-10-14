@@ -9,7 +9,7 @@ import pandas as pd
 from plotnine import ggtitle, facet_wrap
 
 from warfarin import config
-from warfarin.utils import interpolate_inr
+from warfarin.utils import interpolate_inr, code_quantitative_decision
 from warfarin.models.baselines import ThresholdModel, RandomModel, MaintainModel
 from warfarin.evaluation.metrics import (eval_reasonable_actions,
                                          eval_classification,
@@ -106,6 +106,9 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True,
     df["THRESHOLD_ACTION_QUANT"] = tm.select_action_quant(
         np.array(df["PREVIOUS_INR"]),
         np.array(df["INR_VALUE"])
+    )
+    df["THRESHOLD_ACTION"] = code_quantitative_decision(
+        df["THRESHOLD_ACTION_QUANT"] + 1.
     )
     df["RANDOM_ACTION"] = rm.select_action(len(df))
     df["MAINTAIN_ACTION"] = mm.select_action(len(df))
@@ -245,6 +248,14 @@ def compute_plots(df, disagreement_ttr):
     plots["heatmap/learned"] = (
         plot_policy_heatmap(rl_df) +
         ggtitle("RL Policy")
+    )
+
+    # Threshold policy heatmap
+    threshold_df = df[["THRESHOLD_ACTION", "INR_VALUE", "CONTINENT"]].copy()
+    threshold_df.columns = ["ACTION", "INR_VALUE", "CONTINENT"]
+    plots["heatmap/threshold"] = (
+        plot_policy_heatmap(threshold_df) +
+        ggtitle("Benchmark Policy")
     )
 
     # Agreement curves and histograms
