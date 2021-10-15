@@ -34,7 +34,7 @@ an earlier phase of the project.
 This will create an audit log in `output/` that can be comparison-checked for
 correctness.
 
-## Model training
+## Model tuning
 
 With a GPU available, train and tune the dBCQ model on the development set,
 which will attempt to find hyperparameters that maximize TTR at agreement in
