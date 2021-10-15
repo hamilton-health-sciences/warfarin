@@ -193,15 +193,12 @@ def compute_metrics(df, disagreement_ttr, eval_state, include_tests):
     stats["proportion_reasonable_actions"] = prop_reasonable
 
     # Classification metrics
-    sens, spec, jstat, sens_dir, spec_dir, jstat_dir = eval_classification(
-        df
-    )
-    stats["good_action_classification/sensitivity"] = sens
-    stats["good_action_classification/specificity"] = spec
-    stats["good_action_classification/jindex"] = jstat
-    stats["good_action_dir_classification/sensitivity"] = sens_dir
-    stats["good_action_dir_classification/specificity"] = spec_dir
-    stats["good_action_dir_classification/jindex"] = jstat_dir
+    policy_stats = eval_classification(df, "POLICY_ACTION", "POLICY")
+    threshold_stats = eval_classification(df, "THRESHOLD_ACTION", "THRESHOLD")
+    maintain_stats = eval_classification(df, "MAINTAIN_ACTION", "MAINTAIN")
+    random_stats = eval_classification(df, "RANDOM_ACTION", "RANDOM")
+    stats = {**policy_stats, **threshold_stats, **maintain_stats, **random_stats,
+             **stats}
 
     # TTR at agreement
     agreement_stats = eval_at_agreement(disagreement_ttr)
@@ -238,24 +235,36 @@ def compute_plots(df, disagreement_ttr):
     obs_df = df[["OBSERVED_ACTION", "INR_VALUE", "CONTINENT"]].copy()
     obs_df.columns = ["ACTION", "INR_VALUE", "CONTINENT"]
     plots["heatmap/observed"] = (
-        plot_policy_heatmap(obs_df) +
+        plot_policy_heatmap(obs_df.copy()) +
         ggtitle("Observed Policy")
+    )
+    plots["heatmap/observed/continent"] = (
+        plot_policy_heatmap(obs_df.copy(), group_vars=["CONTINENT"]) +
+        ggtitle("Observed Policy by Continent")
     )
 
     # RL policy heatmap
     rl_df = df[["POLICY_ACTION", "INR_VALUE", "CONTINENT"]].copy()
     rl_df.columns = ["ACTION", "INR_VALUE", "CONTINENT"]
     plots["heatmap/learned"] = (
-        plot_policy_heatmap(rl_df) +
+        plot_policy_heatmap(rl_df.copy()) +
         ggtitle("RL Policy")
+    )
+    plots["heatmap/learned/continent"] = (
+        plot_policy_heatmap(rl_df.copy(), group_vars=["CONTINENT"]) +
+        ggtitle("RL Policy by Continent")
     )
 
     # Threshold policy heatmap
     threshold_df = df[["THRESHOLD_ACTION", "INR_VALUE", "CONTINENT"]].copy()
     threshold_df.columns = ["ACTION", "INR_VALUE", "CONTINENT"]
     plots["heatmap/threshold"] = (
-        plot_policy_heatmap(threshold_df) +
+        plot_policy_heatmap(threshold_df.copy()) +
         ggtitle("Benchmark Policy")
+    )
+    plots["heatmap/threshold/continent"] = (
+        plot_policy_heatmap(threshold_df.copy(), group_vars=["CONTINENT"]) +
+        ggtitle("Benchmark Policy by Continent")
     )
 
     # Agreement curves and histograms

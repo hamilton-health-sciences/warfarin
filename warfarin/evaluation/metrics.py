@@ -4,11 +4,45 @@ import numpy as np
 
 import pandas as pd
 
-from sklearn.metrics import classification_report
-
 import statsmodels.api as sm
 
+import scipy as sp
+import scipy.stats
+
 from warfarin import config
+
+
+def _compute_exact_binomial_ci(r, n, alpha):
+    f = sp.stats.f.ppf(1 - alpha / 2., 2 * (n - r + 1), 2 * r)
+
+    ll = r / (r + (n - r + 1) * f)
+    uu = (r + 1) * f / ((n - r) + (r + 1)*f)
+
+    return ll, uu
+
+
+def compute_sensitivity(y, yhat, alpha=0.05):
+    y = y.astype(bool)
+    yhat = yhat.astype(bool)
+    r = (y & yhat).sum()
+    n = y.sum()
+
+    sens = r / n
+    sens_l, sens_u = _compute_exact_binomial_ci(r, n, alpha)
+    
+    return sens, sens_l, sens_u
+
+
+def compute_specificity(y, yhat, alpha=0.05):
+    y = y.astype(bool)
+    yhat = yhat.astype(bool)
+    r = (~y & ~yhat).sum()
+    n = (~y).sum()
+
+    spec = r / n
+    spec_l, spec_u = _compute_exact_binomial_ci(r, n, alpha)
+
+    return spec, spec_l, spec_u
 
 
 def eval_reasonable_actions(df):
@@ -38,7 +72,7 @@ def eval_reasonable_actions(df):
     return prop
 
 
-def eval_classification(df):
+def eval_classification(df, policy_col, prefix):
     """
     Evaluate each case of agreement between the policy and observed clinicians
     by identifying whether agreement predicts the next INR being in range.
@@ -48,45 +82,65 @@ def eval_classification(df):
           switched.
 
     Args:
-        df: Dataframe containing columns "OBSERVED_ACTION", "POLICY_ACTION", and
+        df: Dataframe containing columns "OBSERVED_ACTION", `policy_col`, and
             "NEXT_INR_IN_RANGE".
+        policy_col: The column to pull the policy decisions to come from.
+        prefix: The prefix for the output metrics.
 
     Returns:
-        sens, spec, jindex: The sensitivity, specificity, and Youden's J-index
-                            for exact agreement (i.e. agreement is defined as
-                            chosen actions are exactly equal).
-        sens_dir, spec_dir, jindex_dir: The sensitivity, specificity, and
-                                        Youden's J-index for directionally
-                                        consistent (lower, maintain, raise)
-                                        agreement.
+        stats: The sensitivity (+ CI), specificity (+ CI) and Youden's J-index
+               for exact and directional agreement.
     """
     # Compute stats
-    stats = classification_report(
+    sens, sens_lower, sens_upper = compute_sensitivity(
         df["NEXT_INR_IN_RANGE"],
-        df["OBSERVED_ACTION"] == df["POLICY_ACTION"],
-        output_dict=True
+        df["OBSERVED_ACTION"] == df[policy_col]
     )
-    sens, spec = stats["1"]["recall"], stats["0"]["recall"]
+    spec, spec_lower, spec_upper = compute_specificity(
+        df["NEXT_INR_IN_RANGE"],
+        df["OBSERVED_ACTION"] == df[policy_col]
+    )
     jindex = sens + spec - 1.
+
+    import pdb; pdb.set_trace()
 
     # Compute directional stats
     same_direction = (
         # Both lower
-        ((df["OBSERVED_ACTION"] < 3) & (df["POLICY_ACTION"] < 3)) |
+        ((df["OBSERVED_ACTION"] < 3) & (df[policy_col] < 3)) |
         # Both maintain
-        ((df["OBSERVED_ACTION"] == 3) & (df["POLICY_ACTION"] == 3)) |
+        ((df["OBSERVED_ACTION"] == 3) & (df[policy_col] == 3)) |
         # Both raise
-        ((df["OBSERVED_ACTION"] > 3) & (df["POLICY_ACTION"] > 3))
+        ((df["OBSERVED_ACTION"] > 3) & (df[policy_col] > 3))
     )
-    stats_dir = classification_report(
+    sens_dir, sens_dir_lower, sens_dir_upper = compute_sensitivity(
         df["NEXT_INR_IN_RANGE"],
-        same_direction,
-        output_dict=True
+        same_direction
     )
-    sens_dir, spec_dir = stats_dir["1"]["recall"], stats_dir["0"]["recall"]
+    spec_dir, spec_dir_lower, spec_dir_upper = compute_specificity(
+        df["NEXT_INR_IN_RANGE"],
+        same_direction
+    )
     jindex_dir = sens_dir + spec_dir - 1.
 
-    return sens, spec, jindex, sens_dir, spec_dir, jindex_dir
+    stats = {
+        f"{prefix}/classification/sensitivity": sens,
+        f"{prefix}/classsification/sensitivity_lower": sens_lower,
+        f"{prefix}/classification/sensitivity_upper": sens_upper,
+        f"{prefix}/classification/specficity": spec,
+        f"{prefix}/classification/specificity_lower": spec_lower,
+        f"{prefix}/classification/specificity_upper": spec_upper,
+        f"{prefix}/classification/jindex": jindex,
+        f"{prefix}/classification_dir/sensitivity": sens_dir,
+        f"{prefix}/classification_dir/sensitivity_lower": sens_dir_lower,
+        f"{prefix}/classification_dir/sensitivity_upper": sens_dir_upper,
+        f"{prefix}/classification_dir/specificity": spec_dir,
+        f"{prefix}/classification_dir/specificity_lower": spec_dir_lower,
+        f"{prefix}/classification_dir/specificity_upper": spec_dir_upper,
+        f"{prefix}/classification_dir/jindex": jindex_dir
+    }
+
+    return stats
 
 
 def eval_at_agreement(disagreement_ttr):

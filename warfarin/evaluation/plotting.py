@@ -41,7 +41,7 @@ def _loess_predictive_interval(data, xseq, **params):
     return data
 
 
-def plot_policy_heatmap(df):
+def plot_policy_heatmap(df, group_vars=None):
     """
     Plot the heatmap of current INR-decision frequency.
 
@@ -51,6 +51,9 @@ def plot_policy_heatmap(df):
     Returns:
         plot: The heatmap object.
     """
+    if group_vars is None:
+        group_vars = []
+
     # Map the action to its name
     df["ACTION"] = pd.Categorical(
         df["ACTION"].map(
@@ -71,31 +74,45 @@ def plot_policy_heatmap(df):
         df.loc[df["INR_VALUE"] == 3.5, "INR_BIN"] = "3 - 3.5"
 
     # Plot
-    plot_df = df[["INR_BIN", "ACTION"]].value_counts()
+    plot_df = df[group_vars + ["INR_BIN", "ACTION"]].value_counts()
     plot_df = plot_df.reindex(
-        list(itertools.product(df["INR_BIN"].cat.categories,
-                               df["ACTION"].cat.categories))
+        list(
+            itertools.product(
+                *[df[c].cat.categories
+                  for c in group_vars + ["INR_BIN", "ACTION"]]
+            )
+        )
     ).fillna(0)
-    plot_df.name = "COUNT"
-    plot_df = plot_df / plot_df.reset_index().groupby("INR_BIN")["COUNT"].sum()
-    plot_df.name = "PROPORTION"
     plot_df = plot_df.reset_index()
-    plot_df["INR_BIN"] = pd.Categorical(plot_df["INR_BIN"],
-                                        categories=df["INR_BIN"].cat.categories,
-                                        ordered=True)
-    plot_df["ACTION"] = pd.Categorical(plot_df["ACTION"],
-                                       categories=df["ACTION"].cat.categories,
-                                       ordered=True)
+    plot_df.columns = group_vars + ["INR_BIN", "ACTION", "COUNT"]
+    for c in group_vars + ["INR_BIN", "ACTION"]:
+        plot_df[c] = pd.Categorical(plot_df[c],
+                                    ordered=df[c].cat.ordered,
+                                    categories=df[c].cat.categories)
+    plot_df = plot_df.set_index(group_vars + ["INR_BIN", "ACTION"])
+    plot_df = plot_df / plot_df.reset_index().groupby(
+        group_vars + ["INR_BIN"]
+    )[["COUNT"]].sum()
+    plot_df.columns = ["PROPORTION"]
+    plot_df = plot_df.reset_index()
     plot_df["PERCENTAGE"] = plot_df["PROPORTION"].map(
         lambda frac: f"{(frac*100):.2f}%"
     )
     plot_df.loc[plot_df["PROPORTION"] == 0., "PERCENTAGE"] = ""
     plot_df["SHOW"] = (plot_df["PROPORTION"] != 0.).astype(float)
+    plot_df["INR_BIN"] = pd.Categorical(plot_df["INR_BIN"],
+                                        ordered=True,
+                                        categories=df["INR_BIN"].cat.categories)
+    if len(group_vars) > 0:
+        size = 6
+    else:
+        size = 10
+
     plot = (
         ggplot(plot_df,
                aes(x="INR_BIN", y="ACTION", fill="PROPORTION", alpha="SHOW")) +
         geom_tile() +
-        geom_text(aes(label="PERCENTAGE"), color="#43464B") +
+        geom_text(aes(label="PERCENTAGE"), color="#43464B", size=size) +
         xlab("INR") +
         ylab("Decision") +
         scale_fill_gradient(low="#FFFFFF", high="#4682B4", guide=False) +
@@ -104,6 +121,8 @@ def plot_policy_heatmap(df):
               axis_line_y=element_blank(),
               panel_grid=element_blank())
     )
+    if group_vars:
+        plot += facet_wrap(group_vars[0])
 
     return plot
 

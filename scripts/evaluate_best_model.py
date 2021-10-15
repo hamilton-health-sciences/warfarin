@@ -10,6 +10,7 @@ import torch
 
 from ray.tune import Analysis
 
+import plotnine
 from plotnine.exceptions import PlotnineError
 
 from warfarin import config
@@ -19,6 +20,10 @@ from warfarin.evaluation import evaluate_and_plot_policy
 
 
 def main(args):
+    # Set size of plots
+    plotnine.options.figure_size = (8, 6)
+    plotnine.options.dpi = 300
+
     # Load up the metrics for models trained as part of the grid search
     analysis = Analysis(args.logs_path)
     dfs = analysis.trial_dataframes
