@@ -9,16 +9,18 @@ import pandas as pd
 from plotnine import ggtitle, facet_wrap
 
 from warfarin import config
-from warfarin.utils import interpolate_inr
+from warfarin.utils import interpolate_inr, code_quantitative_decision
 from warfarin.models.baselines import ThresholdModel, RandomModel, MaintainModel
 from warfarin.evaluation.metrics import (eval_reasonable_actions,
                                          eval_classification,
-                                         eval_at_agreement)
+                                         eval_at_agreement,
+                                         compute_performance_tests)
 from warfarin.evaluation.plotting import (plot_policy_heatmap,
                                           plot_agreement_ttr_curve)
 
 
-def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
+def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True,
+                             include_tests=False):
     """
     Evaluate and plot a policy.
 
@@ -54,6 +56,7 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
         eval_state: A pass-through state var that should be modified and
                     returned.
         plot: Whether or not to generate plots, because plotting is slow.
+        include_tests: Whether or not to generate statistical tests.
 
     Returns:
         metrics: The dictionary of quantitative metrics, mapping name to value.
@@ -103,6 +106,9 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
     df["THRESHOLD_ACTION_QUANT"] = tm.select_action_quant(
         np.array(df["PREVIOUS_INR"]),
         np.array(df["INR_VALUE"])
+    )
+    df["THRESHOLD_ACTION"] = code_quantitative_decision(
+        df["THRESHOLD_ACTION_QUANT"] + 1.
     )
     df["RANDOM_ACTION"] = rm.select_action(len(df))
     df["MAINTAIN_ACTION"] = mm.select_action(len(df))
@@ -168,7 +174,8 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
     ).astype(int)
 
     # Compute results
-    metrics = compute_metrics(df, disagreement_ttr_events, eval_state)
+    metrics = compute_metrics(df, disagreement_ttr_events, eval_state,
+                              include_tests)
     if plot:
         plots = compute_plots(df, disagreement_ttr_events)
     else:
@@ -178,7 +185,7 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True):
     return metrics, plots, eval_state
 
 
-def compute_metrics(df, disagreement_ttr, eval_state):
+def compute_metrics(df, disagreement_ttr, eval_state, include_tests):
     stats = {}
 
     # Reasonable-ness
@@ -186,19 +193,21 @@ def compute_metrics(df, disagreement_ttr, eval_state):
     stats["proportion_reasonable_actions"] = prop_reasonable
 
     # Classification metrics
-    sens, spec, jstat, sens_dir, spec_dir, jstat_dir = eval_classification(
-        df
-    )
-    stats["good_action_classification/sensitivity"] = sens
-    stats["good_action_classification/specificity"] = spec
-    stats["good_action_classification/jindex"] = jstat
-    stats["good_action_dir_classification/sensitivity"] = sens_dir
-    stats["good_action_dir_classification/specificity"] = spec_dir
-    stats["good_action_dir_classification/jindex"] = jstat_dir
+    policy_stats = eval_classification(df, "POLICY_ACTION", "POLICY")
+    threshold_stats = eval_classification(df, "THRESHOLD_ACTION", "THRESHOLD")
+    maintain_stats = eval_classification(df, "MAINTAIN_ACTION", "MAINTAIN")
+    random_stats = eval_classification(df, "RANDOM_ACTION", "RANDOM")
+    stats = {**policy_stats, **threshold_stats, **maintain_stats, **random_stats,
+             **stats}
 
     # TTR at agreement
     agreement_stats = eval_at_agreement(disagreement_ttr)
     stats = {**stats, **agreement_stats}
+
+    # Statistical tests
+    if include_tests:
+        performance_tests = compute_performance_tests(disagreement_ttr)
+        stats = {**stats, **performance_tests}
 
     # Ensure integer types are correct
     for k, v in stats.items():
@@ -226,16 +235,36 @@ def compute_plots(df, disagreement_ttr):
     obs_df = df[["OBSERVED_ACTION", "INR_VALUE", "CONTINENT"]].copy()
     obs_df.columns = ["ACTION", "INR_VALUE", "CONTINENT"]
     plots["heatmap/observed"] = (
-        plot_policy_heatmap(obs_df) +
+        plot_policy_heatmap(obs_df.copy()) +
         ggtitle("Observed Policy")
+    )
+    plots["heatmap/observed/continent"] = (
+        plot_policy_heatmap(obs_df.copy(), group_vars=["CONTINENT"]) +
+        ggtitle("Observed Policy by Continent")
     )
 
     # RL policy heatmap
     rl_df = df[["POLICY_ACTION", "INR_VALUE", "CONTINENT"]].copy()
     rl_df.columns = ["ACTION", "INR_VALUE", "CONTINENT"]
     plots["heatmap/learned"] = (
-        plot_policy_heatmap(rl_df) +
+        plot_policy_heatmap(rl_df.copy()) +
         ggtitle("RL Policy")
+    )
+    plots["heatmap/learned/continent"] = (
+        plot_policy_heatmap(rl_df.copy(), group_vars=["CONTINENT"]) +
+        ggtitle("RL Policy by Continent")
+    )
+
+    # Threshold policy heatmap
+    threshold_df = df[["THRESHOLD_ACTION", "INR_VALUE", "CONTINENT"]].copy()
+    threshold_df.columns = ["ACTION", "INR_VALUE", "CONTINENT"]
+    plots["heatmap/threshold"] = (
+        plot_policy_heatmap(threshold_df.copy()) +
+        ggtitle("Benchmark Policy")
+    )
+    plots["heatmap/threshold/continent"] = (
+        plot_policy_heatmap(threshold_df.copy(), group_vars=["CONTINENT"]) +
+        ggtitle("Benchmark Policy by Continent")
     )
 
     # Agreement curves and histograms

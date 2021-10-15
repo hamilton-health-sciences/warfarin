@@ -52,6 +52,19 @@ Evaluations and plots can be accessed during training through Tensorboard:
     Serving TensorBoard on localhost; to expose to the network, use a proxy or pass --bind_all
     TensorBoard 2.6.0 at http://localhost:6006/ (Press CTRL+C to quit)
 
-## TODO: Final evaluations and figures
+# Final model selection, evaluation & figures
 
-    $ bash script/evaluate_combine_af.sh # ...
+To run the model selection, evaluation, and plotting routines (currently on
+validation data):
+
+    $ python3 scripts/evaluate_best_model.py \
+        --logs_path ./ray_logs/ \
+        --data_path ./data/clean_data/val_data.feather \
+        --output_prefix ./output/val_eval \
+        --target_metric val/0.0025_POLICY/ttr --mode max
+
+And to pretty-print the classification metrics afterward:
+
+    $ python3 scripts/format_metrics.py \
+        --metrics_filename ./output/val_eval/metrics.json \
+        --output_filename ./output/val_eval/classification.csv

@@ -7,7 +7,7 @@ import numpy as np
 from sklearn.preprocessing import OneHotEncoder, MinMaxScaler
 
 from warfarin import config
-from warfarin.utils import interpolate_inr
+from warfarin.utils import interpolate_inr, code_quantitative_decision
 
 
 def engineer_state_features(df, transforms=None):
@@ -127,22 +127,7 @@ def extract_observed_decision(df):
     )["WARFARIN_DOSE"].shift(-1) / df["WARFARIN_DOSE"]
 
     # Actions
-    cond = [
-        df["WARFARIN_DOSE_MULT"] < 0.8,
-        df["WARFARIN_DOSE_MULT"] <= 0.9,
-        df["WARFARIN_DOSE_MULT"] < 1.,
-        df["WARFARIN_DOSE_MULT"] == 1.,
-        df["WARFARIN_DOSE_MULT"] < 1.1,
-        df["WARFARIN_DOSE_MULT"] <= 1.2,
-        df["WARFARIN_DOSE_MULT"] > 1.2
-    ]
-    action = pd.Categorical(
-        np.select(cond, config.ACTION_LABELS),
-        categories=config.ACTION_LABELS,
-        ordered=True
-    )
-    action_code = action.codes.astype(float)
-    action_code[action_code < 0] = np.nan
+    action_code = code_quantitative_decision(df["WARFARIN_DOSE_MULT"])
     df["OPTION"] = action_code
     option = df["OPTION"]
 

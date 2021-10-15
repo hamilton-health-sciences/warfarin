@@ -101,7 +101,7 @@ PLOT_EVERY = 100
 
 # The upper thresholds for mean absolute agreement to consider a trajectory
 # agreed-upon.
-AGREEMENT_THRESHOLDS = [0.001, 0.0025, 0.005, 0.01, 0.025]
+AGREEMENT_THRESHOLDS = [0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.15]
 
 # For INR binning in evaluations. In practice, the closedness of the endpoints
 # are not prescribed here, so will need to be modified in the evaluations code
@@ -110,10 +110,10 @@ INR_BIN_BOUNDARIES = [-float("inf"), 1.5, 2., 3., 3.5, float("inf")]
 INR_BIN_LABELS = ["< 1.5", "1.5 - 2", "2 - 3", "3 - 3.5", "> 3.5"]
 
 # Dose change labels
-ACTION_LABELS = ["Decrease > 20%",
-                 "Decrease 10-20%",
-                 "Decrease < 10%",
+ACTION_LABELS = ["↓ > 20%",
+                 "↓ 10-20%",
+                 "↓ < 10%",
                  "Maintain",
-                 "Increase < 10%",
-                 "Increase 10-20%",
-                 "Increase > 20%"]
+                 "↑ < 10%",
+                 "↑ 10-20%",
+                 "↑ > 20%"]
