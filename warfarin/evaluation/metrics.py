@@ -102,8 +102,6 @@ def eval_classification(df, policy_col, prefix):
     )
     jindex = sens + spec - 1.
 
-    import pdb; pdb.set_trace()
-
     # Compute directional stats
     same_direction = (
         # Both lower
@@ -125,9 +123,9 @@ def eval_classification(df, policy_col, prefix):
 
     stats = {
         f"{prefix}/classification/sensitivity": sens,
-        f"{prefix}/classsification/sensitivity_lower": sens_lower,
+        f"{prefix}/classification/sensitivity_lower": sens_lower,
         f"{prefix}/classification/sensitivity_upper": sens_upper,
-        f"{prefix}/classification/specficity": spec,
+        f"{prefix}/classification/specificity": spec,
         f"{prefix}/classification/specificity_lower": spec_lower,
         f"{prefix}/classification/specificity_upper": spec_upper,
         f"{prefix}/classification/jindex": jindex,
