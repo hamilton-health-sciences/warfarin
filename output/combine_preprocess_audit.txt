@@ -1,0 +1,440 @@
+Auditing results of `preprocess_all`...
+	Number of patients (baseline):	 28631
+	Number of patients (INR):	 28595
+	Number of patients (events):	 17672
+	Number of entries (baseline):	 28631
+	Number of entries (INR):	 19504971
+	Number of entries (events):	 64281
+	Number of patients:
+		TRIAL
+		ARISTOTLE    8796
+		ENGAGE       7000
+		RELY         5776
+		ROCKET_AF    7023
+		Name: SUBJID, dtype: int64
+	Trajectory length (# entries):
+		           min   25%   50%       mean   75%    max
+		TRIAL                                             
+		ARISTOTLE  1.0  21.0  29.0  29.643133  38.0  141.0
+		ENGAGE     1.0  31.0  43.0  40.167429  52.0  111.0
+		RELY       1.0  19.0  27.0  28.874134  37.0  159.0
+		ROCKET_AF  1.0  18.0  26.0  26.747829  35.0  118.0
+	Trajectory length (days):
+		           min     25%    50%        mean     75%     max
+		TRIAL                                                    
+		ARISTOTLE  0.0  413.75  596.0  595.825148   802.0  1467.0
+		ENGAGE     0.0  813.00  970.0  882.375000  1135.0  1555.0
+		RELY       0.0  469.00  657.0  632.640235   835.0  1103.0
+		ROCKET_AF  0.0  408.00  592.0  578.216574   804.0  1256.0
+	Event counts:
+		DEATH           2642
+		STROKE           755
+		MAJOR_BLEED     2270
+		MINOR_BLEED     8663
+		HEM_STROKE       286
+		HOSP           16385
+		dtype: int64
+	Event rate (per patient):
+		DEATH          0.149502
+		STROKE         0.042723
+		MAJOR_BLEED    0.128452
+		MINOR_BLEED    0.490211
+		HEM_STROKE     0.016184
+		HOSP           0.927173
+		dtype: float64
+	Event counts by trial:
+		           DEATH  STROKE  MAJOR_BLEED  MINOR_BLEED  HEM_STROKE  HOSP
+		TRIAL                                                               
+		ARISTOTLE    705     143          578         1360          78  3332
+		ENGAGE       836     254          773         1195          92  7016
+		RELY         440     131          468         3444          44  4649
+		ROCKET_AF    661     227          451         2664          72  1388
+	Event rate (per patient) by trial:
+		              DEATH    STROKE  MAJOR_BLEED  MINOR_BLEED  HEM_STROKE      HOSP
+		TRIAL                                                                        
+		ARISTOTLE  0.080150  0.016257     0.065712     0.154616    0.008868  0.378809
+		ENGAGE     0.119429  0.036286     0.110429     0.170714    0.013143  1.002286
+		RELY       0.076177  0.022680     0.081025     0.596260    0.007618  0.804882
+		ROCKET_AF  0.094119  0.032322     0.064218     0.379325    0.010252  0.197636
+	Null INR values:
+		TRIAL
+		ARISTOTLE    0
+		ENGAGE       0
+		RELY         0
+		ROCKET_AF    0
+		Name: INR_NULL, dtype: int64
+	Counts of negative doses (likely typos):
+		TRIAL      SUBJID
+		ARISTOTLE  2380      1
+		           2425      1
+		Name: WARFARIN_DOSE, dtype: int64
+	Number of daily entries before each `INR_TYPE = Y` in ENGAGE and ROCKET-AF:
+		TRIAL      NUM_PREVIOUS_DAILY_DOSES
+		ENGAGE     3.0                         264338
+		           0.0                          16519
+		           1.0                            187
+		           2.0                            128
+		ROCKET_AF  3.0                         187698
+		           2.0                             89
+		           0.0                             55
+		           1.0                              8
+		Name: NUM_PREVIOUS_DAILY_DOSES, dtype: int64
+Auditing results of `preprocess_engage_rocket`...
+	Number of patients:
+		TRIAL
+		ENGAGE       6921
+		ROCKET_AF    6961
+		Name: SUBJID, dtype: int64
+	Number of trajectories:
+		TRIAL
+		ENGAGE       6955
+		ROCKET_AF    7280
+		Name: TRAJID, dtype: int64
+	Trajectory length (# entries):
+		           min   25%   50%       mean   75%    max
+		TRIAL                                             
+		ENGAGE     2.0  31.0  41.0  38.543638  49.0  106.0
+		ROCKET_AF  2.0  17.0  25.0  25.651511  34.0  109.0
+	Trajectory length (days):
+		           min     25%    50%        mean     75%     max
+		TRIAL                                                    
+		ENGAGE     1.0  808.00  959.0  875.037527  1113.0  1543.0
+		ROCKET_AF  1.0  368.75  569.0  555.197115   778.0  1246.0
+	Number of observed INRs per patient:
+		TRIAL
+		ENGAGE       38.732987
+		ROCKET_AF    26.827036
+		Name: INR_VALUE, dtype: float64
+	Number of observed warfarin doses per patient:
+		TRIAL
+		ENGAGE       36.371478
+		ROCKET_AF    26.806062
+		Name: WARFARIN_DOSE, dtype: float64
+	Number of zero INR values (impossible):
+		Series([], Name: INR_VALUE, dtype: int64)
+	Number of zero warfarin doses:
+		TRIAL
+		ENGAGE       1438
+		ROCKET_AF    2403
+		Name: WARFARIN_DOSE, dtype: int64
+Auditing results of `preprocess_rely`...
+	Number of patients:
+		TRIAL
+		RELY    5776
+		Name: SUBJID, dtype: int64
+	Number of trajectories:
+		TRIAL
+		RELY    9668
+		Name: TRAJID, dtype: int64
+	Trajectory length (# entries):
+		       min  25%   50%       mean   75%    max
+		TRIAL                                        
+		RELY   1.0  6.0  15.0  17.246483  25.0  109.0
+	Trajectory length (days):
+		       min   25%    50%        mean     75%     max
+		TRIAL                                              
+		RELY   0.0  94.0  307.0  361.621432  581.25  1099.0
+	Number of observed INRs per patient:
+		TRIAL
+		RELY    28.867555
+		Name: INR_VALUE, dtype: float64
+	Number of observed warfarin doses per patient:
+		TRIAL
+		RELY    28.806787
+		Name: WARFARIN_DOSE, dtype: float64
+	Number of zero INR values (impossible):
+		Series([], Name: INR_VALUE, dtype: int64)
+	Number of zero warfarin doses:
+		TRIAL
+		RELY    1306
+		Name: WARFARIN_DOSE, dtype: int64
+Auditing results of `preprocess_aristotle`...
+	Number of patients:
+		TRIAL
+		ARISTOTLE    8718
+		Name: SUBJID, dtype: int64
+	Number of trajectories:
+		TRIAL
+		ARISTOTLE    9072
+		Name: TRAJID, dtype: int64
+	Trajectory length (# entries):
+		           min   25%   50%       mean   75%    max
+		TRIAL                                             
+		ARISTOTLE  2.0  20.0  28.0  28.403219  37.0  141.0
+	Trajectory length (days):
+		           min     25%    50%        mean    75%     max
+		TRIAL                                                   
+		ARISTOTLE  1.0  383.75  570.0  571.756173  777.0  1467.0
+	Number of observed INRs per patient:
+		TRIAL
+		ARISTOTLE    29.55655
+		Name: INR_VALUE, dtype: float64
+	Number of observed warfarin doses per patient:
+		TRIAL
+		ARISTOTLE    29.55655
+		Name: WARFARIN_DOSE, dtype: float64
+	Number of zero INR values (impossible):
+		Series([], Name: INR_VALUE, dtype: int64)
+	Number of zero warfarin doses:
+		TRIAL
+		ARISTOTLE    1066
+		Name: WARFARIN_DOSE, dtype: int64
+Auditing results of `remove_outlying_doses`...
+	Warfarin dose summary stats:
+		count    859426.000000
+		mean         29.642078
+		std          14.379975
+		min           0.000000
+		25%          18.900000
+		50%          28.000000
+		75%          36.000000
+		max         134.000000
+		Name: WARFARIN_DOSE, dtype: float64
+	Number of patients:
+		TRIAL
+		ARISTOTLE    8661
+		ENGAGE       6911
+		RELY         5775
+		ROCKET_AF    6942
+		Name: SUBJID, dtype: int64
+	Number of trajectories:
+		TRIAL
+		ARISTOTLE    9013
+		ENGAGE       6944
+		RELY         9665
+		ROCKET_AF    7258
+		Name: TRAJID, dtype: int64
+	Trajectory length (# entries):
+		           min   25%   50%       mean   75%    max
+		TRIAL                                             
+		ARISTOTLE  2.0  20.0  28.0  28.374126  37.0  141.0
+		ENGAGE     2.0  31.0  41.0  38.536578  49.0  106.0
+		RELY       1.0   6.0  15.0  17.249250  25.0  109.0
+		ROCKET_AF  2.0  17.0  25.0  25.653210  34.0  109.0
+	Trajectory length (days):
+		           min    25%    50%        mean     75%     max
+		TRIAL                                                   
+		ARISTOTLE  1.0  383.0  569.0  570.973705   777.0  1467.0
+		ENGAGE     1.0  808.0  959.0  875.185484  1113.0  1543.0
+		RELY       0.0   94.0  307.0  361.698500   582.0  1099.0
+		ROCKET_AF  1.0  369.0  570.0  555.321438   778.0  1246.0
+Auditing results of `merge_inr_events`...
+	Maximum number of times a study day is recorded for a patient (should be 1):
+		1
+	Number of event occurrences by trial:
+		           DEATH  STROKE  MAJOR_BLEED  MINOR_BLEED  HEM_STROKE  HOSP
+		TRIAL                                                               
+		ARISTOTLE    351     120          488         1285          70  2899
+		ENGAGE       327     168          594         1091          80  5436
+		RELY         147      84          309         2878          37  3592
+		ROCKET_AF    382     189          408         2365          62  1121
+	Rate of events by trial (per patient):
+		              DEATH    STROKE  MAJOR_BLEED  MINOR_BLEED  HEM_STROKE      HOSP
+		TRIAL                                                                        
+		ARISTOTLE  0.040526  0.013855     0.056345     0.148366    0.008082  0.334719
+		ENGAGE     0.047316  0.024309     0.085950     0.157864    0.011576  0.786572
+		RELY       0.025455  0.014545     0.053506     0.498355    0.006407  0.621991
+		ROCKET_AF  0.055027  0.027226     0.058773     0.340680    0.008931  0.161481
+	Number of patients:
+		TRIAL
+		ARISTOTLE    8661
+		ENGAGE       6911
+		RELY         5775
+		ROCKET_AF    6942
+		Name: SUBJID, dtype: int64
+	Number of trajectories:
+		TRIAL
+		ARISTOTLE    9013
+		ENGAGE       6944
+		RELY         9665
+		ROCKET_AF    7258
+		Name: TRAJID, dtype: int64
+	Trajectory length (# entries):
+		           min   25%   50%       mean   75%    max
+		TRIAL                                             
+		ARISTOTLE  2.0  20.0  28.0  28.374126  37.0  141.0
+		ENGAGE     2.0  31.0  41.0  38.536578  49.0  106.0
+		RELY       1.0   6.0  15.0  17.249250  25.0  109.0
+		ROCKET_AF  2.0  17.0  25.0  25.653210  34.0  109.0
+	Trajectory length (days):
+		           min    25%    50%        mean     75%     max
+		TRIAL                                                   
+		ARISTOTLE  2.0  384.0  571.0  574.437035   778.0  1467.0
+		ENGAGE     3.0  809.0  967.0  884.777794  1113.0  1543.0
+		RELY       0.0  105.0  318.0  368.013244   586.0  1099.0
+		ROCKET_AF  1.0  374.0  574.0  557.859190   778.0  1250.0
+Auditing results of `split_trajectories_at_events`...
+	Number of event occurrences by trial:
+		           DEATH  STROKE  MAJOR_BLEED  MINOR_BLEED  HEM_STROKE  HOSP
+		TRIAL                                                               
+		ARISTOTLE    351     120          488         1285          70  2899
+		ENGAGE       327     168          594         1091          80  5436
+		RELY         147      84          309         2878          37  3592
+		ROCKET_AF    382     189          408         2365          62  1121
+	Rate of events by trial (per patient):
+		              DEATH    STROKE  MAJOR_BLEED  MINOR_BLEED  HEM_STROKE      HOSP
+		TRIAL                                                                        
+		ARISTOTLE  0.040526  0.013855     0.056345     0.148366    0.008082  0.334719
+		ENGAGE     0.047316  0.024309     0.085950     0.157864    0.011576  0.786572
+		RELY       0.025455  0.014545     0.053506     0.498355    0.006407  0.621991
+		ROCKET_AF  0.055027  0.027226     0.058773     0.340680    0.008931  0.161481
+	Number of patients:
+		TRIAL
+		ARISTOTLE    8661
+		ENGAGE       6911
+		RELY         5775
+		ROCKET_AF    6942
+		Name: SUBJID, dtype: int64
+	Number of trajectories:
+		TRIAL
+		ARISTOTLE    11353
+		ENGAGE       11871
+		RELY         11493
+		ROCKET_AF     8406
+		Name: TRAJID, dtype: int64
+	Trajectory length (# entries):
+		           min   25%   50%       mean   75%    max
+		TRIAL                                             
+		ARISTOTLE  0.0  11.0  22.0  22.525852  32.0  102.0
+		ENGAGE     0.0   7.0  18.0  22.542162  37.0  100.0
+		RELY       0.0   5.0  11.0  14.505699  21.0   94.0
+		ROCKET_AF  0.0  11.0  22.0  22.149774  32.0  109.0
+	Trajectory length (days):
+		           min    25%    50%        mean    75%     max
+		TRIAL                                                  
+		ARISTOTLE  0.0  171.0  444.0  452.532458  665.0  1467.0
+		ENGAGE     0.0  124.0  407.0  504.775588  872.0  1543.0
+		RELY       0.0   67.0  229.0  307.276864  487.0  1099.0
+		ROCKET_AF  0.0  199.0  475.0  479.841661  727.0  1248.0
+	Maximum number of splittable events in a transition (should be 1):
+		1
+	Missing doses by trial:
+		TRIAL
+		ARISTOTLE     4220
+		ENGAGE       22609
+		RELY          6008
+		ROCKET_AF     4016
+		Name: DOSE_NULL, dtype: int64
+	Number of patients with missing doses by trial:
+		TRIAL
+		ARISTOTLE    2960
+		ENGAGE       6721
+		RELY         3085
+		ROCKET_AF    2471
+		Name: AT_LEAST_ONE_DOSE_NULL, dtype: int64
+Auditing results of `impute_inr_and_dose`...
+	Missing doses by trial:
+		TRIAL
+		ARISTOTLE    4191
+		ENGAGE       6150
+		RELY         5605
+		ROCKET_AF    3840
+		Name: DOSE_NULL, dtype: int64
+	Number of patients with missing doses by trial:
+		TRIAL
+		ARISTOTLE    2946
+		ENGAGE       3612
+		RELY         3039
+		ROCKET_AF    2396
+		Name: AT_LEAST_ONE_DOSE_NULL, dtype: int64
+Auditing results of `split_trajectories_at_gaps`...
+	Number of patients:
+		TRIAL
+		ARISTOTLE    8661
+		ENGAGE       6901
+		RELY         5774
+		ROCKET_AF    6942
+		Name: SUBJID, dtype: int64
+	Number of trajectories:
+		TRIAL
+		ARISTOTLE    11474
+		ENGAGE       11906
+		RELY         12515
+		ROCKET_AF     8436
+		Name: TRAJID, dtype: int64
+	Trajectory length (# entries):
+		           min   25%   50%       mean   75%    max
+		TRIAL                                             
+		ARISTOTLE  0.0  10.0  22.0  22.288304  32.0  102.0
+		ENGAGE     0.0   7.0  18.0  22.324038  36.0  100.0
+		RELY       0.0   4.0   9.0  13.318418  20.0   94.0
+		ROCKET_AF  0.0  10.0  22.0  22.071005  32.0  109.0
+	Trajectory length (days):
+		           min    25%    50%        mean    75%     max
+		TRIAL                                                  
+		ARISTOTLE  0.0  161.0  431.0  445.588722  661.0  1467.0
+		ENGAGE     0.0  112.0  368.0  482.448261  841.0  1543.0
+		RELY       0.0   56.0  188.0  270.926568  434.0  1099.0
+		ROCKET_AF  0.0  196.0  472.0  477.145567  725.0  1248.0
+Auditing results of `merge_inr_baseline`...
+	Number of patients:
+		TRIAL
+		ARISTOTLE    8661
+		ENGAGE       6901
+		RELY         5774
+		ROCKET_AF    6942
+		Name: SUBJID, dtype: int64
+	Number of trajectories:
+		TRIAL
+		ARISTOTLE    11474
+		ENGAGE       11906
+		RELY         12515
+		ROCKET_AF     8436
+		Name: TRAJID, dtype: int64
+	Trajectory length (# entries):
+		           min   25%   50%       mean   75%    max
+		TRIAL                                             
+		ARISTOTLE  0.0  10.0  22.0  22.288304  32.0  102.0
+		ENGAGE     0.0   7.0  18.0  22.324038  36.0  100.0
+		RELY       0.0   4.0   9.0  13.318418  20.0   94.0
+		ROCKET_AF  0.0  10.0  22.0  22.071005  32.0  109.0
+	Trajectory length (days):
+		           min    25%    50%        mean    75%     max
+		TRIAL                                                  
+		ARISTOTLE  0.0  161.0  431.0  445.588722  661.0  1467.0
+		ENGAGE     0.0  112.0  368.0  482.448261  841.0  1543.0
+		RELY       0.0   56.0  188.0  270.926568  434.0  1099.0
+		ROCKET_AF  0.0  196.0  472.0  477.145567  725.0  1248.0
+	Missing values in baseline columns:
+		SEX                 0
+		CONTINENT           0
+		SMOKE               0
+		BMED_ASPIRIN        0
+		BMED_AMIOD          0
+		DIABETES            0
+		HX_CHF              0
+		HYPERTENSION        0
+		HX_MI               0
+		BMED_THIENO         0
+		AGE_DEIDENTIFIED    0
+		WEIGHT              0
+		dtype: int64
+Auditing results of `remove_short_trajectories`...
+	Number of patients:
+		TRIAL
+		ARISTOTLE    8661
+		ENGAGE       6898
+		RELY         5761
+		ROCKET_AF    6942
+		Name: SUBJID, dtype: int64
+	Number of trajectories:
+		TRIAL
+		ARISTOTLE    11240
+		ENGAGE       11423
+		RELY         11573
+		ROCKET_AF     8273
+		Name: TRAJID, dtype: int64
+	Trajectory length (# entries):
+		           min   25%   50%       mean   75%    max
+		TRIAL                                             
+		ARISTOTLE  1.0  11.0  22.0  22.733096  32.0  102.0
+		ENGAGE     1.0   8.0  19.0  23.234527  37.0  100.0
+		RELY       1.0   5.0  11.0  14.325585  21.0   94.0
+		ROCKET_AF  1.0  11.0  22.0  22.487127  32.0  109.0
+	Trajectory length (days):
+		           min    25%    50%        mean    75%     max
+		TRIAL                                                  
+		ARISTOTLE  1.0  177.0  444.0  454.865214  664.0  1467.0
+		ENGAGE     1.0  134.0  400.0  502.847676  853.0  1543.0
+		RELY       1.0   77.0  218.0  292.979003  455.0  1099.0
+		ROCKET_AF  1.0  217.0  480.0  486.546597  728.0  1248.0

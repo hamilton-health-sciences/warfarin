@@ -3,38 +3,55 @@
 Given access to the COMBINE-AF database, the findings of this study are
 end-to-end reproducible.
 
-## Environment
+## Environment and setup
+
+The pipeline and modeling was run in Python 3.9.2.
+
+    $ python3 --version
+    Python 3.9.2
+    $ git clone git@github.com:hamilton-health-sciences/warfarin.git
+    $ cd warfarin
+    $ python3 -m pip install -r requirements.txt
+
+Point Python at the cloned directory:
 
     $ export PYTHONPATH=.
 
 ## Preprocessing
 
-First, rename the input SAS files to `baseline_raw.sas7bdat`, and
-`events_raw.sas7bdat`, `inr_raw.sas7bdat` and place them in `data/raw_data`.
-Then use the feather conversion script to get these in a more portable format:
+Run the preprocessing steps. This will first convert the input SAS files into
+Feather dataframes and store them, then preprocess the data and ready it for RL
+modeling, splitting off the test set from the IDs listed in
+`./data/test_subject_ids.txt`. This list of IDs was randomly generated during
+an earlier phase of the project.
 
-    $ python3 scripts/convert_sas_to_feather.py
+    $ bash scripts/preprocess.sh \
+        ./data/raw_data/baseline.sas7bdat \
+        ./data/raw_data/inr.sas7bdat \
+        ./data/raw_data/events.sas7bdat \
+        ./data/test_subject_ids.txt
 
-Next, pre-process the data (described in section XX of the manuscript):
-
-    $ python3 scripts/run_combine_preprocessing.py
-
-Finally, generate the replay buffers, which is the format used as input to the
-RL model:
-
-    $ python3 scripts/create_replay_buffers.py --num_actions 7 --incl_hist --buffer_suffix=smdp
+This will create an audit log in `output/` that can be comparison-checked for
+correctness.
 
 ## Model tuning
 
-With at least one GPU available, train the dBCQ model:
+With a GPU available, train and tune the dBCQ model on the development set,
+which will attempt to find hyperparameters that maximize TTR at agreement in
+the tuning set:
 
     $ python3 scripts/tune_smdp_dbcq.py \
-          --train_buffer `pwd`/data/replay_buffers/train_data \
-          --events_buffer `pwd`/data/replay_buffers/events_data \
-          --val_buffer `pwd`/data/replay_buffers/val_data \
-          --target_metric val_jindex_good_actions \
-          --mode max
+        --train_data `pwd`/data/clean_data/train_data.feather \
+        --val_data `pwd`/data/clean_data/val_data.feather \
+        --target_metric "val/0.0025_POLICY/ttr" \
+        --mode max
 
-## Evaluations and figures
+Evaluations and plots can be accessed during training through Tensorboard:
+
+    $ python3 -m tensorboard.main --logdir=./ray_logs
+    Serving TensorBoard on localhost; to expose to the network, use a proxy or pass --bind_all
+    TensorBoard 2.6.0 at http://localhost:6006/ (Press CTRL+C to quit)
+
+## TODO: Final evaluations and figures
 
     $ bash script/evaluate_combine_af.sh # ...
