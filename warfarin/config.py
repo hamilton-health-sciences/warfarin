@@ -83,7 +83,7 @@ STATE_COLS = ["AGE_DEIDENTIFIED", "SEX", "WEIGHT", "CONTINENT", "SMOKE",
               "HEM_STROKE_FLAG", "HOSP_FLAG", "WARFARIN_DOSE_BIN", "AGE_BIN",
               "WEIGHT_BIN"]
 
-# Hyperparameter search options
+# Hyperparameter search options for the BCQ algo
 
 # Number of hyperparameter combinations to try.
 NUM_HYPERPARAMETER_SAMPLES = 50
@@ -96,6 +96,14 @@ MAX_TRAINING_EPOCHS = 2_500
 
 # How often to plot in epochs.
 PLOT_EVERY = 100
+
+# Hyperparameter search options for the BC algo
+
+NUM_BC_HYPERPARAMETER_SAMPLES = 50
+
+MIN_BC_TRAINING_EPOCHS = 50
+
+MAX_BC_TRAINING_EPOCHS = 500
 
 # Evaluation constants
 

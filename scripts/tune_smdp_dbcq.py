@@ -349,12 +349,6 @@ def main():
         default=False
     )
     parser.add_argument(
-        "--num_samples",
-        type=int,
-        default=None,
-        help="The number of hyperparameter combinations to sample"
-    )
-    parser.add_argument(
         "--tune_seed",
         type=int,
         default=0,
