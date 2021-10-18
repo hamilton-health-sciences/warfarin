@@ -203,18 +203,39 @@ def compute_performance_tests(disagreement_ttr):
         lm_df[event_names] = df[event_names]
         # Test `H0: beta_{policy_agree} - beta_{threshold_agree} = 0`
         # First for ttr
-        results = sm.WLS(
-            lm_df["ttr"],
-            sm.add_constant(
-                lm_df[["policy_agree", "threshold_agree", "both_agree"]]
-            ),
-            weights=df["TRAJECTORY_LENGTH"]
-        ).fit()
-        ttest = results.t_test(np.array([0., 1., -1., 0.])).summary_frame()
+        _X = sm.add_constant(
+            lm_df[["policy_agree", "threshold_agree"]]#, "both_agree"]]
+        )
+        _y = lm_df["ttr"]
+        _w = df["TRAJECTORY_LENGTH"]
+        results = sm.WLS(_y, _X, _w).fit()
+        ttest = results.t_test(np.array([0., 1., -1.])).summary_frame()
         tval = float(ttest.iloc[:, 2])
         pval = float(ttest.iloc[:, 3])
         performance_tests[f"{thresh}_ttr_performance_t"] = tval
         performance_tests[f"{thresh}_ttr_performance_p"] = pval
+
+        # TODO remove
+        # Temporary: output power analysis on test set.
+        N = 11_573
+        beta_diff = ttest["coef"]
+        t_crit = sp.stats.t.ppf(1. - (0.005 / 2), df=(N-4))
+        true_crit = beta_diff / (
+            np.sqrt(
+                np.dot(
+                    # results.cov_params() gives `inv(X^T X)`, use as estimate
+                    # of true covariance
+                    np.matmul(len(_X) * results.cov_params(),
+                              np.array([0.,1.,-1.])),
+                    np.array([0.,1.,-1.])
+                )
+            ) / np.sqrt(N)
+        )
+        power = 1. - sp.stats.t.cdf(t_crit - true_crit, df=(N-4))
+        print(f"At threshold {thresh}, we see an approximate improvement "
+              f"in TTR of {beta_diff}. We have a power of {power} to detect "
+              f"that level of improvement in RE-LY alone.")
+        import pdb; pdb.set_trace()
 
         # Then for each event
         for event in event_names:
