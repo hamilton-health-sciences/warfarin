@@ -31,22 +31,8 @@ class FCQ(nn.Module):
         self.num_actions = num_actions
 
         # Build nets
-        self.q = self._build_net()
-        self.i = self._build_net()
-
-    def _build_net(self):
-        layers = [
-            nn.Linear(self.state_dim, self.hidden_states),
-            nn.ReLU()
-        ]
-        for _ in range(self.num_layers - 2):
-            layers += [
-                nn.Linear(self.hidden_states, self.hidden_states),
-                nn.ReLU()
-            ]
-        layers += [nn.Linear(self.hidden_states, self.num_actions)]
-
-        return nn.Sequential(*layers)
+        self.q = build_mlp(state_dim, hidden_states, num_actions, num_layers)
+        self.i = build_mlp(state_dim, hidden_states, num_actions, num_layers)
 
     def forward(self, state):
         """
