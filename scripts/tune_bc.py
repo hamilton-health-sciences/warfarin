@@ -16,6 +16,7 @@ from ray.tune.schedulers import AsyncHyperBandScheduler
 from warfarin import config as global_config
 from warfarin.models import BehaviorCloner
 from warfarin.utils.modeling import get_dataloader
+from warfarin.evaluation import evaluate_behavioral_cloning
 
 
 def train_run(config, train_data_path, val_data_path, init_seed, smoke_test=False):
@@ -64,10 +65,10 @@ def train_run(config, train_data_path, val_data_path, init_seed, smoke_test=Fals
             if smoke_test:
                 break
         epoch_loss /= (batch_idx + 1)
-    
+
         # Get metrics of interest
-        train_metrics = eval_behavioral_cloning(model, train_data)
-        val_metrics = eval_behavioral_cloning(model, val_data)
+        train_metrics = evaluate_behavioral_cloning(model, train_loader)
+        val_metrics = evaluate_behavioral_cloning(model, val_loader)
         metrics = {**{f"train/{k}": v for k, v in train_metrics.items()},
                    **{f"val/{k}": v for k, v in val_metrics.items()}}
 

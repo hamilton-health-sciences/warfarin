@@ -47,3 +47,7 @@ class BehaviorCloner(nn.Module):
         self.optim.step()
 
         return loss.item()
+
+    def save(self, filename):
+        weights = self.backbone.state_dict()
+        torch.save(weights, filename)
