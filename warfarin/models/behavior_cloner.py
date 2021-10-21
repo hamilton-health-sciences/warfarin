@@ -34,7 +34,7 @@ class BehaviorCloner(nn.Module):
     def forward(self, state):
         logit = self.backbone(state)
         
-        return F.softmax(logit)
+        return F.softmax(logit, dim=1)
 
     def train(self, batch):
         self.optim.zero_grad()

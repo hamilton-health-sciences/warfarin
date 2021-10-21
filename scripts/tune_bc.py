@@ -107,7 +107,7 @@ def tune_run(num_samples: int,
              smoke_test: bool,
              tune_smoke_test: bool):
     tune_config = {
-        "learning_rate": tune.choice([1e-6, 1e-5, 1e-4, 1e-3]),
+        "learning_rate": tune.choice([1e-4, 1e-3, 1e-2]),
         "batch_size": tune.choice([32, 64, 128, 256]),
         "num_layers": tune.choice([2, 3]),
         "hidden_dim": tune.choice([16, 32, 64, 128, 256]),
