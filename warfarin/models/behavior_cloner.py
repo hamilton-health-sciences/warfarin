@@ -40,8 +40,8 @@ class BehaviorCloner(nn.Module):
         self.optim.zero_grad()
 
         _, state, option, _, _, _ = batch
-        prob = self(state)
-        loss = F.cross_entropy(torch.log(prob), option.squeeze())
+        logprob = F.log_softmax(self.backbone(state), dim=1)
+        loss = F.cross_entropy(logprob, option.squeeze())
         loss.backward()
 
         self.optim.step()
