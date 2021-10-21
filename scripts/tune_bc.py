@@ -142,7 +142,7 @@ def tune_run(num_samples: int,
     scheduler = AsyncHyperBandScheduler(
         metric=target_metric,
         mode=mode,
-        max_t=global_config.MIN_BC_TRAINING_EPOCHS,
+        max_t=global_config.MAX_BC_TRAINING_EPOCHS,
         grace_period=global_config.MIN_BC_TRAINING_EPOCHS
     )
 
