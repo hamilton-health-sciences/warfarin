@@ -46,6 +46,7 @@ def store_plot_tensorboard(plot_name, plot, step, writer):
 def get_dataloader(data_path: str,
                    cache_name: str,
                    batch_size: int,
+                   use_random: bool = True,
                    **replay_buffer_params):
     """
     Load replay buffer, cache it if necessary, and create a dataloader.
@@ -75,13 +76,16 @@ def get_dataloader(data_path: str,
         buffer_path = os.path.join(config.CACHE_PATH, cache_name)
         pickle.dump(data, open(buffer_path, "wb"))
 
-    sampler = BatchSampler(
-        WeightedRandomSampler(weights=data.sample_prob,
-                              num_samples=config.MAX_TRAINING_EPOCHS,
-                              replacement=True),
-        batch_size=batch_size,
-        drop_last=False
-    )
-    dl = DataLoader(data, batch_sampler=sampler)
+    if use_random:
+        sampler = BatchSampler(
+            WeightedRandomSampler(weights=data.sample_prob,
+                                  num_samples=len(data),
+                                  replacement=True),
+            batch_size=batch_size,
+            drop_last=False
+        )
+        dl = DataLoader(data, batch_sampler=sampler)
+    else:
+        dl = DataLoader(data, batch_size=batch_size)
 
     return data, dl

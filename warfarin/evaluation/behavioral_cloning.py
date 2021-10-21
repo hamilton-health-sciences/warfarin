@@ -20,6 +20,6 @@ def evaluate_behavioral_cloning(model, data):
     auroc = roc_auc_score(y.cpu().detach(), yprob.cpu().detach(),
                           multi_class="ovr")
 
-    metrics = {"accuracy": acc, "auroc": auroc}
+    metrics = {"accuracy": acc.item(), "auroc": auroc}
 
     return metrics

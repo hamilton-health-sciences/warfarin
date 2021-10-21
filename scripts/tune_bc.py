@@ -26,14 +26,16 @@ def train_run(config, train_data_path, val_data_path, init_seed, smoke_test=Fals
         cache_name="train_buffer.pkl",
         batch_size=config["batch_size"],
         discount_factor=config["discount"],
-        min_trajectory_length=global_config.MIN_TRAIN_TRAJECTORY_LENGTH
+        min_trajectory_length=global_config.MIN_TRAIN_TRAJECTORY_LENGTH,
+        use_random=False
     )
     val_data, val_loader = get_dataloader(
         data_path=val_data_path,
         cache_name="val_buffer.pkl",
         batch_size=config["batch_size"],
         discount_factor=config["discount"],
-        state_transforms=train_data.state_transforms
+        state_transforms=train_data.state_transforms,
+        use_random=False
     )
 
     trial_dir = tune.get_trial_dir()

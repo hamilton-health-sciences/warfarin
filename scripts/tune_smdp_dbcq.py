@@ -68,7 +68,7 @@ def train_run(config: dict,
         discount_factor=config["discount"],
         min_trajectory_length=global_config.MIN_TRAIN_TRAJECTORY_LENGTH
     )
-    val_data, val_loader = get_dataloader(
+    val_data, _ = get_dataloader(
         data_path=val_data_path,
         cache_name="val_buffer.pkl",
         batch_size=config["batch_size"],
