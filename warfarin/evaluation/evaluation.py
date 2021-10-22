@@ -14,13 +14,14 @@ from warfarin.models.baselines import ThresholdModel, RandomModel, MaintainModel
 from warfarin.evaluation.metrics import (eval_reasonable_actions,
                                          eval_classification,
                                          eval_at_agreement,
-                                         compute_performance_tests)
+                                         compute_performance_tests,
+                                         is_returns)
 from warfarin.evaluation.plotting import (plot_policy_heatmap,
                                           plot_agreement_ttr_curve)
 
 
-def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True,
-                             include_tests=False):
+def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
+                             eval_state=None, plot=True, include_tests=False):
     """
     Evaluate and plot a policy.
 
@@ -53,6 +54,8 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True,
     Args:
         policy: The learned policy.
         replay_buffer: The replay buffer of data to evaluate on.
+        behavior_policy: If given, the BehaviorCloner policy for WIS estimates
+                         of returns.
         eval_state: A pass-through state var that should be modified and
                     returned.
         plot: Whether or not to generate plots, because plotting is slow.
@@ -175,7 +178,8 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True,
 
     # Compute results
     metrics = compute_metrics(df, disagreement_ttr_events, eval_state,
-                              include_tests)
+                              include_tests, policy, behavior_policy,
+                              replay_buffer)
     if plot:
         plots = compute_plots(df, disagreement_ttr_events)
     else:
@@ -185,8 +189,12 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True,
     return metrics, plots, eval_state
 
 
-def compute_metrics(df, disagreement_ttr, eval_state, include_tests):
+def compute_metrics(df, disagreement_ttr, eval_state, include_tests,
+                    learned_policy, behavior_policy, replay_buffer):
     stats = {}
+
+    # IS estimates of returns
+    stats = is_returns(replay_buffer, learned_policy, behavior_policy)
 
     # Reasonable-ness
     prop_reasonable = eval_reasonable_actions(df)

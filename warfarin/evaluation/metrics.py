@@ -9,6 +9,9 @@ import statsmodels.api as sm
 import scipy as sp
 import scipy.stats
 
+import torch
+from torch.nn import functional as F
+
 from warfarin import config
 
 
@@ -258,3 +261,82 @@ def compute_performance_tests(disagreement_ttr):
                       "singularity issues with the model. Event rate too low.")
 
     return performance_tests
+
+
+def is_returns(replay_buffer, learned_policy, behavior_policy):
+    """
+    Compute the naive importance sampling estimator of the mean return of the
+    learned policy.
+
+    Specifically, for the $n$th trajectory, define
+
+        $\rho_n = \prod_t \frac{\pi_\ell(a_t | s_t)}{\pi_b(a_t | s_t)}$
+
+    where $\pi_\ell$ is the learned policy, $\pi_b$ is the behavior policy, and
+    $s_t, a_t$ is the state-option pair observed at time $t$. The product is
+    taken over all timesteps in the trajectory. Then the importance sampling
+    estimate is:
+
+        $IS = \frac{\sum_n \rho_n R_n}{\sum_n \rho_n}$
+
+    where $R_n = \sum_t \gamma^t r_t$ is the summed discounted rewards.
+
+    Note: We obtain a distribution over options from the dBCQ model by
+          `softmax`ing the Q-values. This improves the effective sample size
+          by reducing the number of trajectories with zero importance.
+
+    Args:
+        replay_buffer: The replay buffer to evaluate on.
+        learned_policy: The learned policy to evaluate.
+        behavior_policy: The behavioral cloning model of the observed policy.
+
+    Returns:
+        stats: A dictionary of IS-related statistics.
+    """
+    # Extract the state and observed option
+    state = replay_buffer.tensors[1]
+    option = replay_buffer.tensors[2][:, 0]
+
+    # Extract the behavioral policy probabiltiies
+    policy_q = learned_policy.masked_q(state)
+    policy_probs = F.softmax(policy_q, dim=1)
+    behavior_probs = behavior_policy(state)
+
+    # Compute option importance estimates
+    idx = torch.arange(policy_probs.shape[0]).long()
+    policy_option_prob = policy_probs[idx, option]
+    behavior_option_prob = behavior_probs[idx, option]
+    option_importance = policy_option_prob / behavior_option_prob
+
+    # Compute trajectory importances and sampling distribution
+    df = pd.DataFrame(
+        {"importance": option_importance.detach().cpu().numpy(),
+         "reward": replay_buffer.reward},
+        index=replay_buffer.state.index
+    )
+    importance = df.groupby(
+        ["TRIAL", "SUBJID", "TRAJID"]
+    )["importance"].prod()
+    # TODO: these rewards need to be discounted properly.
+    returns = df.groupby(["TRIAL", "SUBJID", "TRAJID"])["reward"].sum()
+    def _wis(_importance, _return):
+        _wis_policy = (_return * _importance).mean() / _importance.mean()
+        _wis_behavior = _return.mean()
+
+        return _wis_policy, _wis_behavior
+
+    wis_policy_mean, wis_behavior_mean = _wis(importance, returns)
+    wis_policy, wis_behavior = [], []
+    for _ in range(config.NUM_BOOTSTRAP_SAMPLES):
+        idx = np.random.choice(len(returns), size=len(returns), replace=True)
+        _wis_policy_i, _wis_behavior_i = _wis(importance.iloc[idx],
+                                              returns.iloc[idx])
+        wis_policy.append(_wis_policy_i)
+        wis_behavior.append(_wis_behavior_i)
+
+    stats = {
+        "wis/policy": wis_policy_mean,
+        "wis/behavior": wis_behavior_mean
+    }
+
+    return stats

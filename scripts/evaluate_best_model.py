@@ -14,7 +14,7 @@ import plotnine
 from plotnine.exceptions import PlotnineError
 
 from warfarin import config
-from warfarin.models import SMDBCQ
+from warfarin.models import SMDBCQ, BehaviorCloner
 from warfarin.utils.modeling import get_dataloader
 from warfarin.evaluation import evaluate_and_plot_policy
 
@@ -99,9 +99,16 @@ def main(args):
                                    "model.pt")
     policy.load(state_dict_path)
 
+    # If using, load up the behavior policy for WIS returns estimates
+    if args.behavior_policy_path:
+        behavior_policy = BehaviorCloner.load(args.behavior_policy_path)
+    else:
+        behavior_policy = None
+
     # Compute evaluation metrics on the buffer
-    metrics, plots, _ = evaluate_and_plot_policy(policy, data,
-                                                 include_tests=True)
+    metrics, plots, _ = evaluate_and_plot_policy(
+        policy, data, include_tests=True, behavior_policy=behavior_policy
+    )
 
     # Create output directories
     plots_dir = os.path.join(args.output_prefix, "plots")
@@ -168,6 +175,12 @@ if __name__ == "__main__":
         required=False,
         choices=["min", "max"],
         help="Whether to maximize or minimize the target metric"
+    )
+    parser.add_argument(
+        "--behavior_policy_path",
+        type=str,
+        required=False,
+        help="Path to behavior policy savefile"
     )
     parser.add_argument(
         "--output_prefix",

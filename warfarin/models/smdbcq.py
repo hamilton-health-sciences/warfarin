@@ -8,6 +8,8 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
+from warfarin.models.nets import build_mlp
+
 
 class FCQ(nn.Module):
     """
@@ -113,6 +115,14 @@ class SMDBCQ(object):
         # Number of training iterations
         self.iterations = 0
 
+    def masked_q(self, state: torch.Tensor):
+        q, imt, _ = self.q(state)
+        imt = imt.exp()
+        imt = (imt / imt.max(1, keepdim=True)[0] > self.threshold).float()
+        action_prob = (imt * q + (1. - imt) * -1e8)
+
+        return action_prob
+
     def select_action(self, state: torch.Tensor):
         """
         Select the action with the maximum predicted Q-value.
@@ -124,12 +134,8 @@ class SMDBCQ(object):
             actions: The actions selected by the model.
         """
         with torch.no_grad():
-            q, imt, _ = self.q(state)
-            imt = imt.exp()
-            imt = (imt / imt.max(1, keepdim=True)[0] > self.threshold).float()
-            actions = np.array(
-                (imt * q + (1. - imt) * -1e8).argmax(1).to("cpu")
-            )
+            masked_q = self.masked_q(state)
+            actions = np.array(masked_q.argmax(1).to("cpu"))
             actions = actions.reshape(-1, 1)
 
             return actions

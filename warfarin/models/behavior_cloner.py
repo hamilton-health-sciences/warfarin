@@ -51,3 +51,20 @@ class BehaviorCloner(nn.Module):
     def save(self, filename):
         weights = self.backbone.state_dict()
         torch.save(weights, filename)
+
+    @staticmethod
+    def load(filename):
+        params = torch.load(filename)
+
+        # Get dimensionality of model from savefile
+        keys = list(params.keys())
+        input_key, output_key = keys[0], keys[-1]
+        state_dim = params[input_key].shape[1]
+        hidden_dim = params[input_key].shape[0]
+        num_layers = len(keys) // 2
+        num_actions = params[output_key].shape[0]
+
+        model = BehaviorCloner(state_dim=state_dim, num_actions=num_actions, num_layers=num_layers, hidden_dim=hidden_dim, lr=1e-3, device="cuda")
+        model.backbone.load_state_dict(params)
+
+        return model

@@ -107,6 +107,9 @@ MAX_BC_TRAINING_EPOCHS = 500
 
 # Evaluation constants
 
+# Number of bootstrapping samples used for sampling distributions.
+NUM_BOOTSTRAP_SAMPLES = 1_000
+
 # The upper thresholds for mean absolute agreement to consider a trajectory
 # agreed-upon.
 AGREEMENT_THRESHOLDS = [0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.15]
