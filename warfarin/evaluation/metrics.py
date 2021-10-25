@@ -238,7 +238,6 @@ def compute_performance_tests(disagreement_ttr):
         print(f"At threshold {thresh}, we see an approximate improvement "
               f"in TTR of {beta_diff}. We have a power of {power} to detect "
               f"that level of improvement in RE-LY alone.")
-        import pdb; pdb.set_trace()
 
         # Then for each event
         for event in event_names:
@@ -263,7 +262,12 @@ def compute_performance_tests(disagreement_ttr):
     return performance_tests
 
 
-def is_returns(replay_buffer, learned_policy, behavior_policy):
+def _compute_importance(df, policy_prob_col, behavior_prob_col, id_vars):
+    importance = df[policy_prob_col] / df[behavior_prob_col]
+    return importance.groupby(id_vars).prod()
+
+
+def wis_returns(df, replay_buffer, learned_policy, behavior_policy):
     """
     Compute the naive importance sampling estimator of the mean return of the
     learned policy.
@@ -274,10 +278,10 @@ def is_returns(replay_buffer, learned_policy, behavior_policy):
 
     where $\pi_\ell$ is the learned policy, $\pi_b$ is the behavior policy, and
     $s_t, a_t$ is the state-option pair observed at time $t$. The product is
-    taken over all timesteps in the trajectory. Then the importance sampling
-    estimate is:
+    taken over all timesteps in the trajectory. Then the weighted importance
+    sampling estimate is:
 
-        $IS = \frac{\sum_n \rho_n R_n}{\sum_n \rho_n}$
+        $WIS = \frac{\sum_n \rho_n R_n}{\sum_n \rho_n}$
 
     where $R_n = \sum_t \gamma^t r_t$ is the summed discounted rewards.
 
@@ -286,12 +290,13 @@ def is_returns(replay_buffer, learned_policy, behavior_policy):
           by reducing the number of trajectories with zero importance.
 
     Args:
+        df: The decisions of the models fo interest.
         replay_buffer: The replay buffer to evaluate on.
         learned_policy: The learned policy to evaluate.
         behavior_policy: The behavioral cloning model of the observed policy.
 
     Returns:
-        stats: A dictionary of IS-related statistics.
+        stats: A dictionary of WIS-related statistics.
     """
     # Extract the state and observed option
     state = replay_buffer.tensors[1]
@@ -302,54 +307,79 @@ def is_returns(replay_buffer, learned_policy, behavior_policy):
     policy_probs = F.softmax(policy_q, dim=1)
     behavior_probs = behavior_policy(state)
 
-    # Compute option importance estimates
-    idx = torch.arange(policy_probs.shape[0]).long()
-    policy_option_prob = policy_probs[idx, option]
-    behavior_option_prob = behavior_probs[idx, option]
-    option_importance = policy_option_prob / behavior_option_prob
+    # Extract the benchmark policy "probabilities"
+    threshold_option = df["THRESHOLD_ACTION"].loc[replay_buffer.option.index]
+    threshold_option_eq = np.array(threshold_option == replay_buffer.option)
+    threshold_option_prob = threshold_option_eq.astype(float)
 
-    # Compute trajectory importances and sampling distribution
-    df = pd.DataFrame(
-        {"importance": option_importance.detach().cpu().numpy(),
-         "reward": replay_buffer.reward},
-        index=replay_buffer.state.index
-    )
-    importance = df.groupby(
-        ["TRIAL", "SUBJID", "TRAJID"]
-    )["importance"].prod()
+    # Extract RL policy "probabilities" - soft and hard
+    idx = torch.arange(policy_probs.shape[0]).long()
+    policy_option_prob = policy_probs[idx, option].detach().cpu().numpy()
+    policy_option = df["POLICY_ACTION"].loc[replay_buffer.option.index]
+    policy_option_eq = np.array(policy_option == replay_buffer.option)
+    policy_option_hard_prob = policy_option_eq.astype(float)
+
+    # Behavior probabilities
+    behavior_option_prob = behavior_probs[idx, option].detach().cpu().numpy()
 
     # Discount rewards from t = 0
     days_since_start = (
-        df.reset_index()["STUDY_DAY"] -
-        df.reset_index().groupby(
+        replay_buffer.reward.reset_index()["STUDY_DAY"] -
+        replay_buffer.reward.reset_index().groupby(
             ["TRIAL", "SUBJID", "TRAJID"]
         )["STUDY_DAY"].shift(1)
     ).fillna(0)
-    days_since_start.index = df.index
-    df["DAYS_SINCE_START"] = days_since_start
-    start_discount = replay_buffer.discount_factor**(df["DAYS_SINCE_START"])
-    df["reward"] = start_discount * df["reward"]
+    days_since_start.index = replay_buffer.reward.index
+    start_discount = replay_buffer.discount_factor**(days_since_start)
 
-    returns = df.groupby(["TRIAL", "SUBJID", "TRAJID"])["reward"].sum()
-    def _wis(_importance, _return):
-        _wis_policy = (_return * _importance).mean() / _importance.mean()
-        _wis_behavior = _return.mean()
+    # Construct stats needed for WIS
+    wis_df = pd.DataFrame(
+        {"threshold_importance": threshold_option_prob / behavior_option_prob,
+         "policy_importance": policy_option_prob / behavior_option_prob,
+         "policy_hard_importance": (
+             policy_option_hard_prob / behavior_option_prob
+         ),
+         "clinician_importance": np.ones(behavior_option_prob.shape),
+         "reward": start_discount * replay_buffer.reward},
+        index=replay_buffer.reward.index
+    )
+    wis_df = wis_df.groupby(["TRIAL", "SUBJID" , "TRAJID"]).agg(
+        {"threshold_importance": "prod",
+         "policy_importance": "prod",
+         "policy_hard_importance": "prod",
+         "clinician_importance": "prod",
+         "reward": "sum"}
+    )
 
-        return _wis_policy, _wis_behavior
+    def _weighted_mean(w, x):
+        return ((w * x) / w.sum()).sum()
 
-    wis_policy_mean, wis_behavior_mean = _wis(importance, returns)
-    wis_policy, wis_behavior = [], []
-    for _ in range(config.NUM_BOOTSTRAP_SAMPLES):
-        idx = np.random.choice(len(returns), size=len(returns), replace=True)
-        _wis_policy_i, _wis_behavior_i = _wis(importance.iloc[idx],
-                                              returns.iloc[idx])
-        wis_policy.append(_wis_policy_i)
-        wis_behavior.append(_wis_behavior_i)
+    # Compute WIS value estimates and 95% CIs
+    idxs = [
+        np.random.choice(len(wis_df), size=len(wis_df), replace=True)
+        for _ in range(config.NUM_BOOTSTRAP_SAMPLES)
+    ]
+    stats, sample_distns = {}, {}
+    for colname in wis_df.columns:
+        if "_importance" in colname:
+            if colname not in sample_distns:
+                sample_distns[colname] = []
+            algo_name = "_".join(colname.split("_")[:-1])
+            stats[f"{algo_name}_value"] = _weighted_mean(
+                wis_df[colname], wis_df["reward"]
+            )
+            for idx in idxs:
+                algo_name = "_".join(colname.split("_")[:-1])
+                sample_distns[colname].append(
+                    _weighted_mean(
+                        wis_df[colname].iloc[idx], wis_df["reward"].iloc[idx]
+                    )
+                )
+            ci_lower, ci_upper = np.quantile(sample_distns[colname],
+                                             [0.025, 0.975])
+            stats[f"{algo_name}_value_ci_lower"] = ci_lower
+            stats[f"{algo_name}_value_ci_upper"] = ci_upper
 
-    stats = {
-        "wis/policy": wis_policy_mean,
-        "wis/behavior": wis_behavior_mean
-    }
-    import pdb; pdb.set_trace()
+    stats = {f"wis/{k}": v for k, v in stats.items()}
 
     return stats

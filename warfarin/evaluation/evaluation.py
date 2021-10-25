@@ -15,7 +15,7 @@ from warfarin.evaluation.metrics import (eval_reasonable_actions,
                                          eval_classification,
                                          eval_at_agreement,
                                          compute_performance_tests,
-                                         is_returns)
+                                         wis_returns)
 from warfarin.evaluation.plotting import (plot_policy_heatmap,
                                           plot_agreement_ttr_curve)
 
@@ -193,8 +193,8 @@ def compute_metrics(df, disagreement_ttr, eval_state, include_tests,
                     learned_policy, behavior_policy, replay_buffer):
     stats = {}
 
-    # IS estimates of returns
-    stats = is_returns(replay_buffer, learned_policy, behavior_policy)
+    # WIS estimates of returns
+    stats = wis_returns(df, replay_buffer, learned_policy, behavior_policy)
 
     # Reasonable-ness
     prop_reasonable = eval_reasonable_actions(df)
