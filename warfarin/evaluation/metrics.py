@@ -183,6 +183,14 @@ def eval_at_agreement(disagreement_ttr):
             ).sum()
             stats[f"{threshold}_{algo}/prop_traj"] = sel.sum() / len(sel)
 
+            # Internal consistency
+            if disagreement_ttr[sel][algo_diff_col].sum() > 0:
+                consistency = -np.corrcoef(
+                    disagreement_ttr[sel][algo_diff_col],
+                    disagreement_ttr[sel]["APPROXIMATE_TTR"]
+                )[0, 1]
+                stats[f"{threshold}_{algo}/consistency"] = consistency
+
     return stats
 
 
