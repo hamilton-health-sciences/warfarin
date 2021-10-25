@@ -317,7 +317,19 @@ def is_returns(replay_buffer, learned_policy, behavior_policy):
     importance = df.groupby(
         ["TRIAL", "SUBJID", "TRAJID"]
     )["importance"].prod()
-    # TODO: these rewards need to be discounted properly.
+
+    # Discount rewards from t = 0
+    days_since_start = (
+        df.reset_index()["STUDY_DAY"] -
+        df.reset_index().groupby(
+            ["TRIAL", "SUBJID", "TRAJID"]
+        )["STUDY_DAY"].shift(1)
+    ).fillna(0)
+    days_since_start.index = df.index
+    df["DAYS_SINCE_START"] = days_since_start
+    start_discount = replay_buffer.discount_factor**(df["DAYS_SINCE_START"])
+    df["reward"] = start_discount * df["reward"]
+
     returns = df.groupby(["TRIAL", "SUBJID", "TRAJID"])["reward"].sum()
     def _wis(_importance, _return):
         _wis_policy = (_return * _importance).mean() / _importance.mean()
@@ -338,5 +350,6 @@ def is_returns(replay_buffer, learned_policy, behavior_policy):
         "wis/policy": wis_policy_mean,
         "wis/behavior": wis_behavior_mean
     }
+    import pdb; pdb.set_trace()
 
     return stats
