@@ -11,3 +11,4 @@ new_data
 smoke_test
 cache
 *.pt
+*.pkl
