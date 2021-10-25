@@ -17,7 +17,8 @@ from warfarin.evaluation.metrics import (eval_reasonable_actions,
                                          compute_performance_tests,
                                          wis_returns)
 from warfarin.evaluation.plotting import (plot_policy_heatmap,
-                                          plot_agreement_ttr_curve)
+                                          plot_agreement_ttr_curve,
+                                          plot_wis_boxplot)
 
 
 def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
@@ -177,11 +178,13 @@ def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
     ).astype(int)
 
     # Compute results
-    metrics = compute_metrics(df, disagreement_ttr_events, eval_state,
-                              include_tests, policy, behavior_policy,
-                              replay_buffer)
+    metrics, wis_bootstrap_df = compute_metrics(
+        df, disagreement_ttr_events, eval_state, include_tests, policy,
+        behavior_policy, replay_buffer
+    )
     if plot:
-        plots = compute_plots(df, disagreement_ttr_events)
+        plots = compute_plots(df, disagreement_ttr_events, metrics,
+                              wis_bootstrap_df)
     else:
         plots = {}
     eval_state = {"prev_selected_actions": policy_action}
@@ -194,7 +197,8 @@ def compute_metrics(df, disagreement_ttr, eval_state, include_tests,
     stats = {}
 
     # WIS estimates of returns
-    stats = wis_returns(df, replay_buffer, learned_policy, behavior_policy)
+    stats, wis_bootstrap_df = wis_returns(df, replay_buffer, learned_policy,
+                                          behavior_policy)
 
     # Reasonable-ness
     prop_reasonable = eval_reasonable_actions(df)
@@ -222,10 +226,10 @@ def compute_metrics(df, disagreement_ttr, eval_state, include_tests,
         if pd.api.types.is_int64_dtype(v):
             stats[k] = np.array(v).astype(int).item()
 
-    return stats
+    return stats, wis_bootstrap_df
 
 
-def compute_plots(df, disagreement_ttr):
+def compute_plots(df, disagreement_ttr, metrics, wis_bootstrap_df):
     """
     Plot a policy using all available plots.
 
@@ -274,6 +278,9 @@ def compute_plots(df, disagreement_ttr):
         plot_policy_heatmap(threshold_df.copy(), group_vars=["CONTINENT"]) +
         ggtitle("Benchmark Policy by Continent")
     )
+
+    # WIS plot
+    plots["wis/comparison_boxplot"] = plot_wis_boxplot(wis_bootstrap_df)
 
     # Agreement curves and histograms
     agreement_plots = plot_agreement_ttr_curve(

@@ -362,24 +362,26 @@ def wis_returns(df, replay_buffer, learned_policy, behavior_policy):
     stats, sample_distns = {}, {}
     for colname in wis_df.columns:
         if "_importance" in colname:
-            if colname not in sample_distns:
-                sample_distns[colname] = []
             algo_name = "_".join(colname.split("_")[:-1])
-            stats[f"{algo_name}_value"] = _weighted_mean(
+            algo_value_colname = f"{algo_name}_value"
+            if colname not in sample_distns:
+                sample_distns[algo_value_colname] = []
+            algo_name = "_".join(colname.split("_")[:-1])
+            stats[algo_value_colname] = _weighted_mean(
                 wis_df[colname], wis_df["reward"]
             )
             for idx in idxs:
-                algo_name = "_".join(colname.split("_")[:-1])
-                sample_distns[colname].append(
+                sample_distns[algo_value_colname].append(
                     _weighted_mean(
                         wis_df[colname].iloc[idx], wis_df["reward"].iloc[idx]
                     )
                 )
-            ci_lower, ci_upper = np.quantile(sample_distns[colname],
+            ci_lower, ci_upper = np.quantile(sample_distns[algo_value_colname],
                                              [0.025, 0.975])
             stats[f"{algo_name}_value_ci_lower"] = ci_lower
             stats[f"{algo_name}_value_ci_upper"] = ci_upper
 
     stats = {f"wis/{k}": v for k, v in stats.items()}
+    bootstrap_df = pd.DataFrame(sample_distns)
 
-    return stats
+    return stats, bootstrap_df
