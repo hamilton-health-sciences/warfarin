@@ -34,36 +34,60 @@ an earlier phase of the project.
 This will create an audit log in `output/` that can be comparison-checked for
 correctness.
 
-## Model tuning
+## Model training
+
+### Behavioral cloning
+
+When using WIS-estimated value as the model selection metric, a behavioral
+cloning model is necessary. To tune it:
+
+    $ python3 scripts/tune_bc.py \
+        --train_data `pwd`/data/clean_data/train_data.feather \
+        --val_data `pwd`/data/clean_data/val_data.feather \
+        --target_metric "val/auroc" \
+        --mode max
+
+Evaluations and plots can be accessed in real-time during training through
+Tensorboard:
+
+    $ python3 -m tensorboard.main --logdir=./ray_logs/bc
+
+### SMDP-dBCQ
 
 With a GPU available, train and tune the dBCQ model on the development set,
-which will attempt to find hyperparameters that maximize TTR at agreement in
-the tuning set:
+which will attempt to find hyperparameters that maximize the WIS-estimated
+value of the policy:
 
     $ python3 scripts/tune_smdp_dbcq.py \
         --train_data `pwd`/data/clean_data/train_data.feather \
         --val_data `pwd`/data/clean_data/val_data.feather \
-        --target_metric "val/0.0025_POLICY/ttr" \
+        --behavior_policy $PATH_TO_BEHAVIOR_POLICY_MODEL_PT
+        --target_metric "val/wis/policy_value" \
         --mode max
+
+where `$PATH_TO_BEHAVIOR_POLICY_MODEL_PT` is the path to the `model.pt` for the
+best behavioral cloning checkpoint (TODO: make this easier).
 
 Evaluations and plots can be accessed during training through Tensorboard:
 
-    $ python3 -m tensorboard.main --logdir=./ray_logs
+    $ python3 -m tensorboard.main --logdir=./ray_logs/bc
     Serving TensorBoard on localhost; to expose to the network, use a proxy or pass --bind_all
     TensorBoard 2.6.0 at http://localhost:6006/ (Press CTRL+C to quit)
 
 # Final model selection, evaluation & figures
 
 To run the model selection, evaluation, and plotting routines (currently on
-validation data):
+validation data - TODO when opening up test set):
 
     $ python3 scripts/evaluate_best_model.py \
         --logs_path ./ray_logs/ \
         --data_path ./data/clean_data/val_data.feather \
+        --behavior_policy_path $PATH_TO_BEHAVIOR_POLICY_MODEL_PT \
         --output_prefix ./output/val_eval \
-        --target_metric val/0.0025_POLICY/ttr --mode max
+        --target_metric val/wis/policy_value --mode max
 
-And to pretty-print the classification metrics afterward:
+where `$PATH_TO_BEHAVIOR_POLICY_MODEL_PT` should be the same as above. And to
+pretty-print the classification metrics afterward:
 
     $ python3 scripts/format_metrics.py \
         --metrics_filename ./output/val_eval/metrics.json \
