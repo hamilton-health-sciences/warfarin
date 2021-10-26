@@ -332,11 +332,13 @@ def wis_returns(df, replay_buffer, learned_policy, behavior_policy):
 
     # Discount rewards from t = 0
     days_since_start = (
-        replay_buffer.reward.reset_index()["STUDY_DAY"] -
+        replay_buffer.reward.reset_index().set_index(
+            ["TRIAL", "SUBJID", "TRAJID"]
+        )["STUDY_DAY"] -
         replay_buffer.reward.reset_index().groupby(
             ["TRIAL", "SUBJID", "TRAJID"]
-        )["STUDY_DAY"].shift(1)
-    ).fillna(0)
+        )["STUDY_DAY"].first()
+    )
     days_since_start.index = replay_buffer.reward.index
     start_discount = replay_buffer.discount_factor**(days_since_start)
 
