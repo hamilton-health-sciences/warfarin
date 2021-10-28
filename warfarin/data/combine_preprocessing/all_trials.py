@@ -148,7 +148,8 @@ def merge_inr_events(inr, events):
         events["RANKIN_SCORE"]
     )
 
-    # Index events by study day
+    # Remove events with no recorded day, and index them by study day
+    events = events[~events["EVENT_T2"].isnull()].copy()
     events.loc[:, "STUDY_DAY"] = events["EVENT_T2"].astype(int)
 
     # Aggregate events by day
