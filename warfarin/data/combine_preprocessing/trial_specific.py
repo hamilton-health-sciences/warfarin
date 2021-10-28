@@ -45,7 +45,9 @@ def preprocess_engage_rocket(inr, baseline):
     # Doses in ENGAGE and ROCKET-AF are recorded as the three daily doses prior
     # to an INR measurement. Compute the 3-day rolling mean and shift it forward
     # 1 day to align it with the corresponding INR measurement. Multiply by
-    # 7 to convert to weekly dose.
+    # 7 to convert to weekly dose. We have validated that it is better to treat
+    # missing daily doses as missing-by-chance rather than missing-as-zero by
+    # comparing INR-dose change heatmaps.
     subset_data["WARFARIN_DOSE"] = subset_data.groupby(
         "SUBJID", as_index=False
     )["WARFARIN_DOSE"].rolling(3, min_periods=1).mean().groupby(
