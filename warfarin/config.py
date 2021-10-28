@@ -83,7 +83,7 @@ STATE_COLS = ["AGE_DEIDENTIFIED", "SEX", "WEIGHT", "CONTINENT", "SMOKE",
               "HEM_STROKE_FLAG", "HOSP_FLAG", "WARFARIN_DOSE_BIN", "AGE_BIN",
               "WEIGHT_BIN"]
 
-# Hyperparameter search options
+# Hyperparameter search options for the BCQ algo
 
 # Number of hyperparameter combinations to try.
 NUM_HYPERPARAMETER_SAMPLES = 50
@@ -97,7 +97,18 @@ MAX_TRAINING_EPOCHS = 2_500
 # How often to plot in epochs.
 PLOT_EVERY = 100
 
+# Hyperparameter search options for the BC algo
+
+NUM_BC_HYPERPARAMETER_SAMPLES = 50
+
+MIN_BC_TRAINING_EPOCHS = 50
+
+MAX_BC_TRAINING_EPOCHS = 500
+
 # Evaluation constants
+
+# Number of bootstrapping samples used for sampling distributions.
+NUM_BOOTSTRAP_SAMPLES = 1_000
 
 # The upper thresholds for mean absolute agreement to consider a trajectory
 # agreed-upon.
@@ -112,8 +123,8 @@ INR_BIN_LABELS = ["< 1.5", "1.5 - 2", "2 - 3", "3 - 3.5", "> 3.5"]
 # Dose change labels
 ACTION_LABELS = ["↓ > 20%",
                  "↓ 10-20%",
-                 "↓ < 10%",
+                 "↓ ≤ 10%",
                  "Maintain",
-                 "↑ < 10%",
+                 "↑ ≤ 10%",
                  "↑ 10-20%",
                  "↑ > 20%"]

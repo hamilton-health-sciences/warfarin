@@ -2,6 +2,8 @@
 
 import itertools
 
+from collections import OrderedDict
+
 import numpy as np
 
 import pandas as pd
@@ -256,3 +258,28 @@ def plot_agreement_ttr_curve(df, disagreement_ttr):
         )
 
     return plots
+
+
+def plot_wis_boxplot(df):
+    plot_df = df.melt()
+    algo_names = OrderedDict([
+        ["clinician_value", "Observed Clinicians"],
+        ["threshold_value", "Benchmark (Deterministic)"],
+        ["policy_hard_value", "RL Policy (Deterministic)"],
+        ["policy_value", "RL Policy (Probabilistic)"]
+    ])
+    plot_df["algo"] = plot_df["variable"].map(dict(algo_names))
+    plot_df["algo"] = pd.Categorical(
+        plot_df["algo"],
+        algo_names.values(),
+        ordered=True
+    )
+    # TODO pull in actual means?
+    plt = (ggplot(plot_df) +
+           geom_boxplot(aes(x="algo", y="value", fill="algo")) +
+           scale_fill_discrete(guide=False) +
+           xlab("") +
+           ylab("Estimated Value (Discounted TTR)") +
+           coord_flip())
+
+    return plt

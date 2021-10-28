@@ -1,0 +1,222 @@
+"""Train the behavioural cloning network for WIS-based evaluation."""
+
+from functools import partial
+
+import os
+
+import pickle
+
+import argparse
+
+from ray import tune
+from ray.tune import CLIReporter
+from ray.tune.suggest.hyperopt import HyperOptSearch
+from ray.tune.schedulers import AsyncHyperBandScheduler
+
+from warfarin import config as global_config
+from warfarin.models import BehaviorCloner
+from warfarin.utils.modeling import get_dataloader
+from warfarin.evaluation import evaluate_behavioral_cloning
+
+
+def train_run(config, train_data_path, val_data_path, init_seed, smoke_test=False):
+    # Generate data buffers
+    train_data, train_loader = get_dataloader(
+        data_path=train_data_path,
+        cache_name="train_buffer.pkl",
+        batch_size=config["batch_size"],
+        discount_factor=config["discount"],
+        min_trajectory_length=global_config.MIN_TRAIN_TRAJECTORY_LENGTH,
+        use_random=False
+    )
+    val_data, val_loader = get_dataloader(
+        data_path=val_data_path,
+        cache_name="val_buffer.pkl",
+        batch_size=config["batch_size"],
+        discount_factor=config["discount"],
+        state_transforms=train_data.state_transforms,
+        use_random=False
+    )
+
+    trial_dir = tune.get_trial_dir()
+    if not trial_dir:
+        trial_dir = "./smoke_test"
+
+    # Store transforms
+    state_transforms_path = os.path.join(trial_dir, "transforms.pkl")
+    pickle.dump(train_data.state_transforms,
+                open(state_transforms_path, "wb"))
+
+    # Build the model trainer
+    num_actions = len(global_config.ACTION_LABELS)
+    model = BehaviorCloner(
+        state_dim=train_data.state_dim,
+        num_actions=num_actions,
+        num_layers=config["num_layers"],
+        hidden_dim=config["hidden_dim"],
+        lr=config["learning_rate"],
+        device="cuda"
+    )
+
+    # Train the model
+    for epoch in range(global_config.MAX_BC_TRAINING_EPOCHS):
+        epoch_loss = 0.
+        for batch_idx, batch in enumerate(train_loader):
+            loss = model.train(batch)
+            epoch_loss += loss
+            if smoke_test:
+                break
+        epoch_loss /= (batch_idx + 1)
+
+        # Get metrics of interest
+        train_metrics = evaluate_behavioral_cloning(model, train_loader)
+        val_metrics = evaluate_behavioral_cloning(model, val_loader)
+        metrics = {**{f"train/{k}": v for k, v in train_metrics.items()},
+                   **{f"val/{k}": v for k, v in val_metrics.items()}}
+
+        # Checkpoint and log metrics using Ray Tune
+        with tune.checkpoint_dir(step=epoch) as ckpt_dir_write:
+            if ckpt_dir_write:
+                # Checkpoint the model
+                ckpt_fn = os.path.join(ckpt_dir_write, "model.pt")
+                model.save(ckpt_fn)
+        tune.report(**metrics)
+
+
+def trial_namer(trial):
+    trial_id = trial.trial_id
+    lr = trial.config["learning_rate"]
+    bs = trial.config["batch_size"]
+    num_layers = trial.config["num_layers"]
+    hidden_dim = trial.config["hidden_dim"]
+    name = (f"{trial_id}_bs={bs}_lr={lr:.2e}_num_layers={num_layers}_"
+            f"hidden_dim={hidden_dim}")
+
+    return name
+
+
+def tune_run(num_samples: int,
+             tune_seed: int,
+             init_seed: int,
+             output_dir: str,
+             resume_errored: bool,
+             train_data_path: str,
+             val_data_path: str,
+             target_metric: str,
+             mode: str,
+             smoke_test: bool,
+             tune_smoke_test: bool):
+    tune_config = {
+        "learning_rate": tune.choice([1e-4, 1e-3, 1e-2]),
+        "batch_size": tune.choice([32, 64, 128, 256]),
+        "num_layers": tune.choice([2, 3]),
+        "hidden_dim": tune.choice([16, 32, 64, 128, 256]),
+        # Ignored, as we do not use the rewards for BC training.
+        "discount": 0.99
+    }
+    if smoke_test or tune_smoke_test:
+        global_config.MIN_BC_TRAINING_EPOCHS = 1
+        global_config.MAX_BC_TRAINING_EPOCHS = 1
+
+    if smoke_test:
+        train_conf = tune_config
+        for k, v in train_conf.items():
+            if hasattr(v, "sample"):
+                train_conf[k] = v.sample()
+        train_run(train_conf,
+                  train_data_path=train_data_path,
+                  val_data_path=val_data_path,
+                  init_seed=init_seed,
+                  smoke_test=True)
+        exit()
+
+    # Use intelligent hyperparameter search
+    searcher = HyperOptSearch(
+        metric=target_metric,
+        mode=mode,
+        random_state_seed=tune_seed
+    )
+
+    # Aggressively terminate underperforming models after a minimum number of
+    # iterations
+    scheduler = AsyncHyperBandScheduler(
+        metric=target_metric,
+        mode=mode,
+        max_t=global_config.MAX_BC_TRAINING_EPOCHS,
+        grace_period=global_config.MIN_BC_TRAINING_EPOCHS
+    )
+
+    if resume_errored:
+        resume = "ERRORED_ONLY"
+    else:
+        resume = None
+
+    # How progress will be reported to the CLI
+    par_cols = ["batch_size", "learning_rate", "num_layers", "hidden_dim"]
+    reporter = CLIReporter(
+        parameter_columns=par_cols,
+        metric_columns=[target_metric]
+    )
+
+    # Run hyperparameter tuning
+    tune.run(
+        partial(
+            train_run,
+            train_data_path=train_data_path,
+            val_data_path=val_data_path,
+            init_seed=init_seed,
+            smoke_test=tune_smoke_test
+        ),
+        resources_per_trial={"cpu": 8, "gpu": 1},
+        config=tune_config,
+        num_samples=num_samples,
+        scheduler=scheduler,
+        progress_reporter=reporter,
+        local_dir=output_dir,
+        name="bc",
+        # TODO
+        trial_name_creator=trial_namer,
+        resume=resume
+    )
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--train_data", type=str, required=True)
+    parser.add_argument("--val_data", type=str, required=True)
+    parser.add_argument("--target_metric", type=str, default="val/accuracy")
+    parser.add_argument("--mode", type=str, choices=["min", "max"],
+                        default="max")
+    parser.add_argument("--resume_errored", action="store_true", default=False)
+    parser.add_argument("--tune_seed", type=int, default=0)
+    parser.add_argument("--init_seed", type=int, default=1)
+    parser.add_argument("--output_dir", type=str, default="./ray_logs")
+    parser.add_argument("--smoke_test", action="store_true", default=False)
+    parser.add_argument("--tune_smoke_test", action="store_true", default=False)
+    args = parser.parse_args()
+
+    if args.tune_smoke_test:
+        num_samples = 1
+    else:
+        num_samples = global_config.NUM_BC_HYPERPARAMETER_SAMPLES
+
+    tune_run(
+        # Hyperparameter optimizer parameters
+        num_samples=num_samples,
+        tune_seed=args.tune_seed,
+        init_seed=args.init_seed,
+        output_dir=args.output_dir,
+        resume_errored=args.resume_errored,
+        target_metric=args.target_metric,
+        mode=args.mode,
+        # Model/data parameters
+        train_data_path=args.train_data,
+        val_data_path=args.val_data,
+        # Smoke tests for faster iteration on tuning procedure
+        smoke_test=args.smoke_test,
+        tune_smoke_test=args.tune_smoke_test
+    )
+
+
+if __name__ == "__main__":
+    main()

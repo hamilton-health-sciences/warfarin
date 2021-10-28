@@ -8,6 +8,8 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
+from warfarin.models.nets import build_mlp
+
 
 class FCQ(nn.Module):
     """
@@ -31,22 +33,8 @@ class FCQ(nn.Module):
         self.num_actions = num_actions
 
         # Build nets
-        self.q = self._build_net()
-        self.i = self._build_net()
-
-    def _build_net(self):
-        layers = [
-            nn.Linear(self.state_dim, self.hidden_states),
-            nn.ReLU()
-        ]
-        for _ in range(self.num_layers - 2):
-            layers += [
-                nn.Linear(self.hidden_states, self.hidden_states),
-                nn.ReLU()
-            ]
-        layers += [nn.Linear(self.hidden_states, self.num_actions)]
-
-        return nn.Sequential(*layers)
+        self.q = build_mlp(state_dim, hidden_states, num_actions, num_layers)
+        self.i = build_mlp(state_dim, hidden_states, num_actions, num_layers)
 
     def forward(self, state):
         """
@@ -127,6 +115,14 @@ class SMDBCQ(object):
         # Number of training iterations
         self.iterations = 0
 
+    def masked_q(self, state: torch.Tensor):
+        q, imt, _ = self.q(state)
+        imt = imt.exp()
+        imt = (imt / imt.max(1, keepdim=True)[0] > self.threshold).float()
+        action_prob = (imt * q + (1. - imt) * -1e8)
+
+        return action_prob
+
     def select_action(self, state: torch.Tensor):
         """
         Select the action with the maximum predicted Q-value.
@@ -138,12 +134,8 @@ class SMDBCQ(object):
             actions: The actions selected by the model.
         """
         with torch.no_grad():
-            q, imt, _ = self.q(state)
-            imt = imt.exp()
-            imt = (imt / imt.max(1, keepdim=True)[0] > self.threshold).float()
-            actions = np.array(
-                (imt * q + (1. - imt) * -1e8).argmax(1).to("cpu")
-            )
+            masked_q = self.masked_q(state)
+            actions = np.array(masked_q.argmax(1).to("cpu"))
             actions = actions.reshape(-1, 1)
 
             return actions

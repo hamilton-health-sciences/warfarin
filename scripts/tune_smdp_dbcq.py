@@ -30,7 +30,7 @@ from ray.tune.schedulers import AsyncHyperBandScheduler
 import tensorflow as tf
 
 from warfarin import config as global_config
-from warfarin.models import SMDBCQ
+from warfarin.models import SMDBCQ, BehaviorCloner
 from warfarin.utils.modeling import store_plot_tensorboard, get_dataloader
 from warfarin.evaluation import evaluate_and_plot_policy
 
@@ -39,6 +39,7 @@ def train_run(config: dict,
               checkpoint_dir: str,
               train_data_path: str,
               val_data_path: str,
+              behavior_policy_path: str,
               init_seed: int,
               smoke_test: bool = False):
     """
@@ -49,6 +50,7 @@ def train_run(config: dict,
         checkpoint_dir: The checkpointing directory path created by Ray Tune.
         train_data_path: The path to the training buffer.
         val_data_path: The path to the validation buffer.
+        behavior_policy_path: The path to the behavior policy savefile.
         init_seed: Random seed for reproducibility within a set of
                    hyperparameters.
     """
@@ -68,7 +70,7 @@ def train_run(config: dict,
         discount_factor=config["discount"],
         min_trajectory_length=global_config.MIN_TRAIN_TRAJECTORY_LENGTH
     )
-    val_data, val_loader = get_dataloader(
+    val_data, _ = get_dataloader(
         data_path=val_data_path,
         cache_name="val_buffer.pkl",
         batch_size=config["batch_size"],
@@ -102,6 +104,9 @@ def train_run(config: dict,
         hidden_states=config["hidden_dim"],
         num_layers=config["num_layers"]
     )
+
+    # Load the behavior policy
+    behavior_policy = BehaviorCloner.load(behavior_policy_path)
 
     start = 0
 
@@ -138,12 +143,14 @@ def train_run(config: dict,
         train_metrics, train_plots, running_state = evaluate_and_plot_policy(
             policy,
             train_data,
+            behavior_policy,
             running_state,
             plot=plot_epoch
         )
         val_metrics, val_plots, running_state = evaluate_and_plot_policy(
             policy,
             val_data,
+            behavior_policy,
             running_state,
             plot=plot_epoch
         )
@@ -202,6 +209,7 @@ def tune_run(num_samples: int,
              resume_errored: bool,
              train_data_path: str,
              val_data_path: str,
+             behavior_policy_path: str,
              target_metric: str,
              mode: str,
              smoke_test: bool,
@@ -218,6 +226,8 @@ def tune_run(num_samples: int,
         resume_errored: Whether to resume errored trials or start from scratch.
         train_data_path: The path to the training data.
         val_data_path: The path to the validation data.
+        behavior_policy_path: The path to the behavior policy, for WIS estimates
+                              of performance.
         target_metric: The metric to optimize over the space of possible
                        hyperparameters.
         mode: Whether to "max" or "min" the target metric.
@@ -257,6 +267,7 @@ def tune_run(num_samples: int,
                   checkpoint_dir=None,
                   train_data_path=train_data_path,
                   val_data_path=val_data_path,
+                  behavior_policy_path=behavior_policy_path,
                   init_seed=init_seed,
                   smoke_test=True)
         exit()
@@ -297,6 +308,7 @@ def tune_run(num_samples: int,
             train_run,
             train_data_path=train_data_path,
             val_data_path=val_data_path,
+            behavior_policy_path=behavior_policy_path,
             init_seed=init_seed,
             smoke_test=tune_smoke_test
         ),
@@ -344,15 +356,15 @@ def main():
         help="Whether to minimize or maximize the target metric"
     )
     parser.add_argument(
+        "--behavior_policy",
+        type=str,
+        required=True,
+        help="Path to the behavior policy savefile for WIS estimates"
+    )
+    parser.add_argument(
         "--resume_errored",
         action="store_true",
         default=False
-    )
-    parser.add_argument(
-        "--num_samples",
-        type=int,
-        default=None,
-        help="The number of hyperparameter combinations to sample"
     )
     parser.add_argument(
         "--tune_seed",
@@ -401,6 +413,8 @@ def main():
         resume_errored=args.resume_errored,
         target_metric=args.target_metric,
         mode=args.mode,
+        # Behavior cloning
+        behavior_policy_path=args.behavior_policy,
         # Model/data parameters
         train_data_path=args.train_data,
         val_data_path=args.val_data,

@@ -14,13 +14,15 @@ from warfarin.models.baselines import ThresholdModel, RandomModel, MaintainModel
 from warfarin.evaluation.metrics import (eval_reasonable_actions,
                                          eval_classification,
                                          eval_at_agreement,
-                                         compute_performance_tests)
+                                         compute_performance_tests,
+                                         wis_returns)
 from warfarin.evaluation.plotting import (plot_policy_heatmap,
-                                          plot_agreement_ttr_curve)
+                                          plot_agreement_ttr_curve,
+                                          plot_wis_boxplot)
 
 
-def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True,
-                             include_tests=False):
+def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
+                             eval_state=None, plot=True, include_tests=False):
     """
     Evaluate and plot a policy.
 
@@ -53,6 +55,8 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True,
     Args:
         policy: The learned policy.
         replay_buffer: The replay buffer of data to evaluate on.
+        behavior_policy: If given, the BehaviorCloner policy for WIS estimates
+                         of returns.
         eval_state: A pass-through state var that should be modified and
                     returned.
         plot: Whether or not to generate plots, because plotting is slow.
@@ -174,10 +178,13 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True,
     ).astype(int)
 
     # Compute results
-    metrics = compute_metrics(df, disagreement_ttr_events, eval_state,
-                              include_tests)
+    metrics, wis_bootstrap_df = compute_metrics(
+        df, disagreement_ttr_events, eval_state, include_tests, policy,
+        behavior_policy, replay_buffer
+    )
     if plot:
-        plots = compute_plots(df, disagreement_ttr_events)
+        plots = compute_plots(df, disagreement_ttr_events, metrics,
+                              wis_bootstrap_df)
     else:
         plots = {}
     eval_state = {"prev_selected_actions": policy_action}
@@ -185,8 +192,13 @@ def evaluate_and_plot_policy(policy, replay_buffer, eval_state=None, plot=True,
     return metrics, plots, eval_state
 
 
-def compute_metrics(df, disagreement_ttr, eval_state, include_tests):
+def compute_metrics(df, disagreement_ttr, eval_state, include_tests,
+                    learned_policy, behavior_policy, replay_buffer):
     stats = {}
+
+    # WIS estimates of returns
+    stats, wis_bootstrap_df = wis_returns(df, replay_buffer, learned_policy,
+                                          behavior_policy)
 
     # Reasonable-ness
     prop_reasonable = eval_reasonable_actions(df)
@@ -214,10 +226,10 @@ def compute_metrics(df, disagreement_ttr, eval_state, include_tests):
         if pd.api.types.is_int64_dtype(v):
             stats[k] = np.array(v).astype(int).item()
 
-    return stats
+    return stats, wis_bootstrap_df
 
 
-def compute_plots(df, disagreement_ttr):
+def compute_plots(df, disagreement_ttr, metrics, wis_bootstrap_df):
     """
     Plot a policy using all available plots.
 
@@ -266,6 +278,9 @@ def compute_plots(df, disagreement_ttr):
         plot_policy_heatmap(threshold_df.copy(), group_vars=["CONTINENT"]) +
         ggtitle("Benchmark Policy by Continent")
     )
+
+    # WIS plot
+    plots["wis/comparison_boxplot"] = plot_wis_boxplot(wis_bootstrap_df)
 
     # Agreement curves and histograms
     agreement_plots = plot_agreement_ttr_curve(
