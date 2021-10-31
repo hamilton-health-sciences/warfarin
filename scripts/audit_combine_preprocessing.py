@@ -21,7 +21,7 @@ def trajectory_length_stats(df, traj_id_cols):
     message(df.groupby("TRIAL")["SUBJID"].nunique(), 2)
 
     # Number of trajectories
-    if "TRAJID" in df:
+    if "TRAJID" in traj_id_cols:
         message("Number of trajectories:")
         message(
             df.groupby(
@@ -87,7 +87,7 @@ def audit_preprocess_all():
     message(f"Number of entries (events):\t {num_entries_events}")
 
     trajectory_length_stats(inr[inr["INR_TYPE"] == "Y"],
-                            ["TRIAL", "SUBJID"])
+                            ["TRIAL", "SUBJID", "TRAJID"])
 
     # Event statistics
     message("Event counts:")

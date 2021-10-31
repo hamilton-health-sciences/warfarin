@@ -6,7 +6,7 @@ import pandas as pd
 
 from warfarin import config
 from warfarin.data.auditing import auditable
-from warfarin.data.utils import split_data_ids
+from warfarin.data.utils import split_traj, split_data_ids
 
 
 @auditable("inr", "events", "baseline")
@@ -107,6 +107,10 @@ def preprocess_all(inr, events, baseline):
 
     # Remove temporary columns
     inr = inr.drop(["FIRST_DAY", "LAST_DAY"], axis=1)
+
+    # Split trajectories on known dose interruptions
+    inr["INTERRUPT"] = inr["INTERRUPT_FLAG"].fillna(0.).astype(bool)
+    inr = split_traj(inr)
 
     return inr, events, baseline
 
