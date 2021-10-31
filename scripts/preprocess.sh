@@ -7,6 +7,7 @@ TEST_IDS_PATH=$4
 
 OUTPUT_DIR=./data
 
+mkdir -p output
 mkdir -p $OUTPUT_DIR/raw_data $OUTPUT_DIR/clean_data
 
 echo Converting baseline data...
