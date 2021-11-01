@@ -10,20 +10,26 @@ OUTPUT_DIR=./data
 mkdir -p output
 mkdir -p $OUTPUT_DIR/raw_data $OUTPUT_DIR/clean_data
 
-echo Converting baseline data...
-python3 scripts/convert_sas_to_feather.py \
-    --input_filename $BASELINE_SAS_FILENAME \
-    --output_filename $OUTPUT_DIR/raw_data/baseline.feather
+if [ ! -f $OUTPUT_DIR/raw_data/baseline.feather ]; then
+    echo Converting baseline data...
+    python3 scripts/convert_sas_to_feather.py \
+        --input_filename $BASELINE_SAS_FILENAME \
+        --output_filename $OUTPUT_DIR/raw_data/baseline.feather
+fi
 
-echo Converting INR data...
-python3 scripts/convert_sas_to_feather.py \
-    --input_filename $INR_SAS_FILENAME \
-    --output_filename $OUTPUT_DIR/raw_data/inr.feather
+if [ ! -f $OUTPUT_DIR/raw_data/inr.feather ]; then
+    echo Converting INR data...
+    python3 scripts/convert_sas_to_feather.py \
+        --input_filename $INR_SAS_FILENAME \
+        --output_filename $OUTPUT_DIR/raw_data/inr.feather
+fi
 
-echo Converting events data...
-python3 scripts/convert_sas_to_feather.py \
-    --input_filename $EVENTS_SAS_FILENAME \
-    --output_filename $OUTPUT_DIR/raw_data/events.feather
+if [ ! -f $OUTPUT_DIR/raw_data/events.feather ]; then
+    echo Converting events data...
+    python3 scripts/convert_sas_to_feather.py \
+        --input_filename $EVENTS_SAS_FILENAME \
+        --output_filename $OUTPUT_DIR/raw_data/events.feather
+fi
 
 echo Preprocessing data...
 python3 scripts/preprocess_combine_af.py \
