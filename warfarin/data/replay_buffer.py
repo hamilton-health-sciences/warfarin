@@ -173,11 +173,15 @@ class WarfarinReplayBuffer(TensorDataset):
         self.observed_state = state
         self.observed_option = option
 
+        # Count up states with missing values that are not adverse events
         nonmissing_state = (state.isnull().sum(axis=1) == 0)
-        num_missing_state_trans = len(nonmissing_state) - nonmissing_state.sum()
-        if num_missing_state_trans > 0:
+        num_missing_states = (
+            (~nonmissing_state) &
+            (self.df[config.EVENTS_TO_KEEP].sum(axis=1) == 0)
+        ).sum()
+        if num_missing_states > 0:
             warn("Looks like there are missing state values in "
-                 f"{num_missing_state_trans} transitions. Probably a bad thing")
+                 f"{num_missing_states} states. Probably a bad thing")
 
         # Subset to transitions with no missing data
         sel = (nonmissing_state &
