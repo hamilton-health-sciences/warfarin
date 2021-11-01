@@ -1,7 +1,7 @@
 """Data processing for the COMBINE-AF dataset."""
 
 from .all_trials import (preprocess_all,
-                         remove_outlying_doses,
+                         merge_trials_and_remove_outlying_doses,
                          merge_inr_events,
                          split_trajectories_at_events,
                          impute_inr_and_dose,

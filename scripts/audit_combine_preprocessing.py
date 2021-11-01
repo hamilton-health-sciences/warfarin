@@ -196,12 +196,14 @@ def audit_preprocess_trial_specific(trial_names):
 
 
 def audit_remove_outlying_doses():
-    df_path = os.path.join(config.AUDIT_PATH, "remove_outlying_doses.feather")
+    df_path = os.path.join(config.AUDIT_PATH,
+                           "merge_trials_and_remove_outlying_doses.feather")
     df = pd.read_feather(df_path)
 
     df = df[df["INR_TYPE"] == "Y"]
 
-    message("Auditing results of `remove_outlying_doses`...", 0)
+    message("Auditing results of `merge_trials_and_remove_outlying_doses`...",
+            0)
 
     message("Warfarin dose summary stats:")
     message(df["WARFARIN_DOSE"].describe(), 2)

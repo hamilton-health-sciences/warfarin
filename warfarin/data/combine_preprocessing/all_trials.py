@@ -116,12 +116,14 @@ def preprocess_all(inr, events, baseline):
 
 
 @auditable()
-def remove_outlying_doses(inr):
+def merge_trials_and_remove_outlying_doses(*inr_dfs):
     """
-    Remove patients who have outliers.
+    Merge INR dataframes from all trials, and remove patients who have
+    outlying doses.
 
     The assumption is that these patients have data entry issues.
     """
+    inr = pd.concat(inr_dfs, axis=0)
     drop_ids = inr[
         inr["WARFARIN_DOSE"] >= config.DOSE_OUTLIER_THRESHOLD
     ]["SUBJID"].unique()

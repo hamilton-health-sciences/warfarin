@@ -6,18 +6,20 @@ import numpy as np
 
 import pandas as pd
 
-from warfarin.data.combine_preprocessing import (preprocess_all,
-                                                 preprocess_engage_rocket,
-                                                 preprocess_rely,
-                                                 preprocess_aristotle,
-                                                 remove_outlying_doses,
-                                                 merge_inr_events,
-                                                 split_trajectories_at_events,
-                                                 impute_inr_and_dose,
-                                                 split_trajectories_at_gaps,
-                                                 merge_inr_baseline,
-                                                 split_data,
-                                                 remove_short_trajectories)
+from warfarin.data.combine_preprocessing import (
+    preprocess_all,
+    preprocess_engage_rocket,
+    preprocess_rely,
+    preprocess_aristotle,
+    merge_trials_and_remove_outlying_doses,
+    merge_inr_events,
+    split_trajectories_at_events,
+    impute_inr_and_dose,
+    split_trajectories_at_gaps,
+    merge_inr_baseline,
+    split_data,
+    remove_short_trajectories
+)
 
 # from warfarin.utils.combine_preprocessing import (load_raw_data,
 #                                                   remove_clinically_unintuitive,
@@ -46,10 +48,10 @@ def preprocess(args):
     engage_rocket_data = preprocess_engage_rocket(inr, baseline)
     rely_data = preprocess_rely(inr, baseline)
     aristotle_data = preprocess_aristotle(inr, baseline)
-    inr = pd.concat([engage_rocket_data, rely_data, aristotle_data])
 
     # Perform non-trial-specific preprocessing
-    inr = remove_outlying_doses(inr)
+    inr = merge_trials_and_remove_outlying_doses(engage_rocket_data, rely_data,
+                                                 aristotle_data)
     inr_events_merged = merge_inr_events(inr, events)
     inr_events_merged = split_trajectories_at_events(inr_events_merged)
     inr_events_merged = impute_inr_and_dose(inr_events_merged)
