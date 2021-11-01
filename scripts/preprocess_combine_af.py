@@ -20,11 +20,6 @@ from warfarin.data.combine_preprocessing import (
     split_data,
     remove_short_trajectories
 )
-
-# from warfarin.utils.combine_preprocessing import (load_raw_data,
-#                                                   remove_clinically_unintuitive,
-#                                                   remove_phys_implausible,
-#                                                   prepare_features)
 from warfarin.utils import timer
 from warfarin import config
 
