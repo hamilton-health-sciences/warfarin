@@ -4,7 +4,8 @@ import pandas as pd
 
 import numpy as np
 
-from sklearn.preprocessing import OneHotEncoder, MinMaxScaler
+from sklearn.preprocessing import (OneHotEncoder, MinMaxScaler,
+                                   QuantileTransformer)
 
 from warfarin import config
 from warfarin.utils import interpolate_inr, code_quantitative_decision
@@ -31,8 +32,18 @@ def engineer_state_features(df, transforms=None):
     if transforms is None:
         transforms = {}
 
-    # Clamp INR in [0.5, 4.5]
-    df["INR_VALUE"] = np.maximum(np.minimum(df["INR_VALUE"], 4.5), 0.5)
+    # Transform INR to the uniform distribution after rounding to nearest tenth.
+    # The rounding takes are of any hanging decimals. As the output is bounded
+    # in [0, 1], the later MinMax transform is a noop for this column.
+    df["INR_VALUE"] = df["INR_VALUE"].round(1)
+    if "inr_qn" in transforms:
+        inr_qn = transforms["inr_qn"]
+    else:
+        inr_qn = QuantileTransformer(output_distribution="uniform",
+                                     n_quantiles=df["INR_VALUE"].nunique())
+        inr_qn.fit(df[["INR_VALUE"]])
+        transforms["inr_qn"] = inr_qn
+    df["INR_VALUE"] = inr_qn.transform(df[["INR_VALUE"]])
 
     # Adverse event flags. Ensure they're carried over even between trajectories
     # within the same patient.
