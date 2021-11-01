@@ -246,12 +246,18 @@ def tune_run(num_samples: int,
         "polyak_target_update": True,
         "target_update_freq": 100,
         # Searchable hyperparams
-        "batch_size": tune.choice([32, 64, 128, 256]),
-        "learning_rate": tune.loguniform(1e-7, 5e-4),
-        "tau": tune.loguniform(5e-4, 5e-2),
-        "num_layers": tune.choice([2, 3]),
-        "hidden_dim": tune.choice([16, 32, 64, 128, 256]),
-        "bcq_threshold": tune.choice([0.2, 0.3])
+        "batch_size": tune.choice([32, 128]),
+        "learning_rate": tune.choice([1e-7, 1e-6, 1e-5]),
+        "num_layers": tune.choice([2, 3, 4, 5]),
+        "hidden_dim": 64,
+        "bcq_threshold": 0.3,
+        "tau": 5e-3
+        # "batch_size": tune.choice([32, 64, 128, 256]),
+        # "learning_rate": tune.loguniform(1e-7, 5e-4),
+        # "tau": tune.loguniform(5e-4, 5e-2),
+        # "num_layers": tune.choice([2, 3]),
+        # "hidden_dim": tune.choice([16, 32, 64, 128, 256]),
+        # "bcq_threshold": tune.choice([0.2, 0.3])
     }
 
     if smoke_test or tune_smoke_test:

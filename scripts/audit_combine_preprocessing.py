@@ -266,12 +266,34 @@ def audit_split_trajectories_at_events():
 
 
 def audit_impute_inr_and_dose():
+    pre_df_path = os.path.join(config.AUDIT_PATH,
+                               "split_trajectories_at_events.feather")
     df_path = os.path.join(config.AUDIT_PATH, "impute_inr_and_dose.feather")
+    pre_df = pd.read_feather(pre_df_path)
     df = pd.read_feather(df_path)
 
     message("Auditing results of `impute_inr_and_dose`...", 0)
 
     missing_doses(df)
+
+    # Extract the time gaps between imputed warfarin doses and their source
+    pre_df["WARFARIN_DOSE_RECORD_DATE"] = np.where(
+        pre_df["WARFARIN_DOSE"].isnull(),
+        np.nan,
+        pre_df["STUDY_DAY"]
+    )
+    source_day = pre_df.groupby(
+        ["TRIAL", "SUBJID"]
+    )["WARFARIN_DOSE_RECORD_DATE"].bfill()
+    pre_df["DOSE_IMPUTATION_GAP"] = (
+        source_day - pre_df["STUDY_DAY"]
+    )
+    desc = pre_df[pre_df["DOSE_IMPUTATION_GAP"] > 0].groupby(
+        "TRIAL"
+    )["DOSE_IMPUTATION_GAP"].describe()[["min", "25%", "50%", "75%", "max"]]
+
+    message("Number of days between backfilled and source doses by trial:")
+    message(desc, 2)
 
 
 def audit_split_trajectories_at_gaps():
