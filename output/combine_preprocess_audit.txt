@@ -344,6 +344,13 @@ Auditing results of `impute_inr_and_dose`...
 		RELY         3039
 		ROCKET_AF    2331
 		Name: AT_LEAST_ONE_DOSE_NULL, dtype: int64
+	Number of days between backfilled and source doses by trial:
+		           min  25%   50%   75%     max
+		TRIAL                                  
+		ARISTOTLE  1.0  6.0  13.0  24.0   465.0
+		ENGAGE     1.0  7.0   7.0  15.0  1399.0
+		RELY       1.0  5.0  11.0  21.0   616.0
+		ROCKET_AF  1.0  4.0   9.0  20.0   423.0
 Auditing results of `split_trajectories_at_gaps`...
 	Number of patients:
 		TRIAL
