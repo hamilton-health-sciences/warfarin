@@ -16,6 +16,7 @@ from ray.tune.schedulers import AsyncHyperBandScheduler
 from warfarin import config as global_config
 from warfarin.models import BehaviorCloner
 from warfarin.utils.modeling import get_dataloader
+from warfarin.utils.ordinal import compute_cutpoints
 from warfarin.evaluation import evaluate_behavioral_cloning
 
 
@@ -47,6 +48,9 @@ def train_run(config, train_data_path, val_data_path, init_seed, smoke_test=Fals
     pickle.dump(train_data.state_transforms,
                 open(state_transforms_path, "wb"))
 
+    # Compute frequency
+    cutpoints = compute_cutpoints(train_data.option)
+
     # Build the model trainer
     num_actions = len(global_config.ACTION_LABELS)
     model = BehaviorCloner(
@@ -55,6 +59,8 @@ def train_run(config, train_data_path, val_data_path, init_seed, smoke_test=Fals
         num_layers=config["num_layers"],
         hidden_dim=config["hidden_dim"],
         lr=config["learning_rate"],
+        likelihood=config["likelihood"],
+        cutpoints=cutpoints,
         device="cuda"
     )
 
@@ -107,10 +113,11 @@ def tune_run(num_samples: int,
              smoke_test: bool,
              tune_smoke_test: bool):
     tune_config = {
-        "learning_rate": tune.choice([1e-4, 1e-3, 1e-2]),
-        "batch_size": tune.choice([32, 64, 128, 256]),
+        "likelihood": "ordered",
+        "learning_rate": tune.choice([1e-4, 1e-3]),
+        "batch_size": 32,
         "num_layers": tune.choice([2, 3]),
-        "hidden_dim": tune.choice([16, 32, 64, 128, 256]),
+        "hidden_dim": 64,
         # Ignored, as we do not use the rewards for BC training.
         "discount": 0.99
     }
