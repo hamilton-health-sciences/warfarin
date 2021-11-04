@@ -99,20 +99,22 @@ def get_dataloader(data_path: str,
 
 
 def get_dataloaders(train_data_path, val_data_path, batch_size, discount_factor,
-                    min_train_trajectory_length):
+                    min_train_trajectory_length, use_random_train=True):
     train_data, train_loader = get_dataloader(
         data_path=train_data_path,
         cache_name="train_buffer.pkl",
         batch_size=batch_size,
         discount_factor=discount_factor,
-        min_trajectory_length=min_train_trajectory_length
+        min_trajectory_length=min_train_trajectory_length,
+        use_random=use_random_train
     )
     val_data, val_loader = get_dataloader(
         data_path=val_data_path,
         cache_name="val_buffer.pkl",
         batch_size=batch_size,
         discount_factor=discount_factor,
-        state_transforms=train_data.state_transforms
+        state_transforms=train_data.state_transforms,
+        use_random=False
     )
 
     return train_data, train_loader, val_data, val_loader

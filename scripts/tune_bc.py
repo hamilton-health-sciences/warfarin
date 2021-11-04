@@ -13,30 +13,24 @@ from ray.tune import CLIReporter
 from ray.tune.suggest.hyperopt import HyperOptSearch
 from ray.tune.schedulers import AsyncHyperBandScheduler
 
+import tensorflow as tf
+
 from warfarin import config as global_config
 from warfarin.models import BehaviorCloner
-from warfarin.utils.modeling import get_dataloader
+from warfarin.utils.modeling import get_dataloaders, checkpoint_and_log
 from warfarin.utils.ordinal import compute_cutpoints
 from warfarin.evaluation import evaluate_behavioral_cloning
 
 
 def train_run(config, train_data_path, val_data_path, init_seed, smoke_test=False):
     # Generate data buffers
-    train_data, train_loader = get_dataloader(
-        data_path=train_data_path,
-        cache_name="train_buffer.pkl",
-        batch_size=config["batch_size"],
-        discount_factor=config["discount"],
-        min_trajectory_length=global_config.MIN_TRAIN_TRAJECTORY_LENGTH,
-        use_random=False
-    )
-    val_data, val_loader = get_dataloader(
-        data_path=val_data_path,
-        cache_name="val_buffer.pkl",
-        batch_size=config["batch_size"],
-        discount_factor=config["discount"],
-        state_transforms=train_data.state_transforms,
-        use_random=False
+    train_data, train_loader, val_data, val_loader = get_dataloaders(
+        train_data_path,
+        val_data_path,
+        config["batch_size"],
+        config["discount"],
+        min_train_trajectory_length=global_config.MIN_TRAIN_TRAJECTORY_LENGTH,
+        use_random_train=False
     )
 
     trial_dir = tune.get_trial_dir()
@@ -65,6 +59,7 @@ def train_run(config, train_data_path, val_data_path, init_seed, smoke_test=Fals
     )
 
     # Train the model
+    writer = tf.summary.create_file_writer(trial_dir)
     for epoch in range(global_config.MAX_BC_TRAINING_EPOCHS):
         epoch_loss = 0.
         for batch_idx, batch in enumerate(train_loader):
@@ -81,12 +76,7 @@ def train_run(config, train_data_path, val_data_path, init_seed, smoke_test=Fals
                    **{f"val/{k}": v for k, v in val_metrics.items()}}
 
         # Checkpoint and log metrics using Ray Tune
-        with tune.checkpoint_dir(step=epoch) as ckpt_dir_write:
-            if ckpt_dir_write:
-                # Checkpoint the model
-                ckpt_fn = os.path.join(ckpt_dir_write, "model.pt")
-                model.save(ckpt_fn)
-        tune.report(**metrics)
+        checkpoint_and_log(epoch, model, writer, metrics, {})
 
 
 def trial_namer(trial):
