@@ -83,7 +83,7 @@ class BehaviorCloner(nn.Module):
         return loss.item()
 
     def save(self, filename):
-        weights = self.backbone.state_dict()
+        weights = self.state_dict()
         torch.save(weights, filename)
 
     @staticmethod
@@ -96,9 +96,20 @@ class BehaviorCloner(nn.Module):
         state_dim = params[input_key].shape[1]
         hidden_dim = params[input_key].shape[0]
         num_layers = len(keys) // 2
-        num_actions = params[output_key].shape[0]
+        if "cutpoints" in keys:
+            likelihood = "ordinal"
+            num_actions = params["cutpoints"].shape[0] + 1
+        else:
+            likelihood = "discrete"
+            num_actions = params[output_key].shape[0]
 
-        model = BehaviorCloner(state_dim=state_dim, num_actions=num_actions, num_layers=num_layers, hidden_dim=hidden_dim, lr=1e-3, device="cuda")
+        model = BehaviorCloner(state_dim=state_dim,
+                               num_actions=num_actions,
+                               num_layers=num_layers,
+                               hidden_dim=hidden_dim,
+                               likelihood=likelihood,
+                               lr=1e-3,
+                               device="cuda")
         model.backbone.load_state_dict(params)
 
         return model

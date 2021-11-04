@@ -1,5 +1,7 @@
 """Utilities for tuning and evaluation."""
 
+from warnings import warn
+
 import os
 
 import io
@@ -12,8 +14,13 @@ import pandas as pd
 
 from torch.utils.data import DataLoader, WeightedRandomSampler, BatchSampler
 
+from ray import tune
+
+from plotnine.exceptions import PlotnineError
+
 from warfarin import config
 from warfarin.data import WarfarinReplayBuffer
+from warfarin.evaluation import evaluate_and_plot_policy
 
 
 def store_plot_tensorboard(plot_name, plot, step, writer):
@@ -89,3 +96,67 @@ def get_dataloader(data_path: str,
         dl = DataLoader(data, batch_size=batch_size)
 
     return data, dl
+
+
+def get_dataloaders(train_data_path, val_data_path, batch_size, discount_factor,
+                    min_train_trajectory_length):
+    train_data, train_loader = get_dataloader(
+        data_path=train_data_path,
+        cache_name="train_buffer.pkl",
+        batch_size=batch_size,
+        discount_factor=discount_factor,
+        min_trajectory_length=min_train_trajectory_length
+    )
+    val_data, val_loader = get_dataloader(
+        data_path=val_data_path,
+        cache_name="val_buffer.pkl",
+        batch_size=batch_size,
+        discount_factor=discount_factor,
+        state_transforms=train_data.state_transforms
+    )
+
+    return train_data, train_loader, val_data, val_loader
+
+
+def evaluate_policy(epoch, policy, train_data, val_data, behavior_policy,
+                    running_state):
+    plot_epoch = (epoch % config.PLOT_EVERY == 0)
+    train_metrics, train_plots, running_state = evaluate_and_plot_policy(
+        policy,
+        train_data,
+        behavior_policy,
+        running_state,
+        plot=plot_epoch
+    )
+    val_metrics, val_plots, running_state = evaluate_and_plot_policy(
+        policy,
+        val_data,
+        behavior_policy,
+        running_state,
+        plot=plot_epoch
+    )
+    if "qloss" in running_state:
+        train_metrics["qloss"] = running_state["qloss"]
+    metrics = {**{f"train/{k}": v for k, v in train_metrics.items()},
+               **{f"val/{k}": v for k, v in val_metrics.items()}}
+    plots = {**{f"train/{k}": v for k, v in train_plots.items()},
+             **{f"val/{k}": v for k, v in val_plots.items()}}
+
+    return metrics, plots
+
+
+def checkpoint_and_log(epoch, model, writer, metrics, plots):
+    with tune.checkpoint_dir(step=epoch) as ckpt_dir_write:
+        if ckpt_dir_write:
+            # Checkpoint the model
+            ckpt_fn = os.path.join(ckpt_dir_write, "model.pt")
+            model.save(ckpt_fn)
+
+            # Store plots for Tensorboard
+            for plot_name, plot in plots.items():
+                try:
+                    store_plot_tensorboard(plot_name, plot, epoch, writer)
+                except (ValueError, PlotnineError) as exc:
+                    warn(str(exc))
+
+    tune.report(**metrics)
