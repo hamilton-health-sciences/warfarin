@@ -97,7 +97,6 @@ def tune_run(num_samples: int,
              tune_seed: int,
              init_seed: int,
              output_dir: str,
-             resume_errored: bool,
              train_data_path: str,
              val_data_path: str,
              target_metric: str,
@@ -105,11 +104,11 @@ def tune_run(num_samples: int,
              smoke_test: bool,
              tune_smoke_test: bool):
     tune_config = {
-        "likelihood": "ordered",
+        "likelihood": tune.grid_search(["ordered", "discrete"]),
         "learning_rate": tune.choice([1e-4, 1e-3]),
-        "batch_size": 32,
+        "batch_size": tune.choice([32, 64, 128]),
         "num_layers": tune.choice([2, 3]),
-        "hidden_dim": 64,
+        "hidden_dim": tune.choice([16, 64, 256]),
         # Ignored, as we do not use the rewards for BC training.
         "discount": 0.99
     }
@@ -145,11 +144,6 @@ def tune_run(num_samples: int,
         grace_period=global_config.MIN_BC_TRAINING_EPOCHS
     )
 
-    if resume_errored:
-        resume = "ERRORED_ONLY"
-    else:
-        resume = None
-
     # How progress will be reported to the CLI
     par_cols = ["batch_size", "learning_rate", "num_layers", "hidden_dim"]
     reporter = CLIReporter(
@@ -174,8 +168,7 @@ def tune_run(num_samples: int,
         local_dir=output_dir,
         name="bc",
         # TODO
-        trial_name_creator=trial_namer,
-        resume=resume
+        trial_name_creator=trial_namer
     )
 
 
@@ -186,7 +179,6 @@ def main():
     parser.add_argument("--target_metric", type=str, default="val/accuracy")
     parser.add_argument("--mode", type=str, choices=["min", "max"],
                         default="max")
-    parser.add_argument("--resume_errored", action="store_true", default=False)
     parser.add_argument("--tune_seed", type=int, default=0)
     parser.add_argument("--init_seed", type=int, default=1)
     parser.add_argument("--output_dir", type=str, default="./ray_logs")
@@ -205,7 +197,6 @@ def main():
         tune_seed=args.tune_seed,
         init_seed=args.init_seed,
         output_dir=args.output_dir,
-        resume_errored=args.resume_errored,
         target_metric=args.target_metric,
         mode=args.mode,
         # Model/data parameters

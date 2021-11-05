@@ -48,10 +48,10 @@ class BehaviorCloner(nn.Module):
 
         self.optim = Adam(self.backbone.parameters(), lr=lr)
 
-    def forward(self, state):
+    def log_prob(self, state):
         if self.likelihood == "discrete":
             logit = self.backbone(state)
-            probs = F.softmax(logit, dim=1)
+            logprobs = F.log_softmax(logit, dim=1)
         elif self.likelihood == "ordered":
             backbone_output = self.backbone(state)
             loc = backbone_output[:, 0]
@@ -65,8 +65,19 @@ class BehaviorCloner(nn.Module):
                  torch.ones(loc.shape[0], 1).to(loc.device)),
                 dim=1
             )
+            # Add small offset to each bin to prevent zeros in loss
             probs = (cdf[:, 1:] - cdf[:, :-1] + 1e-8)
             probs /= probs.sum(dim=1).unsqueeze(1)
+            logprobs = torch.log(probs)
+
+        return logprobs
+
+    def forward(self, state):
+        if self.likelihood == "discrete":
+            logit = self.backbone(state)
+            probs = F.softmax(logit, dim=1)
+        elif self.likelihood == "ordered":
+            probs = torch.exp(self.log_prob(state))
 
         return probs
 
@@ -74,8 +85,8 @@ class BehaviorCloner(nn.Module):
         self.optim.zero_grad()
 
         _, state, option, _, _, _ = batch
-        prob = self(state)
-        loss = F.cross_entropy(torch.log(prob), option.squeeze())
+        logprob = self.log_prob(state)
+        loss = F.cross_entropy(logprob, option.squeeze())
         loss.backward()
 
         self.optim.step()
