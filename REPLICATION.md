@@ -21,15 +21,13 @@ Point Python at the cloned directory:
 
 Run the preprocessing steps. This will first convert the input SAS files into
 Feather dataframes and store them, then preprocess the data and ready it for RL
-modeling, splitting off the test set from the IDs listed in
-`./data/test_subject_ids.txt`. This list of IDs was randomly generated during
-an earlier phase of the project.
+modeling, splitting off RELY as the test set, and using the remaining three
+trials for training and validation.
 
     $ bash scripts/preprocess.sh \
         ./data/raw_data/merged_baseline.sas7bdat \
         ./data/raw_data/merged_inr.sas7bdat \
-        ./data/raw_data/merged_events.sas7bdat \
-        ./data/test_subject_ids.txt
+        ./data/raw_data/merged_events.sas7bdat
 
 This will create an audit log in `output/` that can be comparison-checked for
 correctness.
