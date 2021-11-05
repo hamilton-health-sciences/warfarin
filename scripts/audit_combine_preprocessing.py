@@ -407,13 +407,8 @@ def audit_split_data():
     """
     df_path = os.path.join(config.AUDIT_PATH, "split_data_test.feather")
     df = pd.read_feather(df_path)
-
-    test_subjid = np.asarray(df["SUBJID"])
-    prescribed_test_subjid = np.loadtxt("./data/test_subject_ids.txt")
-
     msg = "Test set subject IDs not as prescribed! This represents an error"
-
-    assert len(np.setdiff1d(test_subjid, prescribed_test_subjid)) == 0, msg
+    assert np.sum(df["TRIAL"] != "RELY") == 0, msg
 
 
 def plot_transitions():
