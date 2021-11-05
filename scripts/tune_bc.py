@@ -70,13 +70,15 @@ def train_run(config, train_data_path, val_data_path, init_seed, smoke_test=Fals
         epoch_loss /= (batch_idx + 1)
 
         # Get metrics of interest
-        train_metrics = evaluate_behavioral_cloning(model, train_loader)
-        val_metrics = evaluate_behavioral_cloning(model, val_loader)
+        train_metrics, train_plots = evaluate_behavioral_cloning(model, train_data)
+        val_metrics, val_plots = evaluate_behavioral_cloning(model, val_data)
         metrics = {**{f"train/{k}": v for k, v in train_metrics.items()},
                    **{f"val/{k}": v for k, v in val_metrics.items()}}
+        plots = {**{f"train/{k}": v for k, v in train_plots.items()},
+                 **{f"val/{k}": v for k, v in val_plots.items()}}
 
         # Checkpoint and log metrics using Ray Tune
-        checkpoint_and_log(epoch, model, writer, metrics, {})
+        checkpoint_and_log(epoch, model, writer, metrics, plots)
 
 
 def trial_namer(trial):

@@ -92,12 +92,12 @@ class BehaviorCloner(nn.Module):
 
         # Get dimensionality of model from savefile
         keys = list(params.keys())
-        input_key, output_key = keys[0], keys[-1]
+        input_key, output_key = "backbone.0.weight", keys[-1]
         state_dim = params[input_key].shape[1]
         hidden_dim = params[input_key].shape[0]
-        num_layers = len(keys) // 2
+        num_layers = len([k for k in keys if "backbone" in k]) // 2
         if "cutpoints" in keys:
-            likelihood = "ordinal"
+            likelihood = "ordered"
             num_actions = params["cutpoints"].shape[0] + 1
         else:
             likelihood = "discrete"
@@ -110,6 +110,6 @@ class BehaviorCloner(nn.Module):
                                likelihood=likelihood,
                                lr=1e-3,
                                device="cuda")
-        model.backbone.load_state_dict(params)
+        model.load_state_dict(params)
 
         return model
