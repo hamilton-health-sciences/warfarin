@@ -120,10 +120,7 @@ def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
     df["MAINTAIN_ACTION"] = mm.select_action(len(df))
 
     # Map actions to the means of their bins
-    sel = np.isfinite(df["OBSERVED_ACTION_QUANT"])
-    code_to_quant = df[sel].groupby(
-        "OBSERVED_ACTION"
-    )["OBSERVED_ACTION_QUANT"].mean().to_dict()
+    code_to_quant = replay_buffer.option_means
 
     df["POLICY_ACTION_QUANT"] = df["POLICY_ACTION"].map(code_to_quant)
     df["RANDOM_ACTION_QUANT"] = df["RANDOM_ACTION"].map(code_to_quant)

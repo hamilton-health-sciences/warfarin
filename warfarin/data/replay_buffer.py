@@ -14,6 +14,7 @@ import torch
 from torch.utils.data import TensorDataset
 
 from warfarin import config
+from warfarin.utils import code_quantitative_decision
 from warfarin.data.feature_engineering import (engineer_state_features,
                                                extract_observed_decision,
                                                compute_k,
@@ -34,6 +35,7 @@ class WarfarinReplayBuffer(TensorDataset):
     def __init__(self,
                  df: pd.DataFrame,
                  discount_factor: float,
+                 option_means: dict = None,
                  min_trajectory_length: int = 0,
                  state_transforms = None,
                  rel_event_sample_prob: int = 1,
@@ -44,6 +46,8 @@ class WarfarinReplayBuffer(TensorDataset):
             df: The processed data frame, containing the information required to
                 compute the transitions.
             discount_factor: The discount factor used to compute option rewards.
+            option_means: The mean dose change of each option, if not to be
+                          computed from the data.
             state_transforms: If not None, will use these transforms to engineer
                               state features.
             min_trajectory_length: The minimum length of trajectories in the
@@ -60,6 +64,8 @@ class WarfarinReplayBuffer(TensorDataset):
         self.df = df.set_index(["TRIAL", "SUBJID", "TRAJID", "STUDY_DAY"])
         self.discount_factor = discount_factor
         self.rel_event_sample_prob = rel_event_sample_prob
+
+        self._option_means = None
 
         # The devices batches will reside on
         self.device = device
@@ -205,3 +211,20 @@ class WarfarinReplayBuffer(TensorDataset):
     @property
     def state_dim(self):
         return self.state.shape[1]
+
+    @property
+    def option_means(self):
+        if self._option_means:
+            return self._option_means
+
+        obs_action_quant = self.df.groupby(
+            ["TRIAL", "SUBJID", "TRAJID"]
+        )["WARFARIN_DOSE"].shift(-1) / self.df["WARFARIN_DOSE"] - 1.
+        df = obs_action_quant.to_frame()
+        option = code_quantitative_decision(obs_action_quant + 1.)
+        df["OPTION"] = option
+        option_means = df[np.isfinite(df["WARFARIN_DOSE"])].groupby(
+            "OPTION"
+        )["WARFARIN_DOSE"].mean().to_dict()
+
+        return option_means

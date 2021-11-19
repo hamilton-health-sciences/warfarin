@@ -1,5 +1,7 @@
 """Utilities for tuning and evaluation."""
 
+from typing import Optional
+
 from warnings import warn
 
 import os
@@ -53,6 +55,7 @@ def store_plot_tensorboard(plot_name, plot, step, writer):
 def get_dataloader(data_path: str,
                    cache_name: str,
                    batch_size: int,
+                   option_means: Optional[dict] = None,
                    use_random: bool = True,
                    **replay_buffer_params):
     """
@@ -64,6 +67,7 @@ def get_dataloader(data_path: str,
         cache_name: The name of the file in the cache directory to store the
                     buffer.
         batch_size: Batch size to sample.
+        option_means: The mean dose change for each option.
         replay_buffer_params: Additional arguments to the replay buffer.
 
     Returns:
@@ -77,6 +81,7 @@ def get_dataloader(data_path: str,
         data = WarfarinReplayBuffer(
             df=df,
             device="cuda",
+            option_means=option_means,
             **replay_buffer_params
         )
         os.makedirs(config.CACHE_PATH, exist_ok=True)

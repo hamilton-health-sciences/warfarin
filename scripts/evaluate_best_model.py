@@ -70,11 +70,18 @@ def main(args):
     # Load the data
     if "test" in args.data_path:
         raise ValueError("We're not testing on the test set yet.")
-    data, _ = get_dataloader(
-        data_path=args.data_path,
+    train_data, _ = get_dataloader(
+        data_path=args.train_data_path,
         cache_name="train_buffer.pkl",
         batch_size=trial_config["batch_size"],
         discount_factor=trial_config["discount"]
+    )
+    data, _ = get_dataloader(
+        data_path=args.data_path,
+        cache_name="eval_buffer.pkl",
+        batch_size=trial_config["batch_size"],
+        discount_factor=trial_config["discount"],
+        option_means=train_data.option_means
     )
 
     # TODO probably refactor this as it's duplicated from the tuning script rn
@@ -161,6 +168,12 @@ if __name__ == "__main__":
         required=False,
         help=("If given, will select this epoch rather than based on an "
               "evaluation metric")
+    )
+    parser.add_argument(
+        "--train_data_path",
+        type=str,
+        required=True,
+        help="Path to data used to train the model"
     )
     parser.add_argument(
         "--data_path",
