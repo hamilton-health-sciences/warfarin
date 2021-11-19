@@ -179,6 +179,13 @@ def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
         disagreement_ttr_events[config.ADV_EVENTS].sum(axis=1) > 0
     ).astype(int)
 
+    # Extract dataframe for hierarchical TTR model
+    hierarchical_ttr = df.join(
+        ttr.rename(
+            columns={"INR_IN_RANGE": "APPROXIMATE_TTR"}
+        )
+    ).join(traj_length)
+
     # Compute results
     metrics, wis_bootstrap_df = compute_metrics(
         df, disagreement_ttr_events, eval_state, include_tests, policy,
@@ -191,7 +198,7 @@ def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
         plots = {}
     eval_state = {"prev_selected_actions": policy_action}
 
-    return metrics, plots, eval_state
+    return metrics, plots, hierarchical_ttr, eval_state
 
 
 def compute_metrics(df, disagreement_ttr, eval_state, include_tests,

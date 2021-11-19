@@ -32,7 +32,6 @@ from warfarin.models import SMDBCQ, BehaviorCloner
 from warfarin.utils.modeling import (get_dataloaders,
                                      evaluate_policy,
                                      checkpoint_and_log)
-from warfarin.evaluation import evaluate_and_plot_policy
 
 
 def train_run(config: dict,
@@ -122,7 +121,7 @@ def train_run(config: dict,
 
         # Evaluate the policy, checkpoint the model, log the metrics and plots.
         metrics, plots = evaluate_policy(epoch, policy, train_data, val_data,
-                behavior_policy, running_state)
+                                         behavior_policy, running_state)
         checkpoint_and_log(epoch, policy, writer, metrics, plots)
 
 

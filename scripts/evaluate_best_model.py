@@ -106,7 +106,7 @@ def main(args):
         behavior_policy = None
 
     # Compute evaluation metrics on the buffer
-    metrics, plots, _ = evaluate_and_plot_policy(
+    metrics, plots, hierarchical_ttr, _ = evaluate_and_plot_policy(
         policy, data, include_tests=True, behavior_policy=behavior_policy
     )
 
@@ -121,6 +121,11 @@ def main(args):
     # Write quantitative metrics
     metrics_output = os.path.join(args.output_prefix, "metrics.json")
     json.dump(metrics, open(metrics_output, "w"))
+
+    # Write dataframe for hierarchical ttr
+    hierarchical_ttr_output = os.path.join(args.output_prefix,
+                                           "hierarchical_ttr.csv")
+    hierarchical_ttr.to_csv(hierarchical_ttr_output)
 
     # Output plots
     for plot_name, plot in plots.items():
