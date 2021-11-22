@@ -9,19 +9,55 @@ from plotnine import *
 from warfarin import config
 
 
+def main():
+    """
+    Audit the results of the preprocessing pipeline.
+
+    Preprocessing steps decorated with `@auditable` output their intermediate
+    dataframes to `data/auditing`. Auditing is then accomplished by presenting
+    a number of useful summary statistics before and after each step of the
+    pipeline.
+    
+    We also plot the (a) INR-dose change and (b) dose change-INR change
+    transition heatmaps after applying all preprocessing steps. These provide a
+    picture of how much (a) clinically unintuitive and (b) physiologically
+    unintuitive behaviour is present in the data.
+    """
+    audit_preprocess_all()
+    for trial_names in ["engage_rocket", "rely", "aristotle"]:
+        audit_preprocess_trial_specific(trial_names)
+    audit_remove_outlying_doses()
+    audit_merge_inr_events()
+    audit_split_trajectories_at_events()
+    audit_impute_inr_and_dose()
+    audit_split_trajectories_at_gaps()
+    audit_merge_inr_baseline()
+    audit_remove_short_trajectories()
+    audit_split_data()
+    plot_transitions()
+
+
 def message(msg, indent=1):
+    """Print output in a structured way."""
     indent_str = "\t" * indent
     msg_indented = indent_str + str(msg).replace("\n", f"\n{indent_str}")
     print(msg_indented)
 
 
 def trajectory_length_stats(df, traj_id_cols):
+    """
+    Output statistics on trajectory length.
+
+    Args:
+        df: The dataframe containing longitudinal INR data.
+        traj_id_cols: The columns used to identify a trajectory.
+    """
     # Number of patients
     message("Number of patients:")
     message(df.groupby("TRIAL")["SUBJID"].nunique(), 2)
 
     # Number of trajectories
-    if "TRAJID" in df:
+    if "TRAJID" in traj_id_cols:
         message("Number of trajectories:")
         message(
             df.groupby(
@@ -48,6 +84,12 @@ def trajectory_length_stats(df, traj_id_cols):
 
 
 def missing_doses(df):
+    """
+    Output statistics on missing doses.
+
+    Args:
+        df: The dataframe containing longitudinal INR data.
+    """
     df["DOSE_NULL"] = df["WARFARIN_DOSE"].isnull()
 
     message("Missing doses by trial:")
@@ -60,6 +102,9 @@ def missing_doses(df):
 
 
 def audit_preprocess_all():
+    """
+    Audit the results of the `preprocess_all` step of the pipeline.
+    """
     baseline_fn = os.path.join(config.AUDIT_PATH,
                                "preprocess_all_baseline.feather")
     inr_fn = os.path.join(config.AUDIT_PATH, "preprocess_all_inr.feather")
@@ -87,7 +132,7 @@ def audit_preprocess_all():
     message(f"Number of entries (events):\t {num_entries_events}")
 
     trajectory_length_stats(inr[inr["INR_TYPE"] == "Y"],
-                            ["TRIAL", "SUBJID"])
+                            ["TRIAL", "SUBJID", "TRAJID"])
 
     # Event statistics
     message("Event counts:")
@@ -149,6 +194,12 @@ def audit_preprocess_all():
 
 
 def audit_preprocess_trial_specific(trial_names):
+    """
+    Audit the results of trial-specific preprocessing steps.
+
+    Args:
+        trial_names: The names of the trials to audit.
+    """
     df_path = os.path.join(config.AUDIT_PATH,
                            f"preprocess_{trial_names}.feather")
     inr = pd.read_feather(df_path)
@@ -196,12 +247,17 @@ def audit_preprocess_trial_specific(trial_names):
 
 
 def audit_remove_outlying_doses():
-    df_path = os.path.join(config.AUDIT_PATH, "remove_outlying_doses.feather")
+    """
+    Audit the results of the `merge_trials_and_remove_outlying_doses` step.
+    """
+    df_path = os.path.join(config.AUDIT_PATH,
+                           "merge_trials_and_remove_outlying_doses.feather")
     df = pd.read_feather(df_path)
 
     df = df[df["INR_TYPE"] == "Y"]
 
-    message("Auditing results of `remove_outlying_doses`...", 0)
+    message("Auditing results of `merge_trials_and_remove_outlying_doses`...",
+            0)
 
     message("Warfarin dose summary stats:")
     message(df["WARFARIN_DOSE"].describe(), 2)
@@ -210,6 +266,9 @@ def audit_remove_outlying_doses():
 
 
 def audit_merge_inr_events():
+    """
+    Audit the results of INR and events dataframe merging.
+    """
     df_path = os.path.join(config.AUDIT_PATH, "merge_inr_events.feather")
     df = pd.read_feather(df_path)
 
@@ -235,6 +294,9 @@ def audit_merge_inr_events():
 
 
 def audit_split_trajectories_at_events():
+    """
+    Audit the results of splitting the trajectories on events.
+    """
     df_path = os.path.join(config.AUDIT_PATH,
                            "split_trajectories_at_events.feather")
     df = pd.read_feather(df_path)
@@ -264,15 +326,44 @@ def audit_split_trajectories_at_events():
 
 
 def audit_impute_inr_and_dose():
+    """
+    Audit the results of imputing INRs and doses.
+    """
+    pre_df_path = os.path.join(config.AUDIT_PATH,
+                               "split_trajectories_at_events.feather")
     df_path = os.path.join(config.AUDIT_PATH, "impute_inr_and_dose.feather")
+    pre_df = pd.read_feather(pre_df_path)
     df = pd.read_feather(df_path)
 
     message("Auditing results of `impute_inr_and_dose`...", 0)
 
     missing_doses(df)
 
+    # Extract the time gaps between imputed warfarin doses and their source
+    pre_df["WARFARIN_DOSE_RECORD_DATE"] = np.where(
+        pre_df["WARFARIN_DOSE"].isnull(),
+        np.nan,
+        pre_df["STUDY_DAY"]
+    )
+    source_day = pre_df.groupby(
+        ["TRIAL", "SUBJID"]
+    )["WARFARIN_DOSE_RECORD_DATE"].bfill()
+    pre_df["DOSE_IMPUTATION_GAP"] = (
+        source_day - pre_df["STUDY_DAY"]
+    )
+    desc = pre_df[pre_df["DOSE_IMPUTATION_GAP"] > 0].groupby(
+        "TRIAL"
+    )["DOSE_IMPUTATION_GAP"].describe()[["min", "25%", "50%", "75%", "max"]]
+
+    message("Number of days between backfilled and source doses by trial:")
+    message(desc, 2)
+
 
 def audit_split_trajectories_at_gaps():
+    """
+    Audit the results of splitting trajectories at long stretches in time where
+    no INR or dose was recorded.
+    """
     df_path = os.path.join(config.AUDIT_PATH,
                            "split_trajectories_at_gaps.feather")
     df = pd.read_feather(df_path)
@@ -283,6 +374,9 @@ def audit_split_trajectories_at_gaps():
 
 
 def audit_merge_inr_baseline():
+    """
+    Audit the results of merging the INR and baseline data.
+    """
     df_path = os.path.join(config.AUDIT_PATH, "merge_inr_baseline.feather")
     df = pd.read_feather(df_path)
 
@@ -295,16 +389,9 @@ def audit_merge_inr_baseline():
 
 
 def audit_remove_short_trajectories():
-    df_path = os.path.join(config.AUDIT_PATH,
-                           "remove_short_trajectories.feather")
-    df = pd.read_feather(df_path)
-
-    message("Auditing results of `remove_short_trajectories`...", 0)
-
-    trajectory_length_stats(df, ["TRIAL", "SUBJID", "TRAJID"])
-
-
-def audit_remove_short_trajectories():
+    """
+    Audit the results of removing short trajectories.
+    """
     df_path = os.path.join(config.AUDIT_PATH,
                            "remove_short_trajectories.feather")
     df = pd.read_feather(df_path)
@@ -315,6 +402,9 @@ def audit_remove_short_trajectories():
 
 
 def audit_split_data():
+    """
+    Audit the results of splitting the data into train/validation/test.
+    """
     df_path = os.path.join(config.AUDIT_PATH, "split_data_test.feather")
     df = pd.read_feather(df_path)
 
@@ -327,6 +417,11 @@ def audit_split_data():
 
 
 def plot_transitions():
+    """
+    Plot the final transition heatmaps after removing short trajectories, which
+    is the final preprocessing step prior to splitting the data into train/val/
+    test.
+    """
     df_path = os.path.join(config.AUDIT_PATH,
                            "remove_short_trajectories.feather")
     df = pd.read_feather(df_path).set_index(["TRIAL", "SUBJID", "TRAJID"])
@@ -416,21 +511,6 @@ def plot_transitions():
     plt_path = os.path.join(config.AUDIT_PLOT_PATH,
                             "dose_change_inr_change_tile.png")
     plt.save(plt_path)
-
-
-def main():
-    audit_preprocess_all()
-    for trial_names in ["engage_rocket", "rely", "aristotle"]:
-        audit_preprocess_trial_specific(trial_names)
-    audit_remove_outlying_doses()
-    audit_merge_inr_events()
-    audit_split_trajectories_at_events()
-    audit_impute_inr_and_dose()
-    audit_split_trajectories_at_gaps()
-    audit_merge_inr_baseline()
-    audit_remove_short_trajectories()
-    audit_split_data()
-    plot_transitions()
 
 
 if __name__ == "__main__":

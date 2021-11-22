@@ -26,9 +26,9 @@ modeling, splitting off the test set from the IDs listed in
 an earlier phase of the project.
 
     $ bash scripts/preprocess.sh \
-        ./data/raw_data/baseline.sas7bdat \
-        ./data/raw_data/inr.sas7bdat \
-        ./data/raw_data/events.sas7bdat \
+        ./data/raw_data/merged_baseline.sas7bdat \
+        ./data/raw_data/merged_inr.sas7bdat \
+        ./data/raw_data/merged_events.sas7bdat \
         ./data/test_subject_ids.txt
 
 This will create an audit log in `output/` that can be comparison-checked for
@@ -61,7 +61,7 @@ value of the policy:
     $ python3 scripts/tune_smdp_dbcq.py \
         --train_data `pwd`/data/clean_data/train_data.feather \
         --val_data `pwd`/data/clean_data/val_data.feather \
-        --behavior_policy $PATH_TO_BEHAVIOR_POLICY_MODEL_PT
+        --behavior_policy $PATH_TO_BEHAVIOR_POLICY_MODEL_PT \
         --target_metric "val/wis/policy_value" \
         --mode max
 

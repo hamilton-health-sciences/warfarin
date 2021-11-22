@@ -33,18 +33,38 @@ def split_traj(df):
         df: Dataframe with trajectories split on "INTERRUPT", trajectories
             indexed by new column "TRAJID".
     """
+    if "TRAJID" in df.columns:
+        group_cols = ["SUBJID", "TRAJID"]
+    else:
+        group_cols = ["SUBJID"]
+
     # Identify trajectory endpoints
-    df["REMOVE_PRIOR"] = df.groupby("SUBJID")["INTERRUPT"].shift(1)
-    df["REMOVE_AFTER"] = df.groupby("SUBJID")["INTERRUPT"].shift(-1)
-    df["START_TRAJ"] = np.logical_and(
+    df["REMOVE_PRIOR"] = df.groupby(group_cols)["INTERRUPT"].shift(1)
+    df["REMOVE_AFTER"] = df.groupby(group_cols)["INTERRUPT"].shift(-1)
+    new_traj_start_sel = np.logical_and(
         np.logical_or(df["REMOVE_PRIOR"].isnull(), df["REMOVE_PRIOR"] == 1),
         ~df["INTERRUPT"]
     )
-    df["END_TRAJ"] = np.logical_and(
+    new_traj_end_sel = np.logical_and(
         np.logical_or(df["REMOVE_AFTER"].isnull(), df["REMOVE_AFTER"] == 1),
         ~df["INTERRUPT"]
     )
+    if "TRAJID" in df.columns:
+        # Ensure we respect the existing trajectory endpoints
+        df["START_TRAJ"] = np.logical_or(
+            new_traj_start_sel,
+            df["TRAJID"] != df.groupby("SUBJID")["TRAJID"].shift(1)
+        )
+        df["END_TRAJ"] = np.logical_or(
+            new_traj_end_sel,
+            df["TRAJID"] != df.groupby("SUBJID")["TRAJID"].shift(-1)
+        )
+    else:
+        df["START_TRAJ"] = new_traj_start_sel
+        df["END_TRAJ"] = new_traj_end_sel
 
+    # Always group by SUBJID even when TRAJID is set in order to respect
+    # the existing endpoints.
     df["START_TRAJ_CUMU"] = df.groupby("SUBJID")["START_TRAJ"].cumsum()
     df["END_TRAJ_CUMU"] = df.groupby("SUBJID")["END_TRAJ"].cumsum()
 

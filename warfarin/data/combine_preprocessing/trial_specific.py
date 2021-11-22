@@ -45,7 +45,9 @@ def preprocess_engage_rocket(inr, baseline):
     # Doses in ENGAGE and ROCKET-AF are recorded as the three daily doses prior
     # to an INR measurement. Compute the 3-day rolling mean and shift it forward
     # 1 day to align it with the corresponding INR measurement. Multiply by
-    # 7 to convert to weekly dose.
+    # 7 to convert to weekly dose. We have validated that it is better to treat
+    # missing daily doses as missing-by-chance rather than missing-as-zero by
+    # comparing INR-dose change heatmaps.
     subset_data["WARFARIN_DOSE"] = subset_data.groupby(
         "SUBJID", as_index=False
     )["WARFARIN_DOSE"].rolling(3, min_periods=1).mean().groupby(
@@ -81,10 +83,7 @@ def preprocess_rely(inr, baseline):
 
     In order, this function:
 
-        1. Convert average daily doses to weekly doses.
-        2. Convert observed INR values of 0 to NaN, as it is unclear what
-           happened at those steps.
-        3. Split trajectories at points where INR is null.
+        1. Converts average daily doses to weekly doses.
 
     Args:
         inr: Dataframe of all INR data.
@@ -97,24 +96,8 @@ def preprocess_rely(inr, baseline):
     subset_ids = baseline[(baseline["TRIAL"] == "RELY")]["SUBJID"].unique()
     rely_data = inr[inr["SUBJID"].isin(subset_ids)].copy()
 
-    # Convert daily doses to weekly doses
+    # Convert average daily doses to weekly doses
     rely_data["WARFARIN_DOSE"] = rely_data["WARFARIN_DOSE"] * 7
-
-    # Split along dose interruptions. There are 4 entries in the RE-LY dataset
-    # where the INR value is 0. Since it is unclear what the dynamics are around
-    # this point, we will remove these transitions and separate trajectories at
-    # these points.
-    rely_data.loc[rely_data["INR_VALUE"] == 0, "INR_VALUE"] = np.nan
-
-    # Split trajectories in entries where INR is NaN
-    rely_data["IS_NULL"] = rely_data["INR_VALUE"].isnull()
-    rely_data["IS_NULL_CUMU"] = rely_data.groupby("SUBJID")["IS_NULL"].cumsum()
-    rely_data["INTERRUPT"] = np.minimum(1, rely_data["IS_NULL_CUMU"].diff() > 0)
-    rely_data = rely_data.drop(["IS_NULL", "IS_NULL_CUMU"], axis=1)
-
-    rely_data = split_traj(rely_data)
-
-    rely_data = rely_data.drop(columns=["INTERRUPT"])
 
     return rely_data
 
