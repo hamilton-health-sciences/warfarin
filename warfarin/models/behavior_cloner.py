@@ -39,14 +39,19 @@ class BehaviorCloner(nn.Module):
             if cutpoints is None:
                 cutpoints = torch.arange(num_actions - 1).float()
                 cutpoints = cutpoints - cutpoints.mean()
-            self.cutpoints = nn.Parameter(cutpoints.to(self.device),
-                                          requires_grad=False)
+            self.min_cutpoint = nn.Parameter(
+                cutpoints[:1].to(self.device)
+            )
+            cutpoint_log_diffs = torch.log(torch.diff(cutpoints))
+            self.cutpoint_log_diffs = nn.Parameter(
+                cutpoint_log_diffs.to(self.device)
+            )
         self.backbone = build_mlp(state_dim,
                                   hidden_dim,
                                   output_dim,
                                   num_layers).to(device)
 
-        self.optim = Adam(self.backbone.parameters(), lr=lr)
+        self.optim = Adam(self.parameters(), lr=lr)
 
     def log_prob(self, state):
         if self.likelihood == "discrete":
@@ -93,6 +98,15 @@ class BehaviorCloner(nn.Module):
 
         return loss.item()
 
+    @property
+    def cutpoints(self):
+        diffs = torch.cat(
+            (self.min_cutpoint, torch.exp(self.cutpoint_log_diffs))
+        )
+        cutpoints = torch.cumsum(diffs, dim=0)
+
+        return cutpoints
+
     def save(self, filename):
         weights = self.state_dict()
         torch.save(weights, filename)
@@ -107,9 +121,9 @@ class BehaviorCloner(nn.Module):
         state_dim = params[input_key].shape[1]
         hidden_dim = params[input_key].shape[0]
         num_layers = len([k for k in keys if "backbone" in k]) // 2
-        if "cutpoints" in keys:
+        if "min_cutpoint" in keys:
             likelihood = "ordered"
-            num_actions = params["cutpoints"].shape[0] + 1
+            num_actions = params["cutpoint_log_diffs"].shape[0] + 2
         else:
             likelihood = "discrete"
             num_actions = params[output_key].shape[0]

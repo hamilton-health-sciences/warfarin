@@ -68,6 +68,8 @@ def get_dataloader(data_path: str,
                     buffer.
         batch_size: Batch size to sample.
         option_means: The mean dose change for each option.
+        use_random: Whether to weight the samples based on their sample
+                    probability in the replay buffer.
         replay_buffer_params: Additional arguments to the replay buffer.
 
     Returns:
@@ -104,14 +106,17 @@ def get_dataloader(data_path: str,
 
 
 def get_dataloaders(train_data_path, val_data_path, batch_size, discount_factor,
-                    min_train_trajectory_length, use_random_train=True):
+                    min_train_trajectory_length,
+                    weight_option_frequency_train=False,
+                    use_random_train=True):
     train_data, train_loader = get_dataloader(
         data_path=train_data_path,
         cache_name="train_buffer.pkl",
         batch_size=batch_size,
         discount_factor=discount_factor,
         min_trajectory_length=min_train_trajectory_length,
-        use_random=use_random_train
+        use_random=use_random_train,
+        weight_option_frequency=weight_option_frequency_train
     )
     val_data, val_loader = get_dataloader(
         data_path=val_data_path,

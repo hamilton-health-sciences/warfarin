@@ -39,6 +39,7 @@ class WarfarinReplayBuffer(TensorDataset):
                  min_trajectory_length: int = 0,
                  state_transforms = None,
                  rel_event_sample_prob: int = 1,
+                 weight_option_frequency: bool = False,
                  device: str = "cpu",
                  seed: int = 42) -> None:
         """
@@ -58,12 +59,18 @@ class WarfarinReplayBuffer(TensorDataset):
                                    1 (default), this corresponds to no
                                    difference between events transitions and
                                    non-events transitions.
+            weight_option_frequency: If True, will ignore rel_event_sample_prob
+                                     and the probability of sampling each
+                                     transition will be inversely proportional
+                                     to the frequency of occurrence of the
+                                     option in the replay buffer.
             device: The device to store the data on.
             seed: The seed for randomly sampling batches.
         """
         self.df = df.set_index(["TRIAL", "SUBJID", "TRAJID", "STUDY_DAY"])
         self.discount_factor = discount_factor
         self.rel_event_sample_prob = rel_event_sample_prob
+        self.weight_option_frequency = weight_option_frequency
 
         self._option_means = None
 
@@ -172,7 +179,9 @@ class WarfarinReplayBuffer(TensorDataset):
         reward = compute_reward(self.df.copy(), self.discount_factor)
         done = compute_done(self.df.copy())
         sample_prob = compute_sample_probability(self.df.copy(),
-                                                 self.rel_event_sample_prob)
+                                                 option.copy(),
+                                                 self.rel_event_sample_prob,
+                                                 self.weight_option_frequency)
 
         # Maintain all state and observed actions, even missing ones, for
         # evaluation

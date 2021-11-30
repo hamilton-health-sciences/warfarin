@@ -30,7 +30,8 @@ def train_run(config, train_data_path, val_data_path, init_seed, smoke_test=Fals
         config["batch_size"],
         config["discount"],
         min_train_trajectory_length=global_config.MIN_TRAIN_TRAJECTORY_LENGTH,
-        use_random_train=False
+        weight_option_frequency_train=True,
+        use_random_train=True
     )
 
     trial_dir = tune.get_trial_dir()
@@ -104,11 +105,11 @@ def tune_run(num_samples: int,
              smoke_test: bool,
              tune_smoke_test: bool):
     tune_config = {
-        "likelihood": tune.grid_search(["ordered", "discrete"]),
-        "learning_rate": tune.choice([1e-4, 1e-3]),
-        "batch_size": tune.choice([32, 64, 128]),
-        "num_layers": tune.choice([2, 3]),
-        "hidden_dim": tune.choice([16, 64, 256]),
+        "likelihood": tune.grid_search(["discrete"]),#, "discrete"]),
+        "learning_rate": tune.choice([1e-4, 1e-3, 1e-2]), #1e-3]),
+        "batch_size": tune.choice([16]),#, 64, 128]),
+        "num_layers": tune.choice([2]),#, 3]),
+        "hidden_dim": tune.choice([16]),#, 64, 256]),
         # Ignored, as we do not use the rewards for BC training.
         "discount": 0.99
     }
@@ -121,6 +122,9 @@ def tune_run(num_samples: int,
         for k, v in train_conf.items():
             if hasattr(v, "sample"):
                 train_conf[k] = v.sample()
+            elif isinstance(v, dict):
+                if "grid_search" in v:
+                    train_conf[k] = v["grid_search"][0]
         train_run(train_conf,
                   train_data_path=train_data_path,
                   val_data_path=val_data_path,
