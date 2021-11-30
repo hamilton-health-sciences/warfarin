@@ -9,9 +9,12 @@ def main(args):
 
     df_joined = df.set_index("SUBJID").join(
         linker.set_index("SUBJID")
-    ).reset_index().set_index(
-        ["TRIAL", "RELY_SUBJID", "TRAJID", "STUDY_DAY"]
+    ).reset_index()
+    df_joined["CENTRE"] = df_joined["RELY_SUBJID"].astype(str).str[:-3].astype(int)
+    df_joined = df_joined.set_index(
+        ["CENTRE", "RELY_SUBJID", "TRAJID", "STUDY_DAY"]
     )
+    df_joined = df_joined.drop(["TRIAL"], axis=1)
 
     df_joined.to_csv(args.output_path)
 
