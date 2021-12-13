@@ -68,8 +68,6 @@ def main(args):
     trial_config = analysis.get_all_configs()[best_trial_name]
 
     # Load the data
-    if "test" in args.data_path:
-        raise ValueError("We're not testing on the test set yet.")
     train_data, _ = get_dataloader(
         data_path=args.train_data_path,
         cache_name="train_buffer.pkl",

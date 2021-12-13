@@ -195,18 +195,12 @@ def tune_run(num_samples: int,
         "polyak_target_update": True,
         "target_update_freq": 100,
         # Searchable hyperparams
-        "batch_size": tune.choice([32, 128]),
-        "learning_rate": tune.choice([1e-7, 1e-6, 1e-5]),
-        "num_layers": tune.choice([2, 3, 4, 5]),
+        "batch_size": tune.grid_search([32, 128]),
+        "learning_rate": tune.grid_search([1e-7, 1e-6, 1e-5]),
+        "num_layers": tune.grid_search([2, 3]),
         "hidden_dim": 64,
         "bcq_threshold": 0.3,
         "tau": 5e-3
-        # "batch_size": tune.choice([32, 64, 128, 256]),
-        # "learning_rate": tune.loguniform(1e-7, 5e-4),
-        # "tau": tune.loguniform(5e-4, 5e-2),
-        # "num_layers": tune.choice([2, 3]),
-        # "hidden_dim": tune.choice([16, 32, 64, 128, 256]),
-        # "bcq_threshold": tune.choice([0.2, 0.3])
     }
 
     if smoke_test or tune_smoke_test:
@@ -226,23 +220,6 @@ def tune_run(num_samples: int,
                   init_seed=init_seed,
                   smoke_test=True)
         exit()
-
-    # Specify algorithm for selecting the next set of hyperparameters to try
-    # intelligently (TPE algo)
-    searcher = HyperOptSearch(
-        metric=target_metric,
-        mode=mode,
-        random_state_seed=tune_seed
-    )
-
-    # Aggressively terminate underperforming models after a minimum number of
-    # iterations
-    scheduler = AsyncHyperBandScheduler(
-        metric=target_metric,
-        mode=mode,
-        max_t=global_config.MAX_TRAINING_EPOCHS,
-        grace_period=global_config.MIN_TRAINING_EPOCHS
-    )
 
     if resume_errored:
         resume = "ERRORED_ONLY"
@@ -273,8 +250,6 @@ def tune_run(num_samples: int,
         },
         config=tune_config,
         num_samples=num_samples,
-        search_alg=searcher,
-        scheduler=scheduler,
         progress_reporter=reporter,
         local_dir=output_dir,
         name="dbcq",

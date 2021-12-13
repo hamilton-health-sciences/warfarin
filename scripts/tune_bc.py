@@ -105,11 +105,11 @@ def tune_run(num_samples: int,
              smoke_test: bool,
              tune_smoke_test: bool):
     tune_config = {
-        "likelihood": tune.grid_search(["discrete"]),#, "discrete"]),
-        "learning_rate": tune.choice([1e-4, 1e-3, 1e-2]), #1e-3]),
-        "batch_size": tune.choice([16]),#, 64, 128]),
-        "num_layers": tune.choice([2]),#, 3]),
-        "hidden_dim": tune.choice([16]),#, 64, 256]),
+        "likelihood": tune.grid_search(["discrete", "ordered"]),
+        "learning_rate": tune.grid_search([1e-4, 1e-3]),
+        "batch_size": tune.grid_search([16, 128]),
+        "num_layers": tune.grid_search([2, 3]),
+        "hidden_dim": tune.grid_search([16, 64]),
         # Ignored, as we do not use the rewards for BC training.
         "discount": 0.99
     }
@@ -141,12 +141,12 @@ def tune_run(num_samples: int,
 
     # Aggressively terminate underperforming models after a minimum number of
     # iterations
-    scheduler = AsyncHyperBandScheduler(
-        metric=target_metric,
-        mode=mode,
-        max_t=global_config.MAX_BC_TRAINING_EPOCHS,
-        grace_period=global_config.MIN_BC_TRAINING_EPOCHS
-    )
+    # scheduler = AsyncHyperBandScheduler(
+    #     metric=target_metric,
+    #     mode=mode,
+    #     max_t=global_config.MAX_BC_TRAINING_EPOCHS,
+    #     grace_period=global_config.MIN_BC_TRAINING_EPOCHS
+    # )
 
     # How progress will be reported to the CLI
     par_cols = ["batch_size", "learning_rate", "num_layers", "hidden_dim"]
@@ -167,7 +167,7 @@ def tune_run(num_samples: int,
         resources_per_trial={"cpu": 8, "gpu": 1},
         config=tune_config,
         num_samples=num_samples,
-        scheduler=scheduler,
+        # scheduler=scheduler,
         progress_reporter=reporter,
         local_dir=output_dir,
         name="bc",
