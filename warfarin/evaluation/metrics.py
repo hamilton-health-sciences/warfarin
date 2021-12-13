@@ -275,7 +275,7 @@ def _compute_importance(df, policy_prob_col, behavior_prob_col, id_vars):
     return importance.groupby(id_vars).prod()
 
 
-def wis_returns(df, replay_buffer, learned_policy, behavior_policy):
+def wis_returns(df, replay_buffer, learned_policy, behavior_policy, include_ci):
     """
     Compute the naive importance sampling estimator of the mean return of the
     learned policy.
@@ -302,6 +302,7 @@ def wis_returns(df, replay_buffer, learned_policy, behavior_policy):
         replay_buffer: The replay buffer to evaluate on.
         learned_policy: The learned policy to evaluate.
         behavior_policy: The behavioral cloning model of the observed policy.
+        include_ci: Whether to compute bootstrapped confidence intervals.
 
     Returns:
         stats: A dictionary of WIS-related statistics.
@@ -365,10 +366,11 @@ def wis_returns(df, replay_buffer, learned_policy, behavior_policy):
         return ((w * x) / w.sum()).sum()
 
     # Compute WIS value estimates and 95% CIs
-    idxs = [
-        np.random.choice(len(wis_df), size=len(wis_df), replace=True)
-        for _ in range(config.NUM_BOOTSTRAP_SAMPLES)
-    ]
+    if include_ci:
+        idxs = [
+            np.random.choice(len(wis_df), size=len(wis_df), replace=True)
+            for _ in range(config.NUM_BOOTSTRAP_SAMPLES)
+        ]
     stats, sample_distns = {}, {}
     for colname in wis_df.columns:
         if "_importance" in colname:
@@ -380,18 +382,22 @@ def wis_returns(df, replay_buffer, learned_policy, behavior_policy):
             stats[algo_value_colname] = _weighted_mean(
                 wis_df[colname], wis_df["reward"]
             )
-            for idx in idxs:
-                sample_distns[algo_value_colname].append(
-                    _weighted_mean(
-                        wis_df[colname].iloc[idx], wis_df["reward"].iloc[idx]
+            if include_ci:
+                for idx in idxs:
+                    sample_distns[algo_value_colname].append(
+                        _weighted_mean(
+                            wis_df[colname].iloc[idx], wis_df["reward"].iloc[idx]
+                        )
                     )
-                )
-            ci_lower, ci_upper = np.quantile(sample_distns[algo_value_colname],
-                                             [0.025, 0.975])
-            stats[f"{algo_name}_value_ci_lower"] = ci_lower
-            stats[f"{algo_name}_value_ci_upper"] = ci_upper
+                ci_lower, ci_upper = np.quantile(sample_distns[algo_value_colname],
+                                                 [0.025, 0.975])
+                stats[f"{algo_name}_value_ci_lower"] = ci_lower
+                stats[f"{algo_name}_value_ci_upper"] = ci_upper
 
     stats = {f"wis/{k}": v for k, v in stats.items()}
-    bootstrap_df = pd.DataFrame(sample_distns)
+    if include_ci:
+        bootstrap_df = pd.DataFrame(sample_distns)
+    else:
+        bootstrap_df = None
 
     return stats, bootstrap_df

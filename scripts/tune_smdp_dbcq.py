@@ -101,7 +101,7 @@ def train_run(config: dict,
     behavior_policy = BehaviorCloner.load(behavior_policy_path)
 
     # Train the model. Epochs refer to approximate batch coverage.
-    running_state = {}
+    running_state = {"train": {}, "val": {}}
     writer = tf.summary.create_file_writer(trial_dir)
     for epoch in range(global_config.MAX_TRAINING_EPOCHS):
         # Train over approximately the full buffer (approximately because we
@@ -117,7 +117,7 @@ def train_run(config: dict,
             # approximately once and treat that as an epoch.
             if ((batch_idx + 1) * config["batch_size"]) > len(train_data):
                 break
-        running_state["batch_qloss"] = batch_qloss / (batch_idx + 1)
+        running_state["train"]["batch_qloss"] = batch_qloss / (batch_idx + 1)
 
         # Evaluate the policy, checkpoint the model, log the metrics and plots.
         metrics, plots = evaluate_policy(epoch, policy, train_data, val_data,
@@ -212,6 +212,9 @@ def tune_run(num_samples: int,
         for k, v in train_conf.items():
             if hasattr(v, "sample"):
                 train_conf[k] = v.sample()
+            elif isinstance(v, dict):
+                if "grid_search" in v:
+                    train_conf[k] = v["grid_search"][0]
         train_run(train_conf,
                   checkpoint_dir=None,
                   train_data_path=train_data_path,

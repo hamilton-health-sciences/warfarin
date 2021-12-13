@@ -133,22 +133,22 @@ def get_dataloaders(train_data_path, val_data_path, batch_size, discount_factor,
 def evaluate_policy(epoch, policy, train_data, val_data, behavior_policy,
                     running_state):
     plot_epoch = (epoch % config.PLOT_EVERY == 0)
-    train_metrics, train_plots, _, running_state = evaluate_and_plot_policy(
+    train_metrics, train_plots, _, running_state["train"] = evaluate_and_plot_policy(
         policy,
         train_data,
         behavior_policy,
-        running_state,
+        running_state["train"],
         plot=plot_epoch
     )
-    val_metrics, val_plots, _, running_state = evaluate_and_plot_policy(
+    val_metrics, val_plots, _, running_state["val"] = evaluate_and_plot_policy(
         policy,
         val_data,
         behavior_policy,
-        running_state,
+        running_state["val"],
         plot=plot_epoch
     )
-    if "qloss" in running_state:
-        train_metrics["qloss"] = running_state["qloss"]
+    if "qloss" in running_state["train"]:
+        train_metrics["qloss"] = running_state["train"]["batch_qloss"]
     metrics = {**{f"train/{k}": v for k, v in train_metrics.items()},
                **{f"val/{k}": v for k, v in val_metrics.items()}}
     plots = {**{f"train/{k}": v for k, v in train_plots.items()},

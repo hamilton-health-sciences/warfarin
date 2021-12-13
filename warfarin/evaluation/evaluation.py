@@ -69,6 +69,9 @@ def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
         eval_state: The pass-through state var, modified to be received in the
                     next call to this function.
     """
+    if eval_state is None:
+        eval_state = {}
+
     # Extract policy decisions, observed decisions, and INR into dataframe
     state = torch.from_numpy(
         np.array(replay_buffer.observed_state).astype(np.float32)
@@ -140,9 +143,13 @@ def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
     action_diff_cols = [c for c in df.columns if "ACTION_DIFF" in c]
 
     # Use linearly interpolated INR to compute TTR
-    inr_interp = interpolate_inr(df[["INR_VALUE"]])
-    inr_interp["INR_IN_RANGE"] = ((inr_interp["INR_VALUE"] >= 2.) &
-                                  (inr_interp["INR_VALUE"] <= 3.))
+    if "inr_interp" in eval_state:
+        inr_interp = eval_state["inr_interp"]
+    else:
+        inr_interp = interpolate_inr(df[["INR_VALUE"]])
+        inr_interp["INR_IN_RANGE"] = ((inr_interp["INR_VALUE"] >= 2.) &
+                                      (inr_interp["INR_VALUE"] <= 3.))
+        eval_state["inr_interp"] = inr_interp
     ttr = inr_interp.groupby(
         ["TRIAL", "SUBJID", "TRAJID"]
     )["INR_IN_RANGE"].mean().to_frame()[["INR_IN_RANGE"]]
@@ -193,7 +200,13 @@ def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
                               wis_bootstrap_df)
     else:
         plots = {}
-    eval_state = {"prev_selected_actions": policy_action}
+    if "prev_selected_actions" in eval_state:
+        metrics["action_change"] = np.abs(
+            policy_action - eval_state["prev_selected_actions"]
+        ).mean()
+    else:
+        metrics["action_change"] = np.max(policy_action)
+    eval_state["prev_selected_actions"] = policy_action
 
     return metrics, plots, hierarchical_ttr, eval_state
 
@@ -204,7 +217,7 @@ def compute_metrics(df, disagreement_ttr, eval_state, include_tests,
 
     # WIS estimates of returns
     stats, wis_bootstrap_df = wis_returns(df, replay_buffer, learned_policy,
-                                          behavior_policy)
+                                          behavior_policy, include_tests)
 
     # Reasonable-ness
     prop_reasonable = eval_reasonable_actions(df)
@@ -286,7 +299,8 @@ def compute_plots(df, disagreement_ttr, metrics, wis_bootstrap_df):
     )
 
     # WIS plot
-    plots["wis/comparison_boxplot"] = plot_wis_boxplot(wis_bootstrap_df)
+    if wis_bootstrap_df:
+        plots["wis/comparison_boxplot"] = plot_wis_boxplot(wis_bootstrap_df)
 
     # Agreement curves and histograms
     agreement_plots = plot_agreement_ttr_curve(
