@@ -1,12 +1,18 @@
+"""Link the hierarchical TTR output to baseline RELY data."""
+
 import pandas as pd
 
 
 def main(args):
+    # Load the hierarchical TTR file output by the evaluation script.
     df = pd.read_csv(args.hierarchical_ttr_path)
+
+    # Load the linking file provided to us.
     linker = pd.read_sas(args.rely_subjid_path)
     linker.columns = ["RELY_SUBJID", "SUBJID"]
     linker["RELY_SUBJID"] = linker["RELY_SUBJID"].astype(int)
 
+    # Join the hierarchical TTR to the linking file.
     df_joined = df.set_index("SUBJID").join(
         linker.set_index("SUBJID")
     ).reset_index()
@@ -16,6 +22,7 @@ def main(args):
     )
     df_joined = df_joined.drop(["TRIAL"], axis=1)
 
+    # Write the output.
     df_joined.to_csv(args.output_path)
 
 
