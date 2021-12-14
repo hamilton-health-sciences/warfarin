@@ -252,27 +252,42 @@ def compute_done(df):
     return done
 
 
-def compute_sample_probability(df, relative_event_sample_probability):
+def compute_sample_probability(df, option, relative_event_sample_probability,
+                               weight_option_frequency):
     """
     Compute the probability of sampling a given transition.
 
-    Specifically, we assign a sample probability of 1 to all transitions. If the
+    If `weight_option_frequency` is set to `True`, transition sampling
+    probabilities are set to be inversely proportional to the frequency of
+    occurrence of the coresponding option in `option`.
+
+    Otherwise, we assign a sample probability of 1 to all transitions. If the
     transition is a part of a trajectory which experiences an adverse event as
     defined in `config.ADV_EVENTS`, we assign a relative sampling probability of
     `relative_event_sample_probability`.
 
     Args:
         df: The merged longitudinal data.
+        option: The observed option taken at the timestep.
         relative_event_sample_probability: The probability of sampling a
                                            transition in an event trajectory
                                            (relative to 1).
+        weight_option_frequency: If True, relative_event_sample_probability will
+                                 be ignored and sample probabilities will be
+                                 inversely proportional to the frequency of
+                                 occurence in `df`.
 
     Returns:
         sample_prob: The probability of sampling a given transition.
     """
-    df["IS_EVENT"] = df[config.ADV_EVENTS].sum(axis=1)
-    exp_event = df.groupby(["TRIAL", "SUBJID", "TRAJID"])["IS_EVENT"].sum() > 0
-    df["SAMPLE_PROB"] = 1.
-    df.loc[exp_event, "SAMPLE_PROB"] = relative_event_sample_probability
+    if weight_option_frequency:
+        sample_rel_prob = option.value_counts().max() / option.value_counts()
+        sample_prob = sample_rel_prob.to_dict()
+        df["SAMPLE_PROB"] = option.map(sample_prob)
+    else:
+        df["IS_EVENT"] = df[config.ADV_EVENTS].sum(axis=1)
+        exp_event = df.groupby(["TRIAL", "SUBJID", "TRAJID"])["IS_EVENT"].sum() > 0
+        df["SAMPLE_PROB"] = 1.
+        df.loc[exp_event, "SAMPLE_PROB"] = relative_event_sample_probability
 
     return df["SAMPLE_PROB"]

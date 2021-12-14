@@ -10,8 +10,6 @@ import io
 
 import pickle
 
-from plotnine.exceptions import PlotnineError
-
 from uuid import uuid4
 
 import argparse
@@ -31,8 +29,9 @@ import tensorflow as tf
 
 from warfarin import config as global_config
 from warfarin.models import SMDBCQ, BehaviorCloner
-from warfarin.utils.modeling import store_plot_tensorboard, get_dataloader
-from warfarin.evaluation import evaluate_and_plot_policy
+from warfarin.utils.modeling import (get_dataloaders,
+                                     evaluate_policy,
+                                     checkpoint_and_log)
 
 
 def train_run(config: dict,
@@ -62,20 +61,13 @@ def train_run(config: dict,
         init_seed = init_seed + int.from_bytes(trial_name_noid.encode(), "little")
         torch.manual_seed(init_seed % (2**32 - 1))
 
-    # Load the train data
-    train_data, train_loader = get_dataloader(
-        data_path=train_data_path,
-        cache_name="train_buffer.pkl",
-        batch_size=config["batch_size"],
-        discount_factor=config["discount"],
-        min_trajectory_length=global_config.MIN_TRAIN_TRAJECTORY_LENGTH
-    )
-    val_data, _ = get_dataloader(
-        data_path=val_data_path,
-        cache_name="val_buffer.pkl",
-        batch_size=config["batch_size"],
-        discount_factor=config["discount"],
-        state_transforms=train_data.state_transforms
+    # Load the data
+    train_data, train_loader, val_data, _ = get_dataloaders(
+        train_data_path,
+        val_data_path,
+        config["batch_size"],
+        config["discount"],
+        min_train_trajectory_length=global_config.MIN_TRAIN_TRAJECTORY_LENGTH
     )
 
     # Get the trial directory
@@ -108,23 +100,12 @@ def train_run(config: dict,
     # Load the behavior policy
     behavior_policy = BehaviorCloner.load(behavior_policy_path)
 
-    start = 0
-
-    # Load state from checkpoint if given
-    if checkpoint_dir:
-        # Tune state
-        with open(os.path.join(checkpoint_dir, "checkpoint")) as f:
-            state = json.loads(f.read())
-            start = state["step"] + 1
-
-        # Model
-        state_dict = torch.load(os.path.join(checkpoint_dir, "model.pt"))
-        policy.Q.load_state_dict(state_dict)
-
     # Train the model. Epochs refer to approximate batch coverage.
-    running_state = None
+    running_state = {"train": {}, "val": {}}
     writer = tf.summary.create_file_writer(trial_dir)
     for epoch in range(global_config.MAX_TRAINING_EPOCHS):
+        # Train over approximately the full buffer (approximately because we
+        # randomly sample from the buffer to create each batch).
         batch_qloss = 0.
         for batch_idx, batch in enumerate(train_loader):
             qloss = policy.train(batch)
@@ -136,44 +117,12 @@ def train_run(config: dict,
             # approximately once and treat that as an epoch.
             if ((batch_idx + 1) * config["batch_size"]) > len(train_data):
                 break
-        batch_qloss = batch_qloss / (batch_idx + 1)
+        running_state["train"]["batch_qloss"] = batch_qloss / (batch_idx + 1)
 
-        # Evaluate the policy
-        plot_epoch = (epoch % global_config.PLOT_EVERY == 0)
-        train_metrics, train_plots, running_state = evaluate_and_plot_policy(
-            policy,
-            train_data,
-            behavior_policy,
-            running_state,
-            plot=plot_epoch
-        )
-        val_metrics, val_plots, running_state = evaluate_and_plot_policy(
-            policy,
-            val_data,
-            behavior_policy,
-            running_state,
-            plot=plot_epoch
-        )
-        train_metrics["qloss"] = batch_qloss
-        metrics = {**{f"train/{k}": v for k, v in train_metrics.items()},
-                   **{f"val/{k}": v for k, v in val_metrics.items()}}
-        plots = {**{f"train/{k}": v for k, v in train_plots.items()},
-                 **{f"val/{k}": v for k, v in val_plots.items()}}
-
-        with tune.checkpoint_dir(step=epoch) as ckpt_dir_write:
-            if ckpt_dir_write:
-                # Checkpoint the model
-                ckpt_fn = os.path.join(ckpt_dir_write, "model.pt")
-                policy.save(ckpt_fn)
-
-                # Store plots for Tensorboard
-                for plot_name, plot in plots.items():
-                    try:
-                        store_plot_tensorboard(plot_name, plot, epoch, writer)
-                    except (ValueError, PlotnineError) as exc:
-                        warn(str(exc))
-
-        tune.report(**metrics)
+        # Evaluate the policy, checkpoint the model, log the metrics and plots.
+        metrics, plots = evaluate_policy(epoch, policy, train_data, val_data,
+                                         behavior_policy, running_state)
+        checkpoint_and_log(epoch, policy, writer, metrics, plots)
 
 
 def trial_namer(trial):
@@ -246,18 +195,12 @@ def tune_run(num_samples: int,
         "polyak_target_update": True,
         "target_update_freq": 100,
         # Searchable hyperparams
-        "batch_size": tune.choice([32, 128]),
-        "learning_rate": tune.choice([1e-7, 1e-6, 1e-5]),
-        "num_layers": tune.choice([2, 3, 4, 5]),
+        "batch_size": tune.grid_search([32, 128]),
+        "learning_rate": tune.grid_search([1e-7, 1e-6, 1e-5]),
+        "num_layers": tune.grid_search([2, 3]),
         "hidden_dim": 64,
         "bcq_threshold": 0.3,
         "tau": 5e-3
-        # "batch_size": tune.choice([32, 64, 128, 256]),
-        # "learning_rate": tune.loguniform(1e-7, 5e-4),
-        # "tau": tune.loguniform(5e-4, 5e-2),
-        # "num_layers": tune.choice([2, 3]),
-        # "hidden_dim": tune.choice([16, 32, 64, 128, 256]),
-        # "bcq_threshold": tune.choice([0.2, 0.3])
     }
 
     if smoke_test or tune_smoke_test:
@@ -269,6 +212,9 @@ def tune_run(num_samples: int,
         for k, v in train_conf.items():
             if hasattr(v, "sample"):
                 train_conf[k] = v.sample()
+            elif isinstance(v, dict):
+                if "grid_search" in v:
+                    train_conf[k] = v["grid_search"][0]
         train_run(train_conf,
                   checkpoint_dir=None,
                   train_data_path=train_data_path,
@@ -277,23 +223,6 @@ def tune_run(num_samples: int,
                   init_seed=init_seed,
                   smoke_test=True)
         exit()
-
-    # Specify algorithm for selecting the next set of hyperparameters to try
-    # intelligently (TPE algo)
-    searcher = HyperOptSearch(
-        metric=target_metric,
-        mode=mode,
-        random_state_seed=tune_seed
-    )
-
-    # Aggressively terminate underperforming models after a minimum number of
-    # iterations
-    scheduler = AsyncHyperBandScheduler(
-        metric=target_metric,
-        mode=mode,
-        max_t=global_config.MAX_TRAINING_EPOCHS,
-        grace_period=global_config.MIN_TRAINING_EPOCHS
-    )
 
     if resume_errored:
         resume = "ERRORED_ONLY"
@@ -324,8 +253,6 @@ def tune_run(num_samples: int,
         },
         config=tune_config,
         num_samples=num_samples,
-        search_alg=searcher,
-        scheduler=scheduler,
         progress_reporter=reporter,
         local_dir=output_dir,
         name="dbcq",

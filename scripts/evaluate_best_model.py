@@ -68,13 +68,18 @@ def main(args):
     trial_config = analysis.get_all_configs()[best_trial_name]
 
     # Load the data
-    if "test" in args.data_path:
-        raise ValueError("We're not testing on the test set yet.")
-    data, _ = get_dataloader(
-        data_path=args.data_path,
+    train_data, _ = get_dataloader(
+        data_path=args.train_data_path,
         cache_name="train_buffer.pkl",
         batch_size=trial_config["batch_size"],
         discount_factor=trial_config["discount"]
+    )
+    data, _ = get_dataloader(
+        data_path=args.data_path,
+        cache_name="eval_buffer.pkl",
+        batch_size=trial_config["batch_size"],
+        discount_factor=trial_config["discount"],
+        option_means=train_data.option_means
     )
 
     # TODO probably refactor this as it's duplicated from the tuning script rn
@@ -106,7 +111,7 @@ def main(args):
         behavior_policy = None
 
     # Compute evaluation metrics on the buffer
-    metrics, plots, _ = evaluate_and_plot_policy(
+    metrics, plots, hierarchical_ttr, _ = evaluate_and_plot_policy(
         policy, data, include_tests=True, behavior_policy=behavior_policy
     )
 
@@ -121,6 +126,11 @@ def main(args):
     # Write quantitative metrics
     metrics_output = os.path.join(args.output_prefix, "metrics.json")
     json.dump(metrics, open(metrics_output, "w"))
+
+    # Write dataframe for hierarchical ttr
+    hierarchical_ttr_output = os.path.join(args.output_prefix,
+                                           "hierarchical_ttr.csv")
+    hierarchical_ttr.to_csv(hierarchical_ttr_output)
 
     # Output plots
     for plot_name, plot in plots.items():
@@ -156,6 +166,12 @@ if __name__ == "__main__":
         required=False,
         help=("If given, will select this epoch rather than based on an "
               "evaluation metric")
+    )
+    parser.add_argument(
+        "--train_data_path",
+        type=str,
+        required=True,
+        help="Path to data used to train the model"
     )
     parser.add_argument(
         "--data_path",

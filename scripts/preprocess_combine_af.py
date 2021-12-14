@@ -69,8 +69,7 @@ def preprocess(args):
     merged_all.reset_index(drop=True).to_feather(merged_path)
 
     # Split the data
-    test_ids = np.loadtxt(args.test_ids_path).astype(int)
-    train_data, val_data, test_data = split_data(merged_all, test_ids)
+    train_data, val_data, test_data = split_data(merged_all, seed=args.seed)
 
     # Save the split output
     train_path = os.path.join(args.output_directory, "train_data.feather")
@@ -123,14 +122,6 @@ if __name__ == "__main__":
         required=True,
         type=str,
         help="Path to the directory to output the cleaned data"
-    )
-    parser.add_argument(
-        "--test_ids_path",
-        type=str,
-        required=True,
-        help=("Path to the IDs of subjects to include in the test set. Needed "
-              "to ensure that the test set doesn't change during model "
-              "development")
     )
     parser.add_argument(
         "--output_preprocess_args",

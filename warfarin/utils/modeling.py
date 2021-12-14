@@ -1,5 +1,9 @@
 """Utilities for tuning and evaluation."""
 
+from typing import Optional
+
+from warnings import warn
+
 import os
 
 import io
@@ -12,8 +16,13 @@ import pandas as pd
 
 from torch.utils.data import DataLoader, WeightedRandomSampler, BatchSampler
 
+from ray import tune
+
+from plotnine.exceptions import PlotnineError
+
 from warfarin import config
 from warfarin.data import WarfarinReplayBuffer
+from warfarin.evaluation import evaluate_and_plot_policy
 
 
 def store_plot_tensorboard(plot_name, plot, step, writer):
@@ -46,6 +55,7 @@ def store_plot_tensorboard(plot_name, plot, step, writer):
 def get_dataloader(data_path: str,
                    cache_name: str,
                    batch_size: int,
+                   option_means: Optional[dict] = None,
                    use_random: bool = True,
                    **replay_buffer_params):
     """
@@ -57,6 +67,9 @@ def get_dataloader(data_path: str,
         cache_name: The name of the file in the cache directory to store the
                     buffer.
         batch_size: Batch size to sample.
+        option_means: The mean dose change for each option.
+        use_random: Whether to weight the samples based on their sample
+                    probability in the replay buffer.
         replay_buffer_params: Additional arguments to the replay buffer.
 
     Returns:
@@ -70,6 +83,7 @@ def get_dataloader(data_path: str,
         data = WarfarinReplayBuffer(
             df=df,
             device="cuda",
+            option_means=option_means,
             **replay_buffer_params
         )
         os.makedirs(config.CACHE_PATH, exist_ok=True)
@@ -89,3 +103,72 @@ def get_dataloader(data_path: str,
         dl = DataLoader(data, batch_size=batch_size)
 
     return data, dl
+
+
+def get_dataloaders(train_data_path, val_data_path, batch_size, discount_factor,
+                    min_train_trajectory_length,
+                    weight_option_frequency_train=False,
+                    use_random_train=True):
+    train_data, train_loader = get_dataloader(
+        data_path=train_data_path,
+        cache_name="train_buffer.pkl",
+        batch_size=batch_size,
+        discount_factor=discount_factor,
+        min_trajectory_length=min_train_trajectory_length,
+        use_random=use_random_train,
+        weight_option_frequency=weight_option_frequency_train
+    )
+    val_data, val_loader = get_dataloader(
+        data_path=val_data_path,
+        cache_name="val_buffer.pkl",
+        batch_size=batch_size,
+        discount_factor=discount_factor,
+        state_transforms=train_data.state_transforms,
+        use_random=False
+    )
+
+    return train_data, train_loader, val_data, val_loader
+
+
+def evaluate_policy(epoch, policy, train_data, val_data, behavior_policy,
+                    running_state):
+    plot_epoch = (epoch % config.PLOT_EVERY == 0)
+    train_metrics, train_plots, _, running_state["train"] = evaluate_and_plot_policy(
+        policy,
+        train_data,
+        behavior_policy,
+        running_state["train"],
+        plot=plot_epoch
+    )
+    val_metrics, val_plots, _, running_state["val"] = evaluate_and_plot_policy(
+        policy,
+        val_data,
+        behavior_policy,
+        running_state["val"],
+        plot=plot_epoch
+    )
+    if "qloss" in running_state["train"]:
+        train_metrics["qloss"] = running_state["train"]["batch_qloss"]
+    metrics = {**{f"train/{k}": v for k, v in train_metrics.items()},
+               **{f"val/{k}": v for k, v in val_metrics.items()}}
+    plots = {**{f"train/{k}": v for k, v in train_plots.items()},
+             **{f"val/{k}": v for k, v in val_plots.items()}}
+
+    return metrics, plots
+
+
+def checkpoint_and_log(epoch, model, writer, metrics, plots):
+    with tune.checkpoint_dir(step=epoch) as ckpt_dir_write:
+        if ckpt_dir_write:
+            # Checkpoint the model
+            ckpt_fn = os.path.join(ckpt_dir_write, "model.pt")
+            model.save(ckpt_fn)
+
+            # Store plots for Tensorboard
+            for plot_name, plot in plots.items():
+                try:
+                    store_plot_tensorboard(plot_name, plot, epoch, writer)
+                except (ValueError, PlotnineError) as exc:
+                    warn(str(exc))
+
+    tune.report(**metrics)

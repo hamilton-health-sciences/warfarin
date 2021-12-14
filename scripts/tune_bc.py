@@ -13,29 +13,25 @@ from ray.tune import CLIReporter
 from ray.tune.suggest.hyperopt import HyperOptSearch
 from ray.tune.schedulers import AsyncHyperBandScheduler
 
+import tensorflow as tf
+
 from warfarin import config as global_config
 from warfarin.models import BehaviorCloner
-from warfarin.utils.modeling import get_dataloader
+from warfarin.utils.modeling import get_dataloaders, checkpoint_and_log
+from warfarin.utils.ordinal import compute_cutpoints
 from warfarin.evaluation import evaluate_behavioral_cloning
 
 
 def train_run(config, train_data_path, val_data_path, init_seed, smoke_test=False):
     # Generate data buffers
-    train_data, train_loader = get_dataloader(
-        data_path=train_data_path,
-        cache_name="train_buffer.pkl",
-        batch_size=config["batch_size"],
-        discount_factor=config["discount"],
-        min_trajectory_length=global_config.MIN_TRAIN_TRAJECTORY_LENGTH,
-        use_random=False
-    )
-    val_data, val_loader = get_dataloader(
-        data_path=val_data_path,
-        cache_name="val_buffer.pkl",
-        batch_size=config["batch_size"],
-        discount_factor=config["discount"],
-        state_transforms=train_data.state_transforms,
-        use_random=False
+    train_data, train_loader, val_data, val_loader = get_dataloaders(
+        train_data_path,
+        val_data_path,
+        config["batch_size"],
+        config["discount"],
+        min_train_trajectory_length=global_config.MIN_TRAIN_TRAJECTORY_LENGTH,
+        weight_option_frequency_train=True,
+        use_random_train=True
     )
 
     trial_dir = tune.get_trial_dir()
@@ -47,6 +43,9 @@ def train_run(config, train_data_path, val_data_path, init_seed, smoke_test=Fals
     pickle.dump(train_data.state_transforms,
                 open(state_transforms_path, "wb"))
 
+    # Compute frequency
+    cutpoints = compute_cutpoints(train_data.option)
+
     # Build the model trainer
     num_actions = len(global_config.ACTION_LABELS)
     model = BehaviorCloner(
@@ -55,10 +54,13 @@ def train_run(config, train_data_path, val_data_path, init_seed, smoke_test=Fals
         num_layers=config["num_layers"],
         hidden_dim=config["hidden_dim"],
         lr=config["learning_rate"],
+        likelihood=config["likelihood"],
+        cutpoints=cutpoints,
         device="cuda"
     )
 
     # Train the model
+    writer = tf.summary.create_file_writer(trial_dir)
     for epoch in range(global_config.MAX_BC_TRAINING_EPOCHS):
         epoch_loss = 0.
         for batch_idx, batch in enumerate(train_loader):
@@ -69,18 +71,15 @@ def train_run(config, train_data_path, val_data_path, init_seed, smoke_test=Fals
         epoch_loss /= (batch_idx + 1)
 
         # Get metrics of interest
-        train_metrics = evaluate_behavioral_cloning(model, train_loader)
-        val_metrics = evaluate_behavioral_cloning(model, val_loader)
+        train_metrics, train_plots = evaluate_behavioral_cloning(model, train_data)
+        val_metrics, val_plots = evaluate_behavioral_cloning(model, val_data)
         metrics = {**{f"train/{k}": v for k, v in train_metrics.items()},
                    **{f"val/{k}": v for k, v in val_metrics.items()}}
+        plots = {**{f"train/{k}": v for k, v in train_plots.items()},
+                 **{f"val/{k}": v for k, v in val_plots.items()}}
 
         # Checkpoint and log metrics using Ray Tune
-        with tune.checkpoint_dir(step=epoch) as ckpt_dir_write:
-            if ckpt_dir_write:
-                # Checkpoint the model
-                ckpt_fn = os.path.join(ckpt_dir_write, "model.pt")
-                model.save(ckpt_fn)
-        tune.report(**metrics)
+        checkpoint_and_log(epoch, model, writer, metrics, plots)
 
 
 def trial_namer(trial):
@@ -99,7 +98,6 @@ def tune_run(num_samples: int,
              tune_seed: int,
              init_seed: int,
              output_dir: str,
-             resume_errored: bool,
              train_data_path: str,
              val_data_path: str,
              target_metric: str,
@@ -107,10 +105,11 @@ def tune_run(num_samples: int,
              smoke_test: bool,
              tune_smoke_test: bool):
     tune_config = {
-        "learning_rate": tune.choice([1e-4, 1e-3, 1e-2]),
-        "batch_size": tune.choice([32, 64, 128, 256]),
-        "num_layers": tune.choice([2, 3]),
-        "hidden_dim": tune.choice([16, 32, 64, 128, 256]),
+        "likelihood": tune.grid_search(["discrete", "ordered"]),
+        "learning_rate": tune.grid_search([1e-4, 1e-3]),
+        "batch_size": tune.grid_search([16, 128]),
+        "num_layers": tune.grid_search([2, 3]),
+        "hidden_dim": tune.grid_search([16, 64]),
         # Ignored, as we do not use the rewards for BC training.
         "discount": 0.99
     }
@@ -123,33 +122,15 @@ def tune_run(num_samples: int,
         for k, v in train_conf.items():
             if hasattr(v, "sample"):
                 train_conf[k] = v.sample()
+            elif isinstance(v, dict):
+                if "grid_search" in v:
+                    train_conf[k] = v["grid_search"][0]
         train_run(train_conf,
                   train_data_path=train_data_path,
                   val_data_path=val_data_path,
                   init_seed=init_seed,
                   smoke_test=True)
         exit()
-
-    # Use intelligent hyperparameter search
-    searcher = HyperOptSearch(
-        metric=target_metric,
-        mode=mode,
-        random_state_seed=tune_seed
-    )
-
-    # Aggressively terminate underperforming models after a minimum number of
-    # iterations
-    scheduler = AsyncHyperBandScheduler(
-        metric=target_metric,
-        mode=mode,
-        max_t=global_config.MAX_BC_TRAINING_EPOCHS,
-        grace_period=global_config.MIN_BC_TRAINING_EPOCHS
-    )
-
-    if resume_errored:
-        resume = "ERRORED_ONLY"
-    else:
-        resume = None
 
     # How progress will be reported to the CLI
     par_cols = ["batch_size", "learning_rate", "num_layers", "hidden_dim"]
@@ -170,13 +151,11 @@ def tune_run(num_samples: int,
         resources_per_trial={"cpu": 8, "gpu": 1},
         config=tune_config,
         num_samples=num_samples,
-        scheduler=scheduler,
         progress_reporter=reporter,
         local_dir=output_dir,
         name="bc",
         # TODO
-        trial_name_creator=trial_namer,
-        resume=resume
+        trial_name_creator=trial_namer
     )
 
 
@@ -187,7 +166,6 @@ def main():
     parser.add_argument("--target_metric", type=str, default="val/accuracy")
     parser.add_argument("--mode", type=str, choices=["min", "max"],
                         default="max")
-    parser.add_argument("--resume_errored", action="store_true", default=False)
     parser.add_argument("--tune_seed", type=int, default=0)
     parser.add_argument("--init_seed", type=int, default=1)
     parser.add_argument("--output_dir", type=str, default="./ray_logs")
@@ -206,7 +184,6 @@ def main():
         tune_seed=args.tune_seed,
         init_seed=args.init_seed,
         output_dir=args.output_dir,
-        resume_errored=args.resume_errored,
         target_metric=args.target_metric,
         mode=args.mode,
         # Model/data parameters

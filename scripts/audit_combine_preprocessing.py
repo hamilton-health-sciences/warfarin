@@ -405,15 +405,21 @@ def audit_split_data():
     """
     Audit the results of splitting the data into train/validation/test.
     """
-    df_path = os.path.join(config.AUDIT_PATH, "split_data_test.feather")
-    df = pd.read_feather(df_path)
+    train_df_path = os.path.join(config.AUDIT_PATH, "split_data_train.feather")
+    train_df = pd.read_feather(train_df_path)
 
-    test_subjid = np.asarray(df["SUBJID"])
-    prescribed_test_subjid = np.loadtxt("./data/test_subject_ids.txt")
+    val_df_path = os.path.join(config.AUDIT_PATH, "split_data_val.feather")
+    val_df = pd.read_feather(val_df_path)
 
-    msg = "Test set subject IDs not as prescribed! This represents an error"
+    test_df_path = os.path.join(config.AUDIT_PATH, "split_data_test.feather")
+    test_df = pd.read_feather(test_df_path)
 
-    assert len(np.setdiff1d(test_subjid, prescribed_test_subjid)) == 0, msg
+    msg = "Data split not correct"
+    assert len(np.intersect1d(train_df["SUBJID"], val_df["SUBJID"])) == 0
+    assert np.sum(val_df["TRIAL"] != "ARISTOTLE") == 0, msg
+    assert np.sum(train_df["TRIAL"] == "RELY") == 0, msg
+    assert np.sum(val_df["TRIAL"] == "RELY") == 0, msg
+    assert np.sum(test_df["TRIAL"] != "RELY") == 0, msg
 
 
 def plot_transitions():

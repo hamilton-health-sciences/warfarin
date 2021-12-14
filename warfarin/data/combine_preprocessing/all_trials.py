@@ -6,7 +6,7 @@ import pandas as pd
 
 from warfarin import config
 from warfarin.data.auditing import auditable
-from warfarin.data.utils import split_traj, split_data_ids
+from warfarin.data.utils import split_traj
 
 
 @auditable("inr", "events", "baseline")
@@ -394,36 +394,42 @@ def merge_inr_baseline(inr_merged, baseline):
 
 
 @auditable("train", "val", "test")
-def split_data(inr_merged, test_ids):
+def split_data(inr_merged, seed=42):
     """
     Split data into train, validation, and test data.
+
+    Train is made up of all trials except RELY. Validation is made up of a
+    portion of ARISTOTLE, on the basis that ENGAGE and ROCKET weekly doses may be
+    less reliably recorded/computed.
 
     Args:
         inr_merged: The dataframe containing the preprocessed, merged data.
 
     Returns:
-        train: The data used for model training.
-        val: The data used for validation (hyperparameter tuning).
-        test: The data used for final model testing.
+        train_data: The data used for model training.
+        val_data: The data used for validation (hyperparameter tuning).
+        test_data: The data used for final model testing.
     """
-    aristotle_ids = inr_merged["SUBJID"][inr_merged["TRIAL"] == "ARISTOTLE"]
-    other_ids = np.setdiff1d(aristotle_ids, test_ids)
-    test_data = inr_merged[inr_merged["SUBJID"].isin(test_ids)].copy()
+    # Seed RNG for validation splitting
+    np.random.seed(seed)
 
-    other_patient_ids = inr_merged[
-        inr_merged["TRIAL"] != "ARISTOTLE"
-    ]["SUBJID"].unique()
-    other_patient_ids = np.append(other_patient_ids, other_ids)
+    # Train/val vs. test split
+    test_data = inr_merged[inr_merged["TRIAL"] == "RELY"].copy()
+    train_val_data = inr_merged[inr_merged["TRIAL"] != "RELY"].copy()
 
-    arist_rely_data = inr_merged[
-        inr_merged["TRIAL"].isin(["ARISTOTLE", "RELY"]) &
-        inr_merged["SUBJID"].isin(other_patient_ids)
-    ]
-    val_ids, other_ids = split_data_ids(arist_rely_data, split_perc=0.2)
-    val_data = inr_merged[inr_merged["SUBJID"].isin(val_ids)].copy()
-
-    train_sel = ~inr_merged["SUBJID"].isin(np.append(val_ids, test_ids))
-    train_data = inr_merged[train_sel].copy()
+    # Train vs. val split
+    train_val_subjid = np.unique(train_val_data["SUBJID"])
+    aristotle_idx = np.unique(
+        train_val_data.loc[train_val_data["TRIAL"] == "ARISTOTLE", "SUBJID"]
+    )
+    val_idx = np.random.choice(
+        aristotle_idx,
+        size=np.floor(0.2 * len(aristotle_idx)).astype(int),
+        replace=False
+    )
+    train_idx = np.setdiff1d(train_val_subjid, val_idx)
+    train_data = train_val_data.loc[train_val_data["SUBJID"].isin(train_idx)]
+    val_data = train_val_data.loc[train_val_data["SUBJID"].isin(val_idx)]
 
     return train_data, val_data, test_data
 
