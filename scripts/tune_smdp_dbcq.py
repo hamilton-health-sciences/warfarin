@@ -1,5 +1,7 @@
 """Hyperparameter tuning and model training."""
 
+from typing import Optional
+
 from functools import partial
 
 from warnings import warn
@@ -38,7 +40,9 @@ def train_run(config: dict,
               checkpoint_dir: str,
               train_data_path: str,
               val_data_path: str,
-              behavior_policy_path: str,
+              feasibility_behavior_policy_path: str,
+              no_freeze_feasibility_init: str,
+              wis_behavior_policy_path: str,
               init_seed: int,
               smoke_test: bool = False):
     """
@@ -49,7 +53,13 @@ def train_run(config: dict,
         checkpoint_dir: The checkpointing directory path created by Ray Tune.
         train_data_path: The path to the training buffer.
         val_data_path: The path to the validation buffer.
-        behavior_policy_path: The path to the behavior policy savefile.
+        feasibility_behavior_policy_path: The path to the behavior policy (for
+                                          generative network init) savefile.
+        no_freeze_feasibility_init: If False, and
+                                    `feasibility_behavior_policy_path` is given,
+                                    the generative network will be frozen.
+        wis_behavior_policy_path: The path to the behavior policy (for WIS)
+                                  savefile.
         init_seed: Random seed for reproducibility within a set of
                    hyperparameters.
     """
@@ -80,6 +90,12 @@ def train_run(config: dict,
     pickle.dump(train_data.state_transforms,
                 open(state_transforms_path, "wb"))
 
+    # Load initializer of generative network if given
+    if feasibility_behavior_policy_path is None:
+        gen_network_init = None
+    else:
+        gen_network_init = BehaviorCloner.load(feasibility_behavior_policy_path)
+
     # Build the model trainer
     num_actions = len(global_config.ACTION_LABELS)
     policy = SMDBCQ(
@@ -94,11 +110,13 @@ def train_run(config: dict,
         target_update_frequency=config["target_update_freq"],
         tau=config["tau"],
         hidden_states=config["hidden_dim"],
-        num_layers=config["num_layers"]
+        num_layers=config["num_layers"],
+        generative_network_init=gen_network_init,
+        freeze_generative_network=(not no_freeze_feasibility_init)
     )
 
-    # Load the behavior policy
-    behavior_policy = BehaviorCloner.load(behavior_policy_path)
+    # Load the behavior policy for WIS
+    wis_behavior_policy = BehaviorCloner.load(wis_behavior_policy_path)
 
     # Train the model. Epochs refer to approximate batch coverage.
     running_state = {"train": {}, "val": {}}
@@ -121,7 +139,7 @@ def train_run(config: dict,
 
         # Evaluate the policy, checkpoint the model, log the metrics and plots.
         metrics, plots = evaluate_policy(epoch, policy, train_data, val_data,
-                                         behavior_policy, running_state)
+                                         wis_behavior_policy, running_state)
         checkpoint_and_log(epoch, policy, writer, metrics, plots)
 
 
@@ -158,7 +176,9 @@ def tune_run(num_samples: int,
              resume_errored: bool,
              train_data_path: str,
              val_data_path: str,
-             behavior_policy_path: str,
+             feasibility_behavior_policy_path: Optional[str],
+             no_freeze_feasibility_init: bool,
+             wis_behavior_policy_path: str,
              target_metric: str,
              mode: str,
              smoke_test: bool,
@@ -175,8 +195,15 @@ def tune_run(num_samples: int,
         resume_errored: Whether to resume errored trials or start from scratch.
         train_data_path: The path to the training data.
         val_data_path: The path to the validation data.
-        behavior_policy_path: The path to the behavior policy, for WIS estimates
-                              of performance.
+        feasibility_behavior_policy_path: The path to the behavior policy, for
+                                          initializing the generative network of
+                                          the BCQ model.
+        no_freeze_feasibility_init: If False, and the
+                                    feasibility_behavior_policy_path is given,
+                                    then the generative network will be frozen
+                                    after initialization. Otherwise ignored.
+        wis_behavior_policy_path: The path to the behavior policy, for WIS estimates
+                                  of performance.
         target_metric: The metric to optimize over the space of possible
                        hyperparameters.
         mode: Whether to "max" or "min" the target metric.
@@ -215,13 +242,17 @@ def tune_run(num_samples: int,
             elif isinstance(v, dict):
                 if "grid_search" in v:
                     train_conf[k] = v["grid_search"][0]
-        train_run(train_conf,
-                  checkpoint_dir=None,
-                  train_data_path=train_data_path,
-                  val_data_path=val_data_path,
-                  behavior_policy_path=behavior_policy_path,
-                  init_seed=init_seed,
-                  smoke_test=True)
+        train_run(
+            train_conf,
+            checkpoint_dir=None,
+            train_data_path=train_data_path,
+            val_data_path=val_data_path,
+            feasibility_behavior_policy_path=feasibility_behavior_policy_path,
+            no_freeze_feasibility_init=no_freeze_feasibility_init,
+            wis_behavior_policy_path=wis_behavior_policy_path,
+            init_seed=init_seed,
+            smoke_test=True
+        )
         exit()
 
     if resume_errored:
@@ -243,6 +274,8 @@ def tune_run(num_samples: int,
             train_run,
             train_data_path=train_data_path,
             val_data_path=val_data_path,
+            feasibility_behavior_policy_path=feasibility_behavior_policy_path,
+            no_freeze_feasibility_init=no_freeze_feasibility_init,
             behavior_policy_path=behavior_policy_path,
             init_seed=init_seed,
             smoke_test=tune_smoke_test
@@ -289,7 +322,22 @@ def main():
         help="Whether to minimize or maximize the target metric"
     )
     parser.add_argument(
-        "--behavior_policy",
+        "--feasibility_behavior_policy",
+        type=str,
+        required=False,
+        default=None,
+        help="Path to the behavior policy used to initialize the generative "
+             "network of the BCQ model"
+    )
+    parser.add_argument(
+        "--no_freeze_initialized_feasibility",
+        default=False,
+        action="store_true",
+        help="If set, does not freeze the initialized generative network when "
+             "given. Ignored if no initial generative network given."
+    )
+    parser.add_argument(
+        "--wis_behavior_policy",
         type=str,
         required=True,
         help="Path to the behavior policy savefile for WIS estimates"
@@ -346,8 +394,11 @@ def main():
         resume_errored=args.resume_errored,
         target_metric=args.target_metric,
         mode=args.mode,
-        # Behavior cloning
-        behavior_policy_path=args.behavior_policy,
+        # Initialization of generative network
+        feasibility_behavior_policy_path=args.feasibility_behavior_policy,
+        no_freeze_feasibility_init=args.no_freeze_initialized_feasibility,
+        # WIS behavior cloner
+        wis_behavior_policy_path=args.wis_behavior_policy,
         # Model/data parameters
         train_data_path=args.train_data,
         val_data_path=args.val_data,

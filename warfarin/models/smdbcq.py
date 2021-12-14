@@ -75,7 +75,9 @@ class SMDBCQ(object):
                  target_update_frequency=8e3,
                  tau=0.005,
                  hidden_states=25,
-                 num_layers=3):
+                 num_layers=3,
+                 generative_network_init=None,
+                 freeze_generative_network=False):
         # Dimensionality of action space
         self.num_actions = num_actions
 
@@ -90,6 +92,17 @@ class SMDBCQ(object):
                      num_actions,
                      hidden_states=hidden_states,
                      num_layers=num_layers).to(self.device)
+
+        # If generative network init given, set the parameters correctly
+        if generative_network_init:
+            self.q.i.load_state_dict(
+                generative_network_init.backbone.state_dict()
+            )
+            # If freezing the generative network in this well-initialized state
+            if freeze_generative_network:
+                for param in self.q.i.parameters():
+                    param.requires_grad = False
+
         self.q_target = copy.deepcopy(self.q)
         if optimizer_parameters is None:
             optimizer_parameters = {}
