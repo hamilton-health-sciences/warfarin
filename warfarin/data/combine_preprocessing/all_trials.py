@@ -418,13 +418,16 @@ def split_data(inr_merged, seed=42):
     train_val_data = inr_merged[inr_merged["TRIAL"] != "RELY"].copy()
 
     # Train vs. val split
-    aristotle_idx = train_val_data.loc[train_val_data["TRIAL"] == "ARISTOTLE", "SUBJID"]
+    train_val_subjid = np.unique(train_val_data["SUBJID"])
+    aristotle_idx = np.unique(
+        train_val_data.loc[train_val_data["TRIAL"] == "ARISTOTLE", "SUBJID"]
+    )
     val_idx = np.random.choice(
         aristotle_idx,
         size=np.floor(0.2 * len(aristotle_idx)).astype(int),
         replace=False
     )
-    train_idx = np.setdiff1d(train_val_data["SUBJID"], val_idx)
+    train_idx = np.setdiff1d(train_val_subjid, val_idx)
     train_data = train_val_data.loc[train_val_data["SUBJID"].isin(train_idx)]
     val_data = train_val_data.loc[train_val_data["SUBJID"].isin(val_idx)]
 
