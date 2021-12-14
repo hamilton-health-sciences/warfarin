@@ -30,7 +30,7 @@ def train_run(config, train_data_path, val_data_path, init_seed, smoke_test=Fals
         config["batch_size"],
         config["discount"],
         min_train_trajectory_length=global_config.MIN_TRAIN_TRAJECTORY_LENGTH,
-        weight_option_frequency_train=True,
+        weight_option_frequency_train=config["weight_option_frequency"],
         use_random_train=True
     )
 
@@ -43,7 +43,7 @@ def train_run(config, train_data_path, val_data_path, init_seed, smoke_test=Fals
     pickle.dump(train_data.state_transforms,
                 open(state_transforms_path, "wb"))
 
-    # Compute frequency
+    # Compute frequency-based cutpoints
     cutpoints = compute_cutpoints(train_data.option)
 
     # Build the model trainer
@@ -106,10 +106,13 @@ def tune_run(num_samples: int,
              tune_smoke_test: bool):
     tune_config = {
         "likelihood": tune.grid_search(["discrete", "ordered"]),
-        "learning_rate": tune.grid_search([1e-4, 1e-3]),
+        "learning_rate": 1e-4,
         "batch_size": tune.grid_search([16, 128]),
-        "num_layers": tune.grid_search([2, 3]),
-        "hidden_dim": tune.grid_search([16, 64]),
+        "num_layers": 2,
+        "hidden_dim": 64,
+        # Inverse-weighting by option frequency seems to result in worse models
+        # without post-hoc probability calibration, so we don't do it.
+        "weight_option_frequency": False,
         # Ignored, as we do not use the rewards for BC training.
         "discount": 0.99
     }
@@ -150,7 +153,7 @@ def tune_run(num_samples: int,
         ),
         resources_per_trial={"cpu": 8, "gpu": 1},
         config=tune_config,
-        num_samples=num_samples,
+        # num_samples=num_samples,
         progress_reporter=reporter,
         local_dir=output_dir,
         name="bc",
