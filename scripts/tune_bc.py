@@ -132,22 +132,6 @@ def tune_run(num_samples: int,
                   smoke_test=True)
         exit()
 
-    # Use intelligent hyperparameter search
-    searcher = HyperOptSearch(
-        metric=target_metric,
-        mode=mode,
-        random_state_seed=tune_seed
-    )
-
-    # Aggressively terminate underperforming models after a minimum number of
-    # iterations
-    # scheduler = AsyncHyperBandScheduler(
-    #     metric=target_metric,
-    #     mode=mode,
-    #     max_t=global_config.MAX_BC_TRAINING_EPOCHS,
-    #     grace_period=global_config.MIN_BC_TRAINING_EPOCHS
-    # )
-
     # How progress will be reported to the CLI
     par_cols = ["batch_size", "learning_rate", "num_layers", "hidden_dim"]
     reporter = CLIReporter(
@@ -167,7 +151,6 @@ def tune_run(num_samples: int,
         resources_per_trial={"cpu": 8, "gpu": 1},
         config=tune_config,
         num_samples=num_samples,
-        # scheduler=scheduler,
         progress_reporter=reporter,
         local_dir=output_dir,
         name="bc",
