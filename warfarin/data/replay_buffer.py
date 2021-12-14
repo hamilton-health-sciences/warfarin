@@ -226,11 +226,14 @@ class WarfarinReplayBuffer(TensorDataset):
         if self._option_means:
             return self._option_means
 
-        obs_action_quant = self.df.groupby(
+        prev_dose = self.df["WARFARIN_DOSE"]
+        dose = self.df.groupby(
             ["TRIAL", "SUBJID", "TRAJID"]
-        )["WARFARIN_DOSE"].shift(-1) / self.df["WARFARIN_DOSE"] - 1.
+        )["WARFARIN_DOSE"].shift(-1)
+        obs_action_quant = dose / prev_dose
+        obs_action_quant[(prev_dose == 0.) & (dose == 0.)] = 1.
         df = obs_action_quant.to_frame()
-        option = code_quantitative_decision(obs_action_quant + 1.)
+        option = code_quantitative_decision(obs_action_quant)
         df["OPTION"] = option
         option_means = df[np.isfinite(df["WARFARIN_DOSE"])].groupby(
             "OPTION"

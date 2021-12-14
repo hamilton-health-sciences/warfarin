@@ -133,9 +133,14 @@ def extract_observed_decision(df):
         option: The observed dose adjustment options in the data as a pd.Series.
     """
     # Compute the dose change undertaken by the clinician
-    df["WARFARIN_DOSE_MULT"] = df.groupby(
-        ["TRIAL", "SUBJID", "TRAJID"]
-    )["WARFARIN_DOSE"].shift(-1) / df["WARFARIN_DOSE"]
+    dose = df.groupby(["TRIAL", "SUBJID", "TRAJID"])["WARFARIN_DOSE"].shift(-1)
+    prev_dose = df["WARFARIN_DOSE"]
+    df["WARFARIN_DOSE_MULT"] = dose / prev_dose
+
+    # Ensure that when both the current and previous dose is zero, we record it
+    # as no change.
+    sel_consecutive_zero = (dose == 0.) & (prev_dose == 0.)
+    df.loc[sel_consecutive_zero, "WARFARIN_DOSE_MULT"] = 1.
 
     # Actions
     action_code = code_quantitative_decision(df["WARFARIN_DOSE_MULT"])
