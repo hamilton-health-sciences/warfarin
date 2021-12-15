@@ -37,7 +37,8 @@ correctness.
 ### Behavioral cloning
 
 When using WIS-estimated value as the model selection metric, a behavioral
-cloning model is necessary. To tune it:
+cloning model is necessary. Additionally, the "generative network" of the BCQ
+model can be fixed to a behavioral cloner as well. To tune it:
 
     $ python3 scripts/tune_bc.py \
         --train_data `pwd`/data/clean_data/train_data.feather \
@@ -50,6 +51,24 @@ Tensorboard:
 
     $ python3 -m tensorboard.main --logdir=./ray_logs/bc
 
+#### Evaluating & choosing the behavior cloner
+
+The behavior cloners for WIS and SMDP-BCQ generative network initialization can
+then be selected and evaluted by doing:
+
+    $ python3 scripts/choose_bc.py \
+        --train_data_path ./data/clean_data/train_data.feather \
+        --data_path ./data/clean_data/val_data.feather \
+        --target_metric "val/calibration_error" \
+        --mode min \
+        --output_prefix ./output/wis_behavior_cloner
+    $ python3 scripts/choose_bc.py \
+        --train_data_path ./data/clean_data/train_data.feather \
+        --data_path ./data/clean_data/val_data.feather \
+        --target_metric "val/multi_f1_0.3" \
+        --mode max \
+        --output_prefix ./output/generative_network_behavior_cloner
+
 ### SMDP-dBCQ
 
 With a GPU available, train and tune the dBCQ model on the development set,
@@ -59,7 +78,8 @@ value of the policy:
     $ python3 scripts/tune_smdp_dbcq.py \
         --train_data `pwd`/data/clean_data/train_data.feather \
         --val_data `pwd`/data/clean_data/val_data.feather \
-        --behavior_policy $PATH_TO_BEHAVIOR_POLICY_MODEL_PT \
+        --feasibility_behavior_policy `pwd`/output/generative_network_behavior_cloner/checkpoint.pt \
+        --wis_behavior_policy `pwd`/output/wis_behavior_cloner/checkpoint.pt \
         --target_metric "val/wis/policy_value" \
         --mode max
 

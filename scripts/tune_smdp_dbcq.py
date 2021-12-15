@@ -215,19 +215,19 @@ def tune_run(num_samples: int,
                          training loop run once to ensure code validity.
     """
     tune_config = {
-        # Fixed hyperparams
-        "optimizer": "Adam",
-        "discount": 0.99,
         # Fixed no-ops
         "polyak_target_update": True,
         "target_update_freq": 100,
-        # Searchable hyperparams
-        "batch_size": tune.grid_search([32, 128]),
-        "learning_rate": tune.grid_search([1e-7, 1e-6, 1e-5]),
-        "num_layers": tune.grid_search([2, 3]),
+        # Fixed hyperparams
+        "optimizer": "Adam",
+        "discount": 0.99,
+        "num_layers": 2,
         "hidden_dim": 64,
         "bcq_threshold": 0.3,
-        "tau": 5e-3
+        "tau": 5e-3,
+        # Searchable hyperparams
+        "batch_size": tune.grid_search([32, 128]),
+        "learning_rate": tune.grid_search([1e-7, 1e-6, 1e-5])
     }
 
     if smoke_test or tune_smoke_test:
@@ -276,7 +276,7 @@ def tune_run(num_samples: int,
             val_data_path=val_data_path,
             feasibility_behavior_policy_path=feasibility_behavior_policy_path,
             no_freeze_feasibility_init=no_freeze_feasibility_init,
-            behavior_policy_path=behavior_policy_path,
+            wis_behavior_policy_path=wis_behavior_policy_path,
             init_seed=init_seed,
             smoke_test=tune_smoke_test
         ),
@@ -380,14 +380,9 @@ def main():
     )
     args = parser.parse_args()
 
-    if args.tune_smoke_test:
-        num_samples = 1
-    else:
-        num_samples = global_config.NUM_HYPERPARAMETER_SAMPLES
-
     tune_run(
         # Hyperparameter optimizer parameters
-        num_samples=num_samples,
+        num_samples=1,
         tune_seed=args.tune_seed,
         init_seed=args.init_seed,
         output_dir=args.output_dir,

@@ -68,4 +68,7 @@ class ThresholdModel:
         actions = [np.nan, 0.15, 0.1, 0., 0., -0.1]
         model_actions = np.select(conditions, actions)
 
+        # Convert to relative dose changes
+        model_actions += 1.
+
         return model_actions
