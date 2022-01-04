@@ -209,6 +209,13 @@ def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
         metrics["action_change"] = np.max(policy_action)
     eval_state["prev_selected_actions"] = policy_action
 
+    metric_names = list(metrics.keys())
+    for k in metric_names:
+        if isinstance(metrics[k], np.float64):
+            metrics[k] = float(metrics[k])
+        elif isinstance(metrics[k], np.int64):
+            metrics[k] = int(metrics[k])
+
     return metrics, plots, hierarchical_ttr, eval_state
 
 
@@ -300,7 +307,7 @@ def compute_plots(df, disagreement_ttr, metrics, wis_bootstrap_df):
     )
 
     # WIS plot
-    if wis_bootstrap_df:
+    if wis_bootstrap_df is not None:
         plots["wis/comparison_boxplot"] = plot_wis_boxplot(wis_bootstrap_df)
 
     # Agreement curves and histograms
