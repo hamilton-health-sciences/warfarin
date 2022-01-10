@@ -105,12 +105,27 @@ def preprocess_all(inr, events, baseline):
     inr = inr_df[(inr_df["STUDY_DAY"] >= inr_df["FIRST_DAY"]) &
                  (inr_df["STUDY_DAY"] <= inr_df["LAST_DAY"])].copy()
 
-    # Remove temporary columns
-    inr = inr.drop(["FIRST_DAY", "LAST_DAY"], axis=1)
+    # Add termination condition
+    last_day_observed = inr[(~inr["INR_VALUE"].isnull()) &
+                            (inr["INR_TYPE"] == "Y")].groupby(
+        "SUBJID"
+    )["STUDY_DAY"].max().to_frame().rename(
+        columns={"STUDY_DAY": "LAST_DAY_OBSERVED"}
+    )
+    inr = inr.merge(last_day_observed, on="SUBJID", how="left")
+    inr_observed = (~inr["INR_TYPE"].isnull()) & (inr["INR_TYPE"] == "Y")
+    inr.loc[inr_observed & (inr["STUDY_DAY"] == inr["LAST_DAY_OBSERVED"]),
+            "TERMINATION_CONDITION"] = "TRIAL_TERMINATION"
 
-    # Split trajectories on known dose interruptions
+    # Remove temporary columns
+    inr = inr.drop(["FIRST_DAY", "LAST_DAY", "LAST_DAY_OBSERVED"], axis=1)
+
+    # Split trajectories on known dose interruptions. Note that there will be
+    # some "trajectories" without termination conditions, but these contain
+    # only days with INR_TYPE = N, and thus will never contain a termination
+    # condition.
     inr["INTERRUPT"] = inr["INTERRUPT_FLAG"].fillna(0.).astype(bool)
-    inr = split_traj(inr)
+    inr = split_traj(inr, reason="TRIAL_INTERRUPTION")
 
     return inr, events, baseline
 
@@ -194,9 +209,14 @@ def merge_inr_events(inr, events):
     )["TRAJID"].fillna(method="ffill")
     inr_merged = inr_merged[~inr_merged["TRAJID"].isnull()].copy()
     inr_merged["TRAJID"] = inr_merged["TRAJID"].astype(int)
+    term_cond = inr_merged.groupby(
+        ["TRIAL", "SUBJID", "TRAJID", "STUDY_DAY"]
+    )["TERMINATION_CONDITION"].sum().replace({0: np.nan})
     inr_merged = inr_merged.groupby(
         ["TRIAL", "SUBJID", "TRAJID", "STUDY_DAY"]
-    ).sum(min_count=1).reset_index()
+    ).sum(min_count=1)
+    inr_merged["TERMINATION_CONDITION"] = term_cond
+    inr_merged = inr_merged.reset_index()
 
     # Remove events that occur over `config.EVENT_RANGE` days since the last
     # INR entry
@@ -262,8 +282,38 @@ def split_trajectories_at_events(inr_merged):
         ["TRIAL", "SUBJID"]
     )["TRAJID"].cumsum()
 
+    # Add termination reason
+    inr_merged.loc[inr_merged["IS_EVENT"],
+                   "TERMINATION_CONDITION"] = "ADVERSE_EVENT"
+
+    # Remove extraneous termination reasons. We assume that if an adverse event
+    # immediately follows any other termination reason, that the adverse event
+    # is the reason for trajectory terination. This may be incorrect in cases
+    # where the trial terminated but adverse event reporting continued for some
+    # time afterward, but it's unclear whether that case is recorded somehow.
+    # TODO even though in these cases it is still likely correct to say that
+    # the trajectory "terminated in an adverse event" due to the time gap
+    # introduced for events merging.
+    last_day = inr_merged.groupby(["TRIAL", "SUBJID", "TRAJID"])[
+        "STUDY_DAY"
+    ].max().to_frame().rename({"STUDY_DAY": "LAST_DAY"}, axis=1)
+    num_term_cond = inr_merged.groupby(["TRIAL", "SUBJID", "TRAJID"])[
+        "TERMINATION_CONDITION"
+    ].count().to_frame().rename({"TERMINATION_CONDITION": "TERM_COND_COUNT"},
+                                axis=1)
+    inr_merged = inr_merged.set_index(
+        ["TRIAL", "SUBJID", "TRAJID"]
+    ).join(last_day).join(num_term_cond).reset_index()
+    redundant_term_cond_sel = (
+        (~inr_merged["TERMINATION_CONDITION"].isnull()) &
+        (inr_merged["LAST_DAY"] != inr_merged["STUDY_DAY"]) &
+        (inr_merged["TERM_COND_COUNT"] > 1)
+    )
+    inr_merged.loc[redundant_term_cond_sel, "TERMINATION_CONDITION"] = np.nan
+
     # Remove extraneous columns
-    inr_merged = inr_merged.drop(["IS_EVENT", "EVENT_TRAJ_IDX"], axis=1)
+    inr_merged = inr_merged.drop(["IS_EVENT", "EVENT_TRAJ_IDX", "LAST_DAY",
+                                  "TERM_COND_COUNT"], axis=1)
 
     return inr_merged
 
@@ -299,6 +349,9 @@ def impute_inr_and_dose(inr_merged):
         "SUBJID"
     )["WARFARIN_DOSE"].fillna(method="bfill")
 
+    # Preserve trajectory termination reasons.
+    term_cond = inr_merged["TERMINATION_CONDITION"].copy()
+
     # There are remaining null INR values, but these are trajectories that only
     # contain an adverse event, with no corresponding INR measurement. This
     # action forward fills INR and doses when a previous INR or dose is
@@ -312,6 +365,7 @@ def impute_inr_and_dose(inr_merged):
     inr_merged = inr_merged.groupby(
         ["SUBJID", "TRAJID"]
     ).apply(lambda df: df.fillna(method="ffill"))
+    inr_merged["TERMINATION_CONDITION"] = term_cond
     inr_merged = inr_merged[~inr_merged["INR_VALUE"].isnull() &
                             ~inr_merged["WARFARIN_DOSE"].isnull()].copy()
     inr_merged.loc[inr_null_valid, "INR_VALUE"] = np.nan
@@ -350,7 +404,9 @@ def split_trajectories_at_gaps(measured_inrs):
         on=["SUBJID", "TRAJID", "STUDY_DAY"]
     )
     measured_inrs.loc[measured_inrs["TIME_DIFF"] > config.MAX_TIME_ELAPSED,
-                      "IS_FIRST"] = 1
+                      "IS_FIRST_GAP"] = 1
+    measured_inrs["IS_FIRST_GAP"] = measured_inrs["IS_FIRST_GAP"].fillna(0)
+    measured_inrs.loc[measured_inrs["IS_FIRST_GAP"], "IS_FIRST"] = 1
     measured_inrs.loc[:, "IS_FIRST"] = measured_inrs["IS_FIRST"].fillna(0)
     measured_inrs["IS_FIRST"] = measured_inrs["IS_FIRST"].astype(int)
 
@@ -360,8 +416,15 @@ def split_trajectories_at_gaps(measured_inrs):
         measured_inrs.groupby("SUBJID")["IS_FIRST"].cumsum() - 1
     )
 
+    # Add termination reason
+    is_last_gap = measured_inrs.groupby(
+        ["TRIAL", "SUBJID"]
+    )["IS_FIRST_GAP"].shift(-1).fillna(0)
+    measured_inrs.loc[is_last_gap, "TERMINATION_CONDITION"] = "TIME_GAP"
+
     # Remove extraneous columns
-    measured_inrs = measured_inrs.drop(columns=["IS_FIRST", "TIME_DIFF"])
+    measured_inrs = measured_inrs.drop(columns=["IS_FIRST", "TIME_DIFF",
+                                                "IS_FIRST_GAP"])
 
     return measured_inrs
 

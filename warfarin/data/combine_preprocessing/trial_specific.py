@@ -69,7 +69,7 @@ def preprocess_engage_rocket(inr, baseline):
         (subset_data["WARFARIN_DOSE"] == 0) & near_zero
     ) | subset_data["INR_VALUE"].isnull()
 
-    subset_data = split_traj(subset_data)
+    subset_data = split_traj(subset_data, reason="DOSE_INR_INTERRUPTION")
 
     subset_data = subset_data.drop(columns=["INTERRUPT"])
 
@@ -98,6 +98,9 @@ def preprocess_rely(inr, baseline):
 
     # Convert average daily doses to weekly doses
     rely_data["WARFARIN_DOSE"] = rely_data["WARFARIN_DOSE"] * 7
+
+    # Subset to observed INRs
+    rely_data = rely_data[rely_data["INR_TYPE"] == "Y"].copy()
 
     return rely_data
 
@@ -147,7 +150,7 @@ def preprocess_aristotle(inr, baseline):
     aristotle_data["INTERRUPT"] = ((aristotle_data["WARFARIN_DOSE"] == 0) &
                                    near_zero)
 
-    aristotle_data = split_traj(aristotle_data)
+    aristotle_data = split_traj(aristotle_data, reason="DOSE_INR_INTERRUPTION")
 
     aristotle_data = aristotle_data.drop(columns=["INTERRUPT"])
 

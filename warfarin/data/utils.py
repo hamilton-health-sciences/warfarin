@@ -22,12 +22,14 @@ def decode(df):
     return df
 
 
-def split_traj(df):
+def split_traj(df, reason):
     """
     Split trajectories using "INTERRUPT" flag in the input dataframe.
 
     Args:
         df: Any dataframe containing an "INTERRUPT" flag.
+        reason: The reason for terminating this group of trajectories, which
+                will be recorded in the "TERMINATION_CONDITION" column.
 
     Returns:
         df: Dataframe with trajectories split on "INTERRUPT", trajectories
@@ -78,9 +80,33 @@ def split_traj(df):
     df["TRAJID"] = (df.groupby("SUBJID")["TRAJID"].diff().fillna(0) > 0)
     df["TRAJID"] = df.groupby("SUBJID")["TRAJID"].cumsum()
 
+    # Code reasons. We assume that all trajectories have already been given
+    # termination conditions prior to this splitting operation.
+    if "INR_TYPE" in df.columns:
+        df_ = df[(~df["INR_TYPE"].isnull()) & (df["INR_TYPE"] == "Y")]
+    else:
+        df_ = df.copy()
+    last_day = df_.groupby(
+        ["TRIAL", "SUBJID", "TRAJID"]
+    )["STUDY_DAY"].max().to_frame().rename(
+        {"STUDY_DAY": "LAST_DAY"}, axis=1
+    )
+    df = df.set_index(["TRIAL", "SUBJID", "TRAJID"]).join(
+        last_day
+    ).reset_index()
+    traj_end = (df["STUDY_DAY"] == df["LAST_DAY"])
+    # Some rows consist of all NAs. We could prune these earlier perhaps?
+    # TODO - currently this is necessary to prevent >1 labelled termination
+    # transition per trajectory.
+    if "INR_TYPE" in df.columns:
+        traj_end = traj_end & (~df["INR_TYPE"].isnull())
+    no_traj_term_cond_set = df["TERMINATION_CONDITION"].isnull()
+    df.loc[traj_end & no_traj_term_cond_set,
+           "TERMINATION_CONDITION"] = reason
+
     # Remove intermediate columns
     df = df.drop(["REMOVE_PRIOR", "REMOVE_AFTER", "START_TRAJ", "END_TRAJ",
-                  "START_TRAJ_CUMU", "END_TRAJ_CUMU"],
+                  "START_TRAJ_CUMU", "END_TRAJ_CUMU", "LAST_DAY"],
                  axis=1)
 
     return df
