@@ -218,13 +218,6 @@ def merge_inr_events(inr, events):
     inr_merged["TERMINATION_CONDITION"] = term_cond
     inr_merged = inr_merged.reset_index()
 
-    # Remove events that occur over `config.EVENT_RANGE` days since the last
-    # INR entry
-    noninr_sel = pd.isnull(inr_merged["INR_VALUE"])
-    event_sel = inr_merged[config.EVENTS_TO_KEEP].sum(axis=1) > 0
-    out_of_range_sel = inr_merged["STUDY_DAY"].diff() > config.EVENT_RANGE
-    inr_merged = inr_merged[~(noninr_sel & event_sel & out_of_range_sel)].copy()
-
     # If there are multiple events that happen between INR measurements, only
     # take the first one
     temp = inr_merged.copy()
@@ -235,6 +228,21 @@ def merge_inr_events(inr, events):
     prev_inr_measured = temp.groupby("SUBJID")["INR_MEASURED"].shift().fillna(0)
     mask = np.logical_or(prev_inr_measured, temp["INR_MEASURED"])
     inr_merged = inr_merged[mask].copy()
+
+    # Remove events that occur over `config.EVENT_RANGE` days since the last
+    # INR entry
+    inr_merged["INR_NULL"] = pd.isnull(inr_merged["INR_VALUE"])
+    inr_merged["IS_EVENT"] = (inr_merged[config.EVENTS_TO_KEEP].sum(axis=1) > 0)
+    inr_merged["GAP"] = inr_merged.groupby(
+        ["SUBJID"]
+    )["STUDY_DAY"].diff().fillna(0)
+    inr_merged["EVENT_OUT_OF_RANGE"] = inr_merged["GAP"] > config.EVENT_RANGE
+    inr_merged = inr_merged[~(inr_merged["INR_NULL"] &
+                              inr_merged["IS_EVENT"] &
+                              inr_merged["EVENT_OUT_OF_RANGE"])].copy()
+
+    inr_merged = inr_merged.drop(["INR_NULL", "IS_EVENT", "GAP",
+                                  "EVENT_OUT_OF_RANGE"], axis=1)
 
     return inr_merged
 
@@ -397,29 +405,29 @@ def split_trajectories_at_gaps(measured_inrs):
     first_measures = measured_inrs.groupby(
         ["SUBJID", "TRAJID"]
     ).first().reset_index()
-    first_measures["IS_FIRST"] = 1
+    first_measures["IS_FIRST"] = True
     measured_inrs = measured_inrs.merge(
         first_measures[["SUBJID", "TRAJID", "STUDY_DAY", "IS_FIRST"]],
         how="left",
         on=["SUBJID", "TRAJID", "STUDY_DAY"]
     )
+    measured_inrs["IS_FIRST"] = measured_inrs["IS_FIRST"].fillna(False)
     measured_inrs.loc[measured_inrs["TIME_DIFF"] > config.MAX_TIME_ELAPSED,
-                      "IS_FIRST_GAP"] = 1
-    measured_inrs["IS_FIRST_GAP"] = measured_inrs["IS_FIRST_GAP"].fillna(0)
-    measured_inrs.loc[measured_inrs["IS_FIRST_GAP"], "IS_FIRST"] = 1
-    measured_inrs.loc[:, "IS_FIRST"] = measured_inrs["IS_FIRST"].fillna(0)
+                      "IS_FIRST_GAP"] = True
+    measured_inrs["IS_FIRST_GAP"] = measured_inrs["IS_FIRST_GAP"].fillna(False)
+    measured_inrs.loc[measured_inrs["IS_FIRST_GAP"], "IS_FIRST"] = True
+    measured_inrs.loc[:, "IS_FIRST"] = measured_inrs["IS_FIRST"].fillna(False)
     measured_inrs["IS_FIRST"] = measured_inrs["IS_FIRST"].astype(int)
 
     # Construct new trajectory ID
     measured_inrs["TRAJID"] = (
-        measured_inrs["TRAJID"] +
         measured_inrs.groupby("SUBJID")["IS_FIRST"].cumsum() - 1
     )
 
     # Add termination reason
     is_last_gap = measured_inrs.groupby(
         ["TRIAL", "SUBJID"]
-    )["IS_FIRST_GAP"].shift(-1).fillna(0)
+    )["IS_FIRST_GAP"].shift(-1).fillna(0).astype(bool)
     measured_inrs.loc[is_last_gap, "TERMINATION_CONDITION"] = "TIME_GAP"
 
     # Remove extraneous columns
