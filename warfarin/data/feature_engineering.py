@@ -245,9 +245,11 @@ def compute_done(df):
     Returns:
         done: Whether or not this is the last transition in the trajectory.
     """
-    last_entries = df.groupby(["TRIAL", "SUBJID", "TRAJID"]).apply(
-        pd.DataFrame.last_valid_index
-    )
+    df["HAS_INR_AND_DOSE"] = (~pd.isnull(df["INR_VALUE"]) &
+                              ~pd.isnull(df["WARFARIN_DOSE"]))
+    last_entries = df[df["HAS_INR_AND_DOSE"]].groupby(
+        ["TRIAL", "SUBJID", "TRAJID"]
+    ).apply(pd.DataFrame.last_valid_index)
     df["LAST"] = 0
     df.loc[last_entries, "LAST"] = 1
     df["DONE"] = df.groupby(["TRIAL", "SUBJID", "TRAJID"])["LAST"].shift(-1)
