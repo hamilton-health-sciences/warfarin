@@ -224,10 +224,10 @@ def tune_run(num_samples: int,
         "num_layers": 2,
         "hidden_dim": 64,
         "bcq_threshold": 0.3,
-        "tau": 5e-3,
         # Searchable hyperparams
         "batch_size": tune.grid_search([32, 128]),
-        "learning_rate": tune.grid_search([1e-7, 1e-6, 1e-5])
+        "tau": tune.grid_search([5e-3, 1e-2]),
+        "learning_rate": tune.grid_search([1e-5, 1e-6])
     }
 
     if smoke_test or tune_smoke_test:
