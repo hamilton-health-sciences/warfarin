@@ -50,7 +50,7 @@ def main(args):
                 dfs[k]["training_iteration"] >= (config.MIN_BC_TRAINING_EPOCHS - 1),
                 args.target_metric
             ].min()
-            best_trial_name = min(dfs, key=max_metric)
+            best_trial_name = min(dfs, key=min_metric)
         df = dfs[best_trial_name]
         if args.mode == "max":
             idx = df.loc[
