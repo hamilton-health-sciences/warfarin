@@ -93,9 +93,14 @@ class SMDBCQ(object):
                      hidden_states=hidden_states,
                      num_layers=num_layers).to(self.device)
 
-        # If generative network init given, set the parameters correctly
         if generative_network_init:
+            # Set the generative network parameters
             self.q.i.load_state_dict(
+                generative_network_init.backbone.state_dict()
+            )
+            # Heuristically, makes sense to also intiialize the q-network from
+            # the same net for faster convergence
+            self.q.q.load_state_dict(
                 generative_network_init.backbone.state_dict()
             )
             # If freezing the generative network in this well-initialized state
