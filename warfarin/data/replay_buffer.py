@@ -36,7 +36,7 @@ class WarfarinReplayBuffer(TensorDataset):
                  df: pd.DataFrame,
                  discount_factor: float,
                  option_means: dict = None,
-                 min_trajectory_length: int = 0,
+                 min_trajectory_length: int = 1,
                  state_transforms = None,
                  rel_event_sample_prob: int = 1,
                  weight_option_frequency: bool = False,

@@ -72,7 +72,8 @@ def main(args):
         data_path=args.train_data_path,
         cache_name="train_buffer.pkl",
         batch_size=trial_config["batch_size"],
-        discount_factor=trial_config["discount"]
+        discount_factor=trial_config["discount"],
+        min_trajectory_length=config.MIN_INR_COUNT
     )
     data, _ = get_dataloader(
         data_path=args.data_path,

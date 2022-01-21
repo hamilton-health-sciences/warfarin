@@ -22,7 +22,7 @@ MIN_INR_COUNTS = 2
 
 # Trajectories with fewer than MIN_TRAINING_TRAJECTORY_LENGTH transitions will
 # be removed
-MIN_TRAIN_TRAJECTORY_LENGTH = 10
+MIN_TRAIN_TRAJECTORY_LENGTH = 5
 
 # The reward associated with INRs that are in therapeutic range
 INR_REWARD = 1

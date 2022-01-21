@@ -105,7 +105,10 @@ def get_dataloader(data_path: str,
     return data, dl
 
 
-def get_dataloaders(train_data_path, val_data_path, batch_size, discount_factor,
+def get_dataloaders(train_data_path,
+                    val_data_path,
+                    batch_size,
+                    discount_factor,
                     min_train_trajectory_length,
                     weight_option_frequency_train=False,
                     use_random_train=True):
@@ -124,6 +127,7 @@ def get_dataloaders(train_data_path, val_data_path, batch_size, discount_factor,
         batch_size=batch_size,
         discount_factor=discount_factor,
         state_transforms=train_data.state_transforms,
+        option_means=train_data.option_means,
         use_random=False
     )
 
