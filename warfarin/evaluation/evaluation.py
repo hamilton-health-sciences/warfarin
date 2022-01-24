@@ -94,7 +94,8 @@ def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
         index=replay_buffer.df.index
     )
 
-    # TODO subset to `.state` index (not e.g. `.observed_state`)
+    # TODO subset to `.state` index (not e.g. `.observed_state`)?
+    # Although this may drop terminal trnasitions needed for TTR computation.
 
     # Next INR and whether it's in range
     df["NEXT_INR"] = df.groupby(
