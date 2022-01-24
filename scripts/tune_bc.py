@@ -103,7 +103,8 @@ def tune_run(num_samples: int,
              target_metric: str,
              mode: str,
              smoke_test: bool,
-             tune_smoke_test: bool):
+             tune_smoke_test: bool,
+             experiment_name: str = "bc"):
     tune_config = {
         "likelihood": tune.grid_search(["discrete", "ordered"]),
         "learning_rate": 1e-4,
@@ -156,7 +157,7 @@ def tune_run(num_samples: int,
         # num_samples=num_samples,
         progress_reporter=reporter,
         local_dir=output_dir,
-        name="bc",
+        name=experiment_name,
         # TODO
         trial_name_creator=trial_namer
     )
@@ -172,6 +173,7 @@ def main():
     parser.add_argument("--tune_seed", type=int, default=0)
     parser.add_argument("--init_seed", type=int, default=1)
     parser.add_argument("--output_dir", type=str, default="./ray_logs")
+    parser.add_argument("--experiment_name", type=str, default="bc")
     parser.add_argument("--smoke_test", action="store_true", default=False)
     parser.add_argument("--tune_smoke_test", action="store_true", default=False)
     args = parser.parse_args()
@@ -194,7 +196,9 @@ def main():
         val_data_path=args.val_data,
         # Smoke tests for faster iteration on tuning procedure
         smoke_test=args.smoke_test,
-        tune_smoke_test=args.tune_smoke_test
+        tune_smoke_test=args.tune_smoke_test,
+        # Custom naming for clarity between multiple runs
+        experiment_name=args.experiment_name
     )
 
 
