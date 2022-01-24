@@ -20,6 +20,7 @@ from warfarin.data.combine_preprocessing import (
     split_data,
     remove_short_trajectories
 )
+from warfarin.data.utils import remove_unintuitive_decisions
 from warfarin.utils import timer
 from warfarin import config
 
@@ -71,6 +72,15 @@ def preprocess(args):
     # Split the data
     train_data, val_data, test_data = split_data(merged_all, seed=args.seed)
 
+    # Remove unintuitive clinical decisions that may confound learning
+    if args.remove_unintuitive_decisions:
+        train_data = remove_unintuitive_decisions(train_data)
+        # Make sure we don't overwrite the auditing dataframe or the main call
+        # to `remove_short_trajectories`
+        train_data = remove_short_trajectories(train_data,
+                                               audit_name="train",
+                                               min_length=2)
+
     # Save the split output
     train_path = os.path.join(args.output_directory, "train_data.feather")
     val_path = os.path.join(args.output_directory, "val_data.feather")
@@ -116,6 +126,13 @@ if __name__ == "__main__":
         required=True,
         type=str,
         help="Path to events data feather file"
+    )
+    parser.add_argument(
+        "--remove_unintuitive_decisions",
+        action="store_true",
+        default=False,
+        help="Whether to remove unintuitive clinical decisions from the "
+             "training set"
     )
     parser.add_argument(
         "--output_directory",

@@ -100,13 +100,62 @@ def split_traj(df, reason):
     # transition per trajectory.
     if "INR_TYPE" in df.columns:
         traj_end = traj_end & (~df["INR_TYPE"].isnull())
-    no_traj_term_cond_set = df["TERMINATION_CONDITION"].isnull()
-    df.loc[traj_end & no_traj_term_cond_set,
+    df = df.set_index(["TRIAL", "SUBJID", "TRAJID"]).join(
+        df.groupby(
+            ["TRIAL", "SUBJID", "TRAJID"]
+        )["TERMINATION_CONDITION"].count().to_frame().rename(
+            {"TERMINATION_CONDITION": "NO_TRAJ_TERM_COND_SET"}, axis=1
+        ) == 0
+    ).reset_index()
+    df.loc[traj_end & df["NO_TRAJ_TERM_COND_SET"],
            "TERMINATION_CONDITION"] = reason
 
     # Remove intermediate columns
     df = df.drop(["REMOVE_PRIOR", "REMOVE_AFTER", "START_TRAJ", "END_TRAJ",
-                  "START_TRAJ_CUMU", "END_TRAJ_CUMU", "LAST_DAY"],
+                  "START_TRAJ_CUMU", "END_TRAJ_CUMU", "LAST_DAY",
+                  "NO_TRAJ_TERM_COND_SET"],
                  axis=1)
+
+    return df
+
+
+def remove_unintuitive_decisions(df):
+    """
+    Remove cases where:
+
+        * INR was high, and clinician increased the dose (without a prior
+          large decrease that might explain it).
+        * INR was low, and the clinician decreased the dose (without a prior
+          large increase that might explain it).
+
+    Args:
+        df: A dataframe, should only be training data.
+
+    Returns:
+        df: The dataframe, modified to split trajectories when the observed
+            trajectory contains unintuitive clinical behavior.
+    """
+    df["DOSE_CHANGE"] = df.groupby(
+        ["TRIAL", "SUBJID", "TRAJID"]
+    )["WARFARIN_DOSE"].shift(-1) / df["WARFARIN_DOSE"]
+    df["DOSE_CHANGE"] = df["DOSE_CHANGE"].fillna(1.)
+    df["PREV_DOSE_CHANGE"] = df["DOSE_CHANGE"].shift(1).fillna(1.)
+    unintuitive_sel_high = (
+        (df["INR_VALUE"] > 3.) &  # High INR...
+        (df["DOSE_CHANGE"] > 1.) &  # ... increase the dose...
+        (df["PREV_DOSE_CHANGE"] > 0.8)  # ... even though no preceding big drop
+    )
+    unintuitive_sel_low = (
+        (df["INR_VALUE"] < 2.) &  # Low INR...
+        (df["DOSE_CHANGE"] < 1.) &  # ... lower the dose...
+        (df["PREV_DOSE_CHANGE"] < 1.2)  # ... even though no preceding big
+                                        # increase
+    )
+    unintuitive_sel = unintuitive_sel_low | unintuitive_sel_high
+    df.loc[unintuitive_sel, "INTERRUPT"] = 1.
+    df["INTERRUPT"] = df["INTERRUPT"].fillna(0.).astype(bool)
+
+    df = split_traj(df, "UNINTUITIVE_DECISION")
+    df = df.drop(["DOSE_CHANGE", "PREV_DOSE_CHANGE", "INTERRUPT"], axis=1)
 
     return df

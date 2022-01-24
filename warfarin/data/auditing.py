@@ -32,11 +32,13 @@ class auditable:
             return f
 
         fxn_name = f.__name__
-        def f_audit(*args, **kwargs):
+        def f_audit(*args, audit_name=None, **kwargs):
             dfs = df = f(*args, **kwargs)
             if isinstance(df, pd.DataFrame):
                 if self.names and len(self.names) == 1:
                     fn = f"{fxn_name}_{self.names[0]}"
+                elif audit_name is not None:
+                    fn = f"{fxn_name}_{audit_name}"
                 else:
                     fn = fxn_name
                 output_fn = os.path.join(config.AUDIT_PATH, f"{fn}.feather")
