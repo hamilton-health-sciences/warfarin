@@ -50,9 +50,9 @@ EVENT_RANGE = 90
 # These are the patient features that are extracted from the baseline data and
 # merged with the rest of the data. Patients without these columns will be
 # excluded.
-STATIC_STATE_COLS = ["SEX", "CONTINENT", "SMOKE", "BMED_ASPIRIN", "BMED_AMIOD",
-                     "DIABETES", "HX_CHF", "HYPERTENSION", "HX_MI",
-                     "BMED_THIENO", "AGE_DEIDENTIFIED", "WEIGHT"]
+STATIC_STATE_COLS = ["SEX", "RACE2", "SMOKE", "BMED_ASPIRIN",
+                     "BMED_AMIOD", "DIABETES", "HX_CHF", "HYPERTENSION",
+                     "HX_MI", "BMED_THIENO", "AGE_DEIDENTIFIED", "WEIGHT"]
 
 # The adverse events we want to consider when defining rewards based on events
 # and upsampling trajectories with events.
@@ -76,7 +76,7 @@ WEIGHT_BIN_LABELS = ["<=55", "(55, 70]", "(70, 80]", "(80, 90]", "(90, 100]",
                      ">100"]
 
 # Raw columns of the state space.
-STATE_COLS = ["AGE_DEIDENTIFIED", "SEX", "WEIGHT", "CONTINENT", "SMOKE",
+STATE_COLS = ["AGE_DEIDENTIFIED", "SEX", "WEIGHT", "RACE2", "SMOKE",
               "BMED_ASPIRIN", "BMED_AMIOD", "BMED_THIENO", "DIABETES", "HX_CHF",
               "HYPERTENSION", "HX_MI", "INR_VALUE", "WARFARIN_DOSE",
               "STROKE_FLAG", "MAJOR_BLEED_FLAG", "MINOR_BLEED_FLAG",
