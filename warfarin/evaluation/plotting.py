@@ -228,7 +228,7 @@ def plot_agreement_ttr_curve(df, disagreement_ttr):
                    group="MODEL",
                    fill="MODEL",
                    weight="TRAJECTORY_LENGTH")) +
-        geom_density() +
+        geom_density(alpha=0.5) +
         xlim([0., 50.]) +
         xlab(mean_abs_diff_label) +
         ylab("Relative Frequency") +
