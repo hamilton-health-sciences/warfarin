@@ -182,7 +182,8 @@ def tune_run(num_samples: int,
              target_metric: str,
              mode: str,
              smoke_test: bool,
-             tune_smoke_test: bool):
+             tune_smoke_test: bool,
+             experiment_name: str = "dbcq"):
     """
     Run the hyperparameter tuning procedure.
 
@@ -288,7 +289,7 @@ def tune_run(num_samples: int,
         num_samples=num_samples,
         progress_reporter=reporter,
         local_dir=output_dir,
-        name="dbcq",
+        name=experiment_name,
         trial_name_creator=trial_namer,
         resume=resume
     )
@@ -378,6 +379,13 @@ def main():
         action="store_true",
         help="Perform a smoke test of the tuning procedure and exit"
     )
+    parser.add_argument(
+        "--experiment_name",
+        type=str,
+        required=False,
+        default="dbcq",
+        help="The name of the experiment, used for directory naming"
+    )
     args = parser.parse_args()
 
     tune_run(
@@ -399,7 +407,9 @@ def main():
         val_data_path=args.val_data,
         # Smoke tests for faster iteration on tuning procedure
         smoke_test=args.smoke_test,
-        tune_smoke_test=args.tune_smoke_test
+        tune_smoke_test=args.tune_smoke_test,
+        # Experiment name for differentiating between runs
+        experiment_name=args.experiment_name
     )
 
 
