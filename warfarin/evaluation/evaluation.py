@@ -49,7 +49,7 @@ def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
 
         (1) Heatmap of the current INR vs. policy option space.
         (2) Agreement curve and agreement histogram.
-        (3) The above plots broken out by continent.
+        (3) The above plots broken out by continent or race, as available.
         (4) The scatterplot of TTR at agreement by algorithm (per threshold).
 
     Args:
@@ -85,12 +85,17 @@ def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
     obs_action_quant[(dose == 0) & (prev_dose == 0)] = 1.
     policy_action = policy.select_action(state)[:, 0]
 
+    if "CONTINENT" in replay_buffer.df.columns:
+        continent_or_race = replay_buffer.df["CONTINENT"]
+    else:
+        continent_or_race = replay_buffer.df["RACE2"]
+
     df = pd.DataFrame(
         {"OBSERVED_ACTION": obs_action,
          "OBSERVED_ACTION_QUANT": obs_action_quant,
          "POLICY_ACTION": policy_action,
          "INR_VALUE": replay_buffer.df["INR_VALUE"],
-         "CONTINENT": replay_buffer.df["CONTINENT"]},
+         "CONTINENT": continent_or_race},
         index=replay_buffer.df.index
     )
 
