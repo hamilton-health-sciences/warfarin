@@ -83,6 +83,9 @@ def preprocess_all(inr, events, baseline):
     events.loc[:, "HOSP"] = (
         events["EVENT_NAME"] == "Hospitalization"
     ).astype(int)
+    events.loc[:, "SYS_EMB"] = (
+        events["EVENT_NAME"] == "Systemic Embolism"
+    ).astype(int)
     events = events.drop("EVENT_NAME", axis=1)
 
     # Drop negative days, which appear in most ENGAGE patients. It seems that
@@ -181,6 +184,7 @@ def merge_inr_events(inr, events):
          "MAJOR_BLEED": "sum",
          "MINOR_BLEED": "sum",
          "HOSP": "sum",
+         "SYS_EMB": "sum",
          "RANKIN_SCORE": "max"}
     ).reset_index()
     events["ADV_EVENTS_SUM"] = events[config.EVENTS_TO_KEEP].sum(axis=1)

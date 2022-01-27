@@ -33,10 +33,10 @@ EVENT_REWARD = 0
 # These are the adverse events that are extracted from the events data and
 # merged with the rest of the data. Note that STROKE indicates ischemic stroke.
 EVENTS_TO_KEEP = ["DEATH", "STROKE", "MAJOR_BLEED", "MINOR_BLEED", "HEM_STROKE",
-                  "HOSP"]
+                  "HOSP", "SYS_EMB"]
 EVENTS_TO_KEEP_NAMES = ["Death", "Ischemic Stroke", "Major Bleeding",
                         "Minor Bleeding", "Hemorrhagic Stroke",
-                        "Hospitalization"]
+                        "Hospitalization", "Systemic Embolism"]
 
 # Events to split on. We don't split on minor bleeds as this would create way
 # too many short trajectories, particularly in RE-LY where the per-patient
