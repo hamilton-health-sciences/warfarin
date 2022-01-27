@@ -40,6 +40,8 @@ class WarfarinReplayBuffer(TensorDataset):
                  state_transforms = None,
                  rel_event_sample_prob: int = 1,
                  weight_option_frequency: bool = False,
+                 time_varying: str = "across",
+                 include_dose_time_varying: bool = False,
                  device: str = "cpu",
                  seed: int = 42) -> None:
         """
@@ -64,6 +66,12 @@ class WarfarinReplayBuffer(TensorDataset):
                                      transition will be inversely proportional
                                      to the frequency of occurrence of the
                                      option in the replay buffer.
+            time_varying: "across" if across trajectories, "within" or None if
+                          within trajectories.
+            include_dose_time_varying: Whether to include the dose in time-
+                                       varying features. Potentially sub-optimal
+                                       as it represents a violation of standard
+                                       Markov assumptions.
             device: The device to store the data on.
             seed: The seed for randomly sampling batches.
         """
@@ -71,6 +79,9 @@ class WarfarinReplayBuffer(TensorDataset):
         self.discount_factor = discount_factor
         self.rel_event_sample_prob = rel_event_sample_prob
         self.weight_option_frequency = weight_option_frequency
+
+        self.time_varying = "within" if time_varying is None else time_varying
+        self.include_dose_time_varying = include_dose_time_varying
 
         self._option_means = None
 
@@ -169,7 +180,10 @@ class WarfarinReplayBuffer(TensorDataset):
 
         # Generate features
         state, self.state_transforms = engineer_state_features(
-            self.df.copy(), self.state_transforms
+            self.df.copy(),
+            time_varying_cross=(self.time_varying == "across"),
+            include_dose_time_varying=self.include_dose_time_varying,
+            transforms=self.state_transforms
         )
         next_state = state.groupby(
             ["TRIAL", "SUBJID", "TRAJID"]

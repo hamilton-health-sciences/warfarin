@@ -11,7 +11,10 @@ from warfarin import config
 from warfarin.utils import interpolate_inr, code_quantitative_decision
 
 
-def engineer_state_features(df, transforms=None):
+def engineer_state_features(df,
+                            time_varying_cross=True,
+                            include_dose_time_varying=False,
+                            transforms=None):
     """
     Construct the state vectors.
 
@@ -21,6 +24,10 @@ def engineer_state_features(df, transforms=None):
     Args:
         df: Merged longitudinal data, indexed by "TRIAL", "SUBJID", "TRAJID",
             and "STUDY_DAY".
+        time_varying_cross: Whether to cross trajectory boundaries with time-
+                            varying state features (like INR).
+        include_dose_time_varying: Whether to include the warfarin dose in the
+                                   time varying state features.
         transforms: Transform objects. If left to None, the parameters of the
                     transforms will be learned from the data (meant to be
                     applied to training data).
@@ -110,14 +117,23 @@ def engineer_state_features(df, transforms=None):
     # Join as state cols
     df = df_cat_ohe.join(df_cts_scaled)
 
-    # Provide previous INRs in state
-    df["INR_VALUE_PREV_1"] = df.groupby(
-        ["SUBJID", "TRAJID"]
-    )["INR_VALUE"].shift(1).fillna(df["INR_VALUE"])
-    for i in range(2, 5):
-        df[f"INR_VALUE_PREV_{i}"] = df.groupby(
-            ["SUBJID", "TRAJID"]
-        )["INR_VALUE"].shift(i).fillna(df[f"INR_VALUE_PREV_{i - 1}"])
+    # Provide previous INRs (and optionally doses) in state
+    time_varying = ["INR_VALUE"]
+    if include_dose_time_varying:
+        time_varying += ["WARFARIN_DOSE"]
+    if time_varying_cross:
+        group_vars = ["SUBJID"]
+    else:
+        group_vars = ["SUBJID", "TRAJID"]
+
+    for varname in time_varying:
+        df[f"{varname}_PREV_1"] = df.groupby(
+            group_vars
+        )[varname].shift(1).fillna(df[varname])
+        for i in range(2, 5):
+            df[f"{varname}_PREV_{i}"] = df.groupby(
+                group_vars
+            )[varname].shift(i).fillna(df[f"{varname}_PREV_{i - 1}"])
 
     return df, transforms
 

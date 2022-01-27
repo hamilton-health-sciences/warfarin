@@ -111,7 +111,8 @@ def get_dataloaders(train_data_path,
                     discount_factor,
                     min_train_trajectory_length,
                     weight_option_frequency_train=False,
-                    use_random_train=True):
+                    use_random_train=True,
+                    **shared_replay_buffer_params):
     train_data, train_loader = get_dataloader(
         data_path=train_data_path,
         cache_name="train_buffer.pkl",
@@ -119,7 +120,8 @@ def get_dataloaders(train_data_path,
         discount_factor=discount_factor,
         min_trajectory_length=min_train_trajectory_length,
         use_random=use_random_train,
-        weight_option_frequency=weight_option_frequency_train
+        weight_option_frequency=weight_option_frequency_train,
+        **shared_replay_buffer_params
     )
     val_data, val_loader = get_dataloader(
         data_path=val_data_path,
@@ -128,7 +130,8 @@ def get_dataloaders(train_data_path,
         discount_factor=discount_factor,
         state_transforms=train_data.state_transforms,
         option_means=train_data.option_means,
-        use_random=False
+        use_random=False,
+        **shared_replay_buffer_params
     )
 
     return train_data, train_loader, val_data, val_loader

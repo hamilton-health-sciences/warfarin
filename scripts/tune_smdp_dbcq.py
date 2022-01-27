@@ -77,7 +77,8 @@ def train_run(config: dict,
         val_data_path,
         config["batch_size"],
         config["discount"],
-        min_train_trajectory_length=global_config.MIN_TRAIN_TRAJECTORY_LENGTH
+        min_train_trajectory_length=global_config.MIN_TRAIN_TRAJECTORY_LENGTH,
+        include_dose_time_varying=config["include_dose_time_varying"]
     )
 
     # Get the trial directory
@@ -176,6 +177,7 @@ def tune_run(num_samples: int,
              resume_errored: bool,
              train_data_path: str,
              val_data_path: str,
+             include_dose_time_varying: bool,
              feasibility_behavior_policy_path: Optional[str],
              no_freeze_feasibility_init: bool,
              wis_behavior_policy_path: str,
@@ -196,6 +198,8 @@ def tune_run(num_samples: int,
         resume_errored: Whether to resume errored trials or start from scratch.
         train_data_path: The path to the training data.
         val_data_path: The path to the validation data.
+        include_dose_time_varying: Whether to include dose as time-varying
+                                   covariate.
         feasibility_behavior_policy_path: The path to the behavior policy, for
                                           initializing the generative network of
                                           the BCQ model.
@@ -225,6 +229,7 @@ def tune_run(num_samples: int,
         "num_layers": 2,
         "hidden_dim": 64,
         "bcq_threshold": 0.3,
+        "include_dose_time_varying": include_dose_time_varying,
         # Searchable hyperparams
         "batch_size": tune.grid_search([32, 128]),
         "tau": tune.grid_search([5e-3, 1e-2]),
@@ -386,6 +391,12 @@ def main():
         default="dbcq",
         help="The name of the experiment, used for directory naming"
     )
+    parser.add_argument(
+        "--include_dose_time_varying",
+        action="store_true",
+        default=False,
+        help="Whether to include dose as time-varying covariate"
+    )
     args = parser.parse_args()
 
     tune_run(
@@ -405,6 +416,7 @@ def main():
         # Model/data parameters
         train_data_path=args.train_data,
         val_data_path=args.val_data,
+        include_dose_time_varying=args.include_dose_time_varying,
         # Smoke tests for faster iteration on tuning procedure
         smoke_test=args.smoke_test,
         tune_smoke_test=args.tune_smoke_test,

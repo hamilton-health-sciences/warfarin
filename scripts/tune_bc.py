@@ -31,7 +31,8 @@ def train_run(config, train_data_path, val_data_path, init_seed, smoke_test=Fals
         config["discount"],
         min_train_trajectory_length=global_config.MIN_TRAIN_TRAJECTORY_LENGTH,
         weight_option_frequency_train=config["weight_option_frequency"],
-        use_random_train=True
+        use_random_train=True,
+        include_dose_time_varying=config["include_dose_time_varying"]
     )
 
     trial_dir = tune.get_trial_dir()
@@ -100,6 +101,7 @@ def tune_run(num_samples: int,
              output_dir: str,
              train_data_path: str,
              val_data_path: str,
+             include_dose_time_varying: bool,
              target_metric: str,
              mode: str,
              smoke_test: bool,
@@ -114,6 +116,8 @@ def tune_run(num_samples: int,
         # Inverse-weighting by option frequency seems to result in worse models
         # without post-hoc probability calibration, so we don't do it.
         "weight_option_frequency": False,
+        # Replay buffer params that affect state generation
+        "include_dose_time_varying": include_dose_time_varying,
         # Ignored, as we do not use the rewards for BC training.
         "discount": 0.99
     }
@@ -167,6 +171,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--train_data", type=str, required=True)
     parser.add_argument("--val_data", type=str, required=True)
+    parser.add_argument("--include_dose_time_varying", action="store_true",
+                        default=False)
     parser.add_argument("--target_metric", type=str, default="val/accuracy")
     parser.add_argument("--mode", type=str, choices=["min", "max"],
                         default="max")
@@ -194,6 +200,7 @@ def main():
         # Model/data parameters
         train_data_path=args.train_data,
         val_data_path=args.val_data,
+        include_dose_time_varying=args.include_dose_time_varying,
         # Smoke tests for faster iteration on tuning procedure
         smoke_test=args.smoke_test,
         tune_smoke_test=args.tune_smoke_test,
