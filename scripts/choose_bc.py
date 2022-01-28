@@ -72,14 +72,16 @@ def main(args):
         data_path=args.train_data_path,
         cache_name="train_buffer.pkl",
         batch_size=trial_config["batch_size"],
-        discount_factor=trial_config["discount"]
+        discount_factor=trial_config["discount"],
+        include_dose_time_varying=trial_config["include_dose_time_varying"]
     )
     data, _ = get_dataloader(
         data_path=args.data_path,
         cache_name="eval_buffer.pkl",
         batch_size=trial_config["batch_size"],
         discount_factor=trial_config["discount"],
-        option_means=train_data.option_means
+        option_means=train_data.option_means,
+        include_dose_time_varying=trial_config["include_dose_time_varying"]
     )
 
     # Construct the model and load it
