@@ -73,7 +73,8 @@ def main(args):
         cache_name="train_buffer.pkl",
         batch_size=trial_config["batch_size"],
         discount_factor=trial_config["discount"],
-        min_trajectory_length=config.MIN_TRAIN_TRAJECTORY_LENGTH
+        min_trajectory_length=config.MIN_TRAIN_TRAJECTORY_LENGTH,
+        include_dose_time_varying=trial_config["include_dose_time_varying"]
     )
     data, _ = get_dataloader(
         data_path=args.data_path,
@@ -81,7 +82,8 @@ def main(args):
         batch_size=trial_config["batch_size"],
         discount_factor=trial_config["discount"],
         state_transforms=train_data.state_transforms,
-        option_means=train_data.option_means
+        option_means=train_data.option_means,
+        include_dose_time_varying=trial_config["include_dose_time_varying"]
     )
 
     # TODO probably refactor this as it's duplicated from the tuning script rn
