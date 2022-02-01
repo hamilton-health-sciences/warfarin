@@ -123,12 +123,13 @@ def preprocess_all(inr, events, baseline):
     # Remove temporary columns
     inr = inr.drop(["FIRST_DAY", "LAST_DAY", "LAST_DAY_OBSERVED"], axis=1)
 
+    # TODO: this seems to remove too much data. Add as flag?
     # Split trajectories on known dose interruptions. Note that there will be
     # some "trajectories" without termination conditions, but these contain
     # only days with INR_TYPE = N, and thus will never contain a termination
     # condition.
-    inr["INTERRUPT"] = inr["INTERRUPT_FLAG"].fillna(0.).astype(bool)
-    inr = split_traj(inr, reason="TRIAL_INTERRUPTION")
+    # inr["INTERRUPT"] = inr["INTERRUPT_FLAG"].fillna(0.).astype(bool)
+    # inr = split_traj(inr, reason="TRIAL_INTERRUPTION")
 
     return inr, events, baseline
 

@@ -40,7 +40,7 @@ class WarfarinReplayBuffer(TensorDataset):
                  state_transforms = None,
                  rel_event_sample_prob: int = 1,
                  weight_option_frequency: bool = False,
-                 time_varying: str = "across",
+                 time_varying: str = "within",
                  include_dose_time_varying: bool = False,
                  device: str = "cpu",
                  seed: int = 42) -> None:
