@@ -412,7 +412,7 @@ Auditing results of `merge_inr_baseline`...
 		ROCKET_AF  0.0  201.0  473.0  479.583582  725.0  1249.0
 	Missing values in baseline columns:
 		SEX                 0
-		CONTINENT           0
+		RACE2               0
 		SMOKE               0
 		BMED_ASPIRIN        0
 		BMED_AMIOD          0
