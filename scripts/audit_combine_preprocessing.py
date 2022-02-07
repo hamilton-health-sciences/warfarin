@@ -131,8 +131,7 @@ def audit_preprocess_all():
     message(f"Number of entries (INR):\t {num_entries_inr}")
     message(f"Number of entries (events):\t {num_entries_events}")
 
-    trajectory_length_stats(inr[inr["INR_TYPE"] == "Y"],
-                            ["TRIAL", "SUBJID", "TRAJID"])
+    trajectory_length_stats(inr[inr["INR_TYPE"] == "Y"], ["TRIAL", "SUBJID"])
 
     # Event statistics
     message("Event counts:")
