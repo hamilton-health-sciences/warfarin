@@ -7,8 +7,7 @@ import pandas as pd
 import numpy as np
 
 
-def main(args):
-    # Load patient-level data
+def load_data(args):
     baseline =  pd.read_csv(args.baseline_filename, low_memory=False)
     baseline = baseline.rename(columns = {"PID": "pid"})
     folup_path = os.path.join(args.saslibs_path,
@@ -141,60 +140,97 @@ def main(args):
     id_map = data_RELY[["RELY_SUBJID", "SUBJID"]].drop_duplicates()
     data = data.merge(id_map, on = "SUBJID")
 
-    # ## 1. Extract composite outcome and time to event
+    return data, data_RELY, data_characteristics, summary_medication
 
-    ## reference: SAS code
-    # var1=0;
-    # surv1=surv;
-    # if max(stroke,noncns,carddeath,majb)=1 then var1=1;
-    # if var1=1 then surv1=min(stkday,ncnsday,cardday,majbday);
-    # if surv1=. then surv1=1;
 
-    # extract patients that developed the composite outcome
-    data["composite_outcome"] = data[["STROKE", "MAJOR_BLEED", "SYS_EMB"]].sum(axis = 1)
-    summary_event = data.loc[data["composite_outcome"] >= 1][["RELY_SUBJID", "STUDY_DAY", "composite_outcome"]].sort_values(by = ["RELY_SUBJID", "STUDY_DAY"])
-    summary_event = summary_event.drop_duplicates(subset = "RELY_SUBJID", keep = "first")
+def main(args):
+    # Load patient-level data
+    data, data_RELY, data_characteristics, summary_medication = load_data(args)
 
-    # extract patients who are censored
-    summary_censor = pd.DataFrame(data[~data["RELY_SUBJID"].isin(summary_event["RELY_SUBJID"])].groupby("RELY_SUBJID")["STUDY_DAY"].max()).reset_index()
+    # Extract composite outcome and time to event. This is drawn from the
+    # following SAS code:
+    #
+    #     var1=0;
+    #     surv1=surv;
+    #     if max(stroke,noncns,carddeath,majb)=1 then var1=1;
+    #     if var1=1 then surv1=min(stkday,ncnsday,cardday,majbday);
+    #     if surv1=. then surv1=1;
+
+    # Extract patients that developed the composite outcome
+    data["composite_outcome"] = data[
+        ["STROKE", "MAJOR_BLEED", "SYS_EMB"]
+    ].sum(axis = 1)
+    summary_event = data.loc[data["composite_outcome"] >= 1][
+        ["RELY_SUBJID", "STUDY_DAY", "composite_outcome"]
+    ].sort_values(by = ["RELY_SUBJID", "STUDY_DAY"])
+    summary_event = summary_event.drop_duplicates(subset="RELY_SUBJID",
+                                                  keep="first")
+
+    # Extract patients who are censored
+    summary_censor = pd.DataFrame(
+        data[~data["RELY_SUBJID"].isin(summary_event["RELY_SUBJID"])].groupby(
+            "RELY_SUBJID"
+        )["STUDY_DAY"].max()
+    ).reset_index()
     summary_censor["composite_outcome"] = 0
 
-    # combine summary_event and summary_censor
+    # Combine `summary_event` and `summary_censor`
     summary = pd.concat([summary_event, summary_censor], axis = 0)
     summary = summary.rename(columns = {"STUDY_DAY": "time_to_event"})
-    summary["composite_outcome"] = summary["composite_outcome"].replace({2:1})
+    summary["composite_outcome"] = summary["composite_outcome"].replace({2: 1})
 
-    # for patients that are in the TTR file but not in the trajectory file
-    # treat those as censored, and get the time to event info (i.e. last study day) from the TTR file.
-
+    # For patients that are in the TTR file but not in the trajectory file,
+    # those as censored, and get the time to event info (i.e. last study day)
+    # from the TTR file.
     data_RELY = data_RELY.sort_values(by = ["RELY_SUBJID", "STUDY_DAY"])
-    summary = data_RELY[["RELY_SUBJID", "STUDY_DAY"]].drop_duplicates(subset = "RELY_SUBJID", keep = "last").merge(summary, left_on = ["RELY_SUBJID"], right_on = ["RELY_SUBJID"], how = "left")
+    summary = data_RELY[["RELY_SUBJID", "STUDY_DAY"]].drop_duplicates(
+        subset="RELY_SUBJID", keep="last"
+    ).merge(summary,
+            left_on=["RELY_SUBJID"],
+            right_on=["RELY_SUBJID"],
+            how="left")
     summary["composite_outcome"].fillna(0, inplace = True)
-    summary.loc[summary["composite_outcome"]==0, "time_to_event"] = np.nan
-    summary["time_to_event"].fillna(summary["STUDY_DAY"], inplace = True)
-    summary = summary.drop(columns = "STUDY_DAY")
+    summary.loc[summary["composite_outcome"] == 0, "time_to_event"] = np.nan
+    summary["time_to_event"].fillna(summary["STUDY_DAY"], inplace=True)
+    summary = summary.drop(columns="STUDY_DAY")
 
-    # ## 2. Compute centre-level algorithm consistency prior to adverse event or censoring
+    # Compute centre-level algorithm consistency prior to adverse event or
+    # censoring
+    data_RELY = data_RELY.sort_values(by=["RELY_SUBJID", "STUDY_DAY"])
+    data_RELY = data_RELY.merge(summary,
+                                left_on=["RELY_SUBJID", "STUDY_DAY"],
+                                right_on=["RELY_SUBJID", "time_to_event"],
+                                how="outer")
+    data_RELY["STUDY_DAY"] = data_RELY["STUDY_DAY"].fillna(
+        data_RELY["time_to_event"]
+    )
 
-    data_RELY = data_RELY.sort_values(by = ["RELY_SUBJID", "STUDY_DAY"])
-    data_RELY = data_RELY.merge(summary, left_on = ["RELY_SUBJID", "STUDY_DAY"], right_on = ["RELY_SUBJID", "time_to_event"], how = "outer")
-    data_RELY["STUDY_DAY"] = data_RELY["STUDY_DAY"].fillna(data_RELY["time_to_event"])
+    subjids = summary[summary["composite_outcome"] == 1]["RELY_SUBJID"].unique()
+    for id in subjids:
+        termination = int(
+            summary[summary["RELY_SUBJID"] == id]["time_to_event"]
+        )
+        data_RELY.drop(
+            data_RELY[(data_RELY["RELY_SUBJID"] == id) &
+                      (data_RELY["STUDY_DAY"]>termination)].index,
+            inplace=True
+        )
 
-    for id in summary[summary["composite_outcome"]==1]["RELY_SUBJID"].unique():
-        termination = int(summary[summary["RELY_SUBJID"]==id]["time_to_event"])
-        data_RELY.drop(data_RELY[(data_RELY["RELY_SUBJID"]==id) & (data_RELY["STUDY_DAY"]>termination)].index, inplace = True)
+    # Prepare output data for the time-to-event models.
+    coxph_data(data_RELY,
+               data_characteristics,
+               summary_medication,
+               summary,
+               method="threshold")
+    coxph_data(data_RELY,
+               data_characteristics,
+               summary_medication,
+               summary,
+               method="RL")
 
-    # prepare data for the threshold method
-    coxph_data (data_RELY, data_characteristics, summary_medication, summary, method = "threshold")
-
-    # prepare data for the RL model
-    coxph_data (data_RELY, data_characteristics, summary_medication, summary, method = "RL")
-
-    # prepare MLM and WLS data for the threshold method
-    mlm_data (data_RELY, data_characteristics, method = "threshold")
-
-    # prepare MLM and WLS data for the RL model
-    mlm_data (data_RELY, data_characteristics, method = "RL")
+    # Prepare output data for WLS and hierarchical TTR models.
+    mlm_data(data_RELY, data_characteristics, method = "threshold")
+    mlm_data(data_RELY, data_characteristics, method = "RL")
 
 
 # ## 3. Prepare data for the Cox PH model
@@ -202,62 +238,91 @@ def main(args):
 # In[31]:
 
 
-# In addition to the patient-, center-, and country level variables used in the linear regression model
-# 4 additional patient-level variables were added to the Cox proportional hazards model on the basis of clinical relevance to the outcome:
-## baseline use of aspirin (yes versus no)
-## beta-blockers (yes versus no)
-## ace-inhibitors (yes versus no)
-## statins (yes versus no)
-
-# For patients who experienced stroke, systemic embolism, or major hemorrhage
-# % algorithm-consistent dosing was calculated using warfarin prescriptions before the outcome
-# for other patients, it was calculated using all warfarin prescriptions during the study
-
-# Mean % algorithm consistency was then calculated for each center and analyzed as a center-level variable.
-
-
-# In[32]:
-
 
 def coxph_data (data, data_characteristics, summary_medication, summary, method = "threshold"):
-    
     """
-    data: a clean copy of the TTR file, with all the rows after the adverse event removed
-    data_characteristics: a dataframe containing all the patient-, centre- and country-level characteristics
-    summary_medication: a dataframe containing the baseline medication information
-    summary: a data frame containing the adverse event (i.e., composite outcome) and time to event information
-    method: "threshold" for the threshold method, "RL" for the RL model.
+    Prepare data for the Cox proportional hazards model of time-to-event.
+
+    Excerpted from writeup:
+        In addition to the patient-, center-, and country level variables used
+        in the linear regression model, 4 additional patient-level variables
+        were added to the Cox proportional hazards model on the basis of
+        clinical relevance to the outcome:
+          * baseline use of aspirin (yes versus no)
+          * beta-blockers (yes versus no)
+          * ace-inhibitors (yes versus no)
+          * statins (yes versus no)
+
+        For patients who experienced stroke, systemic embolism, or major
+        hemorrhage, % algorithm-consistent dosing was calculated using warfarin
+        prescriptions before the outcome. For other patients, it was calculated
+        using all warfarin prescriptions during the study.
+
+        Mean % algorithm consistency was then calculated for each center and
+        analyzed as a center-level variable.
+
+    Args:
+        data: A clean copy of the TTR file, with all the rows after the adverse
+              event removed.
+        data_characteristics: A dataframe containing all the patient-, centre-
+                              and country-level characteristics.
+        summary_medication: A dataframe containing the baseline medication
+                            information.
+        summary: A data frame containing the adverse event (i.e., composite
+                 outcome) and time to event information.
+        method: "threshold" for the threshold method, "RL" for the RL model.
     """
     if method == "threshold":
         quant_diff = "THRESHOLD_ACTION_DIFF"
     elif method == "RL":
         quant_diff = "POLICY_ACTION_DIFF"
     
-    # remove rows with missing/invalid values
+    # Remove rows with missing/invalid values.
     data[[quant_diff]] = data[[quant_diff]].replace([np.inf, -np.inf], np.nan)
     data = data[data[quant_diff].notna()]
     
-    # Compute an subject-level algorithm consistency index
-    ## This analysis assessed the warfarin dose modification documented in response to each INR result to determine
-    ## whether it was algorithm-consistent, defined as within 5% of the dose recommended by the algorithm.
-    ## Algorithm consistency was expressed as the percentage (%) of total dose instructions consistent with the algorithm in each patient.
+    # Compute an subject-level algorithm consistency index. This analysis
+    # assessed the warfarin dose modification documented in response to each INR
+    # result to determine whether it was algorithm-consistent, defined as within
+    # 5% of the dose recommended by the algorithm. Algorithm consistency was
+    # expressed as the percentage (%) of total dose instructions consistent with
+    # the algorithm in each patient.
     data["algorithm_consistency"] = (abs(data[quant_diff]) <= 0.05) * 1
-    algorithm_consistency = data[["RELY_SUBJID", "algorithm_consistency"]].groupby("RELY_SUBJID").agg(algorithm_consistency = ("algorithm_consistency", "mean"))
-    
-    # merge DFs together
-    df = algorithm_consistency.join(
-        data_characteristics, how = "left", on = "RELY_SUBJID").join(
-        summary_medication, how = "left", on = "RELY_SUBJID").join(
-        summary.set_index("RELY_SUBJID"), how = "left", on = "RELY_SUBJID")
-    
-    df = df.rename(columns = {"centre": "CENTID", "ctryname": "CTRYID"})
+    algorithm_consistency = data[
+        ["RELY_SUBJID", "algorithm_consistency"]
+    ].groupby("RELY_SUBJID").agg(
+        algorithm_consistency=("algorithm_consistency", "mean")
+    )
 
-    # Compute an center-level algorithm consistency index
-    ## Algorithm-consistency was analyzed as a center-level variable because
-    ## although warfarin dosing was tracked in individual patients, dosing was performed by healthcare professionals at centers.
-    df = df.merge(df[["CENTID", "algorithm_consistency"]].groupby("CENTID").agg(centre_algorithm_consistency = ("algorithm_consistency", "mean")), on = "CENTID")
-    
-    # save data
+    # Merge dataframes together.
+    df = algorithm_consistency.join(
+        data_characteristics,
+        how="left",
+        on="RELY_SUBJID"
+    ).join(
+        summary_medication,
+        how="left",
+        on="RELY_SUBJID"
+    ).join(
+        summary.set_index("RELY_SUBJID"),
+        how="left",
+        on=
+        "RELY_SUBJID"
+    )
+    df = df.rename(columns={"centre": "CENTID", "ctryname": "CTRYID"})
+
+    # Compute an center-level algorithm consistency index. Algorithm-consistency
+    # was analyzed as a center-level variable because although warfarin dosing
+    # was tracked in individual patients, dosing was performed by healthcare
+    # professionals at centers.
+    df = df.merge(
+        df[["CENTID", "algorithm_consistency"]].groupby(
+            "CENTID"
+        ).agg(centre_algorithm_consistency=("algorithm_consistency", "mean")),
+        on="CENTID"
+    )
+
+    # Save data
     output_path = os.path.join(args.model_results_path, f"coxMLM_{method}.csv")
     df.to_csv(output_path, index = False)
 
@@ -279,45 +344,81 @@ def mlm_data(data, data_characteristics, method = "threshold"):
     elif method == "RL":
         quant_diff = "POLICY_ACTION_DIFF"
     
-    # remove rows with missing/invalid values
+    # Remove rows with missing/invalid values.
     data[[quant_diff]] = data[[quant_diff]].replace([np.inf, -np.inf], np.nan)
     data = data[data[quant_diff].notna()]
     
     # Extract the TTR information for each trajectory and each subject
-    data_TTR = data[["RELY_SUBJID", "TRAJID", "TRAJECTORY_LENGTH", "APPROXIMATE_TTR"]].groupby(["RELY_SUBJID", "TRAJID"]).agg("mean").reset_index()
-    
-    # Compute a TTR for each subject as a weighted average of trajectory-level TTR, with weights being trajectory length
-    weighted_mean = lambda x: np.average(x, weights = data_TTR.loc[x.index, "TRAJECTORY_LENGTH"])
-    TTR = data_TTR[["RELY_SUBJID", "TRAJECTORY_LENGTH", "APPROXIMATE_TTR"]].groupby("RELY_SUBJID").agg(TTR = ("APPROXIMATE_TTR", weighted_mean))
-    
-    # Compute an subject-level algorithm consistency index
-    ## This analysis assessed the warfarin dose modification documented in response to each INR result to determine
-    ## whether it was algorithm-consistent, defined as within 5% of the dose recommended by the algorithm.
-    ## Algorithm consistency was expressed as the percentage (%) of total dose instructions consistent with the algorithm in each patient.
-    data["algorithm_consistency"] = (abs(data[quant_diff]) <= 0.05) * 1
-    algorithm_consistency = data[["RELY_SUBJID", "algorithm_consistency"]].groupby("RELY_SUBJID").agg(algorithm_consistency = ("algorithm_consistency", "mean"))
-    
-    # merge all DFs together
-    df = TTR.join(
-        algorithm_consistency, how = "left", on = "RELY_SUBJID").join(
-        data_characteristics, how = "left", on = "RELY_SUBJID")
-    df = df.rename(columns = {"centre": "CENTID", "ctryname": "CTRYID"})
+    data_TTR = data[
+        ["RELY_SUBJID", "TRAJID", "TRAJECTORY_LENGTH", "APPROXIMATE_TTR"]
+    ].groupby(["RELY_SUBJID", "TRAJID"]).agg("mean").reset_index()
 
-    # Compute an center-level algorithm consistency index
-    ## Algorithm-consistency was analyzed as a center-level variable because
-    ## although warfarin dosing was tracked in individual patients, dosing was performed by healthcare professionals at centers.
-    df = df.merge(df[["CENTID", "algorithm_consistency"]].groupby("CENTID").agg(centre_algorithm_consistency = ("algorithm_consistency", "mean")), on = "CENTID")
-    
-    # save the MLM data
+    # Compute a TTR for each subject as a weighted average of trajectory-level
+    # TTR, with weights being trajectory length.
+    weighted_mean = lambda x: np.average(
+        x, weights=data_TTR.loc[x.index, "TRAJECTORY_LENGTH"]
+    )
+    TTR = data_TTR[
+        ["RELY_SUBJID", "TRAJECTORY_LENGTH", "APPROXIMATE_TTR"]
+    ].groupby("RELY_SUBJID").agg(TTR = ("APPROXIMATE_TTR", weighted_mean))
+
+    # Compute an subject-level algorithm consistency index. This analysis
+    # assessed the warfarin dose modification documented in response to each
+    # INR result to determine whether it was algorithm-consistent, defined as
+    # within 5% of the dose recommended by the algorithm. Algorithm consistency
+    # was expressed as the percentage (%) of total dose instructions consistent
+    # with the algorithm in each patient.
+    data["algorithm_consistency"] = (abs(data[quant_diff]) <= 0.05) * 1
+    algorithm_consistency = data[
+        ["RELY_SUBJID", "algorithm_consistency"]
+    ].groupby("RELY_SUBJID").agg(
+        algorithm_consistency=("algorithm_consistency", "mean")
+    )
+
+    # Merge all dataframes together.
+    df = TTR.join(
+        algorithm_consistency,
+        how="left",
+        on="RELY_SUBJID"
+    ).join(
+        data_characteristics,
+        how="left",
+        on="RELY_SUBJID"
+    )
+    df = df.rename(columns={"centre": "CENTID", "ctryname": "CTRYID"})
+
+    # Compute an center-level algorithm consistency index. Algorithm-consistency
+    # was analyzed as a center-level variable because although warfarin dosing
+    # was tracked in individual patients, dosing was performed by healthcare
+    # professionals at centers.
+    df = df.merge(
+        df[["CENTID", "algorithm_consistency"]].groupby(
+            "CENTID"
+        ).agg(
+            centre_algorithm_consistency=("algorithm_consistency", "mean")
+        ),
+        on="CENTID"
+    )
+
+    # Save the MLM data.
     output_path = os.path.join(args.model_results_path, f"MLM_{method}.csv")
     df.to_csv(output_path, index = False)
 
-    # prepare data for the weighted linear regression (WLS)
-    # compuate centre-level algorithm consistency and TTR average
-    output_path = os.path.join(args.model_results_path, f"WLS_cent_{method}.csv")
-    df_wls_cent = df[["CENTID", "algorithm_consistency", "TTR"]].groupby("CENTID").agg(["mean", "count"])
-    df_wls_cent.columns = [" ".join(col).strip() for col in df_wls_cent.columns.values]
-    df_wls_cent.rename(columns = {"centre_algorithm_consistency count": "sample_size"}, inplace=True)
+    # Preare data for the weighted linear regression (WLS). Compute centre-level
+    # algorithm consistency and TTR average.
+    output_path = os.path.join(args.model_results_path,
+                               f"WLS_cent_{method}.csv")
+    df_wls_cent = df[
+        ["CENTID", "algorithm_consistency", "TTR"]
+    ].groupby("CENTID").agg(["mean", "count"])
+    df_wls_cent.columns = [
+        " ".join(col).strip()
+        for col in df_wls_cent.columns.values
+    ]
+    df_wls_cent.rename(
+        columns={"centre_algorithm_consistency count": "sample_size"},
+        inplace=True
+    )
     df_wls_cent.to_csv(output_path, index = False)
 
 
