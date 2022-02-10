@@ -21,7 +21,8 @@ data_wls_cent$Count = data_wls_cent$TTR.count
 head(data_wls_cent)
 
 # perform weighted least squares regression
-wls_model_cent = lm(TTR.mean ~ algorithm_consistency.mean, data = data_wls_cent, weights = data_wls_cent$Count)
+wls_model_cent = lm(TTR.mean ~ algorithm_consistency.mean,
+                    data = data_wls_cent, weights = data_wls_cent$Count)
 
 # view summary of model
 summary(wls_model_cent)

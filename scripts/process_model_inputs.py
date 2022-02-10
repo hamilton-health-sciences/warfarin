@@ -166,11 +166,7 @@ def main(args):
 
     # for patients that are in the TTR file but not in the trajectory file
     # treat those as censored, and get the time to event info (i.e. last study day) from the TTR file.
-    sel = ~(data_RELY["THRESHOLD_ACTION"].isnull() &
-            ~data_RELY["OBSERVED_ACTION"].isnull())
-    # import pdb; pdb.set_trace()
-    # data_RELY.loc[~sel, "THRESHOLD_ACTION_DIFF"] = 0.
-    # data_RELY = data_RELY[sel]
+
     data_RELY = data_RELY.sort_values(by = ["RELY_SUBJID", "STUDY_DAY"])
     summary = data_RELY[["RELY_SUBJID", "STUDY_DAY"]].drop_duplicates(subset = "RELY_SUBJID", keep = "last").merge(summary, left_on = ["RELY_SUBJID"], right_on = ["RELY_SUBJID"], how = "left")
     summary["composite_outcome"].fillna(0, inplace = True)
@@ -255,7 +251,7 @@ def coxph_data (data, data_characteristics, summary_medication, summary, method 
         summary.set_index("RELY_SUBJID"), how = "left", on = "RELY_SUBJID")
     
     df = df.rename(columns = {"centre": "CENTID", "ctryname": "CTRYID"})
-    
+
     # Compute an center-level algorithm consistency index
     ## Algorithm-consistency was analyzed as a center-level variable because
     ## although warfarin dosing was tracked in individual patients, dosing was performed by healthcare professionals at centers.
@@ -298,7 +294,6 @@ def mlm_data(data, data_characteristics, method = "threshold"):
     ## This analysis assessed the warfarin dose modification documented in response to each INR result to determine
     ## whether it was algorithm-consistent, defined as within 5% of the dose recommended by the algorithm.
     ## Algorithm consistency was expressed as the percentage (%) of total dose instructions consistent with the algorithm in each patient.
-    
     data["algorithm_consistency"] = (abs(data[quant_diff]) <= 0.05) * 1
     algorithm_consistency = data[["RELY_SUBJID", "algorithm_consistency"]].groupby("RELY_SUBJID").agg(algorithm_consistency = ("algorithm_consistency", "mean"))
     
@@ -307,7 +302,7 @@ def mlm_data(data, data_characteristics, method = "threshold"):
         algorithm_consistency, how = "left", on = "RELY_SUBJID").join(
         data_characteristics, how = "left", on = "RELY_SUBJID")
     df = df.rename(columns = {"centre": "CENTID", "ctryname": "CTRYID"})
-    
+
     # Compute an center-level algorithm consistency index
     ## Algorithm-consistency was analyzed as a center-level variable because
     ## although warfarin dosing was tracked in individual patients, dosing was performed by healthcare professionals at centers.

@@ -13,25 +13,32 @@ RELY_SASLIBS_PATH=${10}
 RELY_DRUGS_PATH=${11}
 CLEAN_EVENTS_PATH=${12}
 
-# Pick the best RL model.
-python3 scripts/evaluate_best_model.py \
-    --logs_path $LOGS_PATH \
-    --train_data_path $TRAIN_DATA_PATH \
-    --data_path $TEST_DATA_PATH \
-    --behavior_policy_path $BEHAVIOR_POLICY_PATH \
-    --output_prefix $OUTPUT_PREFIX \
-    --target_metric $TARGET_METRIC --mode $TARGET_MODE
+# Check if output prefix already exists, and if so, do not re-process the model
+# outputs.
+if [ -d $OUTPUT_PREFIX ]; then
+    echo $OUTPUT_PREFIX already exists. Will not reproduce model decisions, but
+    echo will re-run RELY evaluation pipeline.
+else
+    # Pick the best RL model.
+    python3 scripts/evaluate_best_model.py \
+        --logs_path $LOGS_PATH \
+        --train_data_path $TRAIN_DATA_PATH \
+        --data_path $TEST_DATA_PATH \
+        --behavior_policy_path $BEHAVIOR_POLICY_PATH \
+        --output_prefix $OUTPUT_PREFIX \
+        --target_metric $TARGET_METRIC --mode $TARGET_MODE
 
-# Format the output metrics.
-python3 scripts/format_metrics.py \
-    --metrics_filename $OUTPUT_PREFIX/metrics.json \
-    --output_filename $OUTPUT_PREFIX/metrics_formatted.csv
+    # Format the output metrics.
+    python3 scripts/format_metrics.py \
+        --metrics_filename $OUTPUT_PREFIX/metrics.json \
+        --output_filename $OUTPUT_PREFIX/metrics_formatted.csv
 
-# Link the output TTR data to the RELY database.
-python3 scripts/link_rely_subj_ids.py \
-    --hierarchical_ttr $OUTPUT_PREFIX/hierarchical_ttr.csv \
-    --rely_subjid_path $RELY_SUBJIDS_FILENAME \
-    --output_path $OUTPUT_PREFIX/hierarchical_ttr_linked.csv
+    # Link the output TTR data to the RELY database.
+    python3 scripts/link_rely_subj_ids.py \
+        --hierarchical_ttr $OUTPUT_PREFIX/hierarchical_ttr.csv \
+        --rely_subjid_path $RELY_SUBJIDS_FILENAME \
+        --output_path $OUTPUT_PREFIX/hierarchical_ttr_linked.csv
+fi
 
 # Generate inputs to TTR & events models.
 python3 scripts/process_model_inputs.py \
