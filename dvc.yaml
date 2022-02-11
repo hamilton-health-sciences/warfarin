@@ -27,12 +27,16 @@ stages:
     cmd: python3 scripts/preprocess_combine_af.py --baseline_path data/raw_data/baseline.feather
       --inr_path data/raw_data/inr.feather --events_path data/raw_data/events.feather
       --output_directory data/clean_data
+    params:
+    - preprocess.static_state_columns
+    - preprocess.dose_outlier_threshold
+    - preprocess.event_range
+    - data.events_to_keep
     deps:
     - data/raw_data/baseline.feather
     - data/raw_data/events.feather
     - data/raw_data/inr.feather
     - scripts/preprocess_combine_af.py
-    - warfarin/config.py
     outs:
     - data/clean_data
     - data/auditing
@@ -41,3 +45,6 @@ stages:
     deps:
     - data/auditing
     - data/clean_data
+    params:
+    - preprocess.static_state_columns
+    - data.events_to_keep

@@ -3,7 +3,7 @@
 import yaml
 
 
-with open("params.yml", "r") as f:
+with open("params.yaml", "r") as f:
     params = yaml.safe_load(f)
 
 # If set to anything other than `None`, will write dataframes from each
@@ -16,7 +16,7 @@ AUDIT_PLOT_PATH = "./data/auditing"
 CACHE_PATH = "./cache"
 
 # Patients with weekly mg doses above this will be removed
-DOSE_OUTLIER_THRESHOLD = params["data"]["dose_outlier_threshold"]
+DOSE_OUTLIER_THRESHOLD = params["preprocess"]["dose_outlier_threshold"]
 
 # Clinical visits that are more than MAX_TIME_ELAPSED are put into separate
 # trajectories
@@ -49,12 +49,12 @@ EVENTS_TO_SPLIT = ["DEATH", "STROKE", "MAJOR_BLEED", "HEM_STROKE", "HOSP"]
 
 # If an event occurs more than this many days away from the last entry,
 # ignore it.
-EVENT_RANGE = params["data"]["event_range"]
+EVENT_RANGE = params["preprocess"]["event_range"]
 
 # These are the patient features that are extracted from the baseline data and
 # merged with the rest of the data. Patients without these columns will be
 # excluded.
-STATIC_STATE_COLS = params["data"]["static_state_columns"]
+STATIC_STATE_COLS = params["preprocess"]["static_state_columns"]
 
 # The adverse events we want to consider when defining rewards based on events
 # and upsampling trajectories with events.
