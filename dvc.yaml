@@ -36,3 +36,8 @@ stages:
     outs:
     - data/clean_data
     - data/auditing
+  audit_preprocess:
+    cmd: python3 scripts/audit_combine_preprocessing.py > output/combine_preprocess_audit.txt
+    deps:
+    - data/auditing
+    - data/clean_data
