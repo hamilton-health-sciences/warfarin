@@ -1,0 +1,4 @@
+outs:
+- md5: 48d16c9c03c3acc75d7b3dab397087b7
+  size: 22413312
+  path: merged_other.sas7bdat

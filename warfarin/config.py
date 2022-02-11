@@ -1,5 +1,11 @@
 """Defining constants."""
 
+import yaml
+
+
+with open("params.yml", "r") as f:
+    params = yaml.safe_load(f)
+
 # If set to anything other than `None`, will write dataframes from each
 # individual step of the preprocessing pipeline to this path, named by the
 # preprocessing function.
@@ -10,7 +16,7 @@ AUDIT_PLOT_PATH = "./data/auditing"
 CACHE_PATH = "./cache"
 
 # Patients with weekly mg doses above this will be removed
-DOSE_OUTLIER_THRESHOLD = 140
+DOSE_OUTLIER_THRESHOLD = params["data"]["dose_outlier_threshold"]
 
 # Clinical visits that are more than MAX_TIME_ELAPSED are put into separate
 # trajectories
@@ -32,11 +38,9 @@ EVENT_REWARD = 0
 
 # These are the adverse events that are extracted from the events data and
 # merged with the rest of the data. Note that STROKE indicates ischemic stroke.
-EVENTS_TO_KEEP = ["DEATH", "STROKE", "MAJOR_BLEED", "MINOR_BLEED", "HEM_STROKE",
-                  "HOSP", "SYS_EMB"]
-EVENTS_TO_KEEP_NAMES = ["Death", "Ischemic Stroke", "Major Bleeding",
-                        "Minor Bleeding", "Hemorrhagic Stroke",
-                        "Hospitalization", "Systemic Embolism"]
+EVENTS_TO_KEEP = list(params["data"]["events_to_keep"].keys())
+EVENTS_TO_KEEP_NAMES = [params["data"]["events_to_keep"][event_code]
+                        for event_code in EVENTS_TO_KEEP]
 
 # Events to split on. We don't split on minor bleeds as this would create way
 # too many short trajectories, particularly in RE-LY where the per-patient
@@ -45,14 +49,12 @@ EVENTS_TO_SPLIT = ["DEATH", "STROKE", "MAJOR_BLEED", "HEM_STROKE", "HOSP"]
 
 # If an event occurs more than this many days away from the last entry,
 # ignore it.
-EVENT_RANGE = 90
+EVENT_RANGE = params["data"]["event_range"]
 
 # These are the patient features that are extracted from the baseline data and
 # merged with the rest of the data. Patients without these columns will be
 # excluded.
-STATIC_STATE_COLS = ["SEX", "RACE2", "SMOKE", "BMED_ASPIRIN",
-                     "BMED_AMIOD", "DIABETES", "HX_CHF", "HYPERTENSION",
-                     "HX_MI", "BMED_THIENO", "AGE_DEIDENTIFIED", "WEIGHT"]
+STATIC_STATE_COLS = params["data"]["static_state_columns"]
 
 # The adverse events we want to consider when defining rewards based on events
 # and upsampling trajectories with events.

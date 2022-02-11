@@ -1,0 +1,38 @@
+stages:
+  convert_baseline:
+    cmd: python3 scripts/convert_sas_to_feather.py --input_filename data/raw_data/merged_baseline.sas7bdat
+      --output_filename data/raw_data/baseline.feather
+    deps:
+    - data/raw_data/merged_baseline.sas7bdat
+    - scripts/convert_sas_to_feather.py
+    outs:
+    - data/raw_data/baseline.feather
+  convert_inr:
+    cmd: python3 scripts/convert_sas_to_feather.py --input_filename data/raw_data/merged_inr.sas7bdat
+      --output_filename data/raw_data/inr.feather
+    deps:
+    - data/raw_data/merged_inr.sas7bdat
+    - scripts/convert_sas_to_feather.py
+    outs:
+    - data/raw_data/inr.feather
+  convert_events:
+    cmd: python3 scripts/convert_sas_to_feather.py --input_filename data/raw_data/merged_events.sas7bdat
+      --output_filename data/raw_data/events.feather
+    deps:
+    - data/raw_data/merged_events.sas7bdat
+    - scripts/convert_sas_to_feather.py
+    outs:
+    - data/raw_data/events.feather
+  preprocess:
+    cmd: python3 scripts/preprocess_combine_af.py --baseline_path data/raw_data/baseline.feather
+      --inr_path data/raw_data/inr.feather --events_path data/raw_data/events.feather
+      --output_directory data/clean_data
+    deps:
+    - data/raw_data/baseline.feather
+    - data/raw_data/events.feather
+    - data/raw_data/inr.feather
+    - scripts/preprocess_combine_af.py
+    - warfarin/config.py
+    outs:
+    - data/clean_data
+    - data/auditing

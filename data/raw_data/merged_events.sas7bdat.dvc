@@ -1,0 +1,4 @@
+outs:
+- md5: 5c071f4777f39678e72fca9c16a69430
+  size: 253378560
+  path: merged_events.sas7bdat
