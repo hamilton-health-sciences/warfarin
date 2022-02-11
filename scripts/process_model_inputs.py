@@ -135,7 +135,9 @@ def load_data(args):
     data_RELY = pd.read_csv(ttr_path)
 
     # trajectory data (used to extract adverse event and time to adverse event)
-    data = pd.read_feather(args.events_path).rename(columns = {"EVENT_T2": "STUDY_DAY"})
+    data = pd.read_feather(args.events_path).rename(
+        columns={"EVENT_T2": "STUDY_DAY"}
+    )
 
     id_map = data_RELY[["RELY_SUBJID", "SUBJID"]].drop_duplicates()
     data = data.merge(id_map, on = "SUBJID")

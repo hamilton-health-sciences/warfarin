@@ -31,7 +31,7 @@ else
     # Format the output metrics.
     python3 scripts/format_metrics.py \
         --metrics_filename $OUTPUT_PREFIX/metrics.json \
-        --output_filename $OUTPUT_PREFIX/metrics_formatted.csv
+        --output_prefix $OUTPUT_PREFIX
 
     # Link the output TTR data to the RELY database.
     python3 scripts/link_rely_subj_ids.py \
