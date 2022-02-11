@@ -28,10 +28,8 @@ stages:
       --inr_path data/raw_data/inr.feather --events_path data/raw_data/events.feather
       --output_directory data/clean_data
     params:
-    - preprocess.static_state_columns
-    - preprocess.dose_outlier_threshold
-    - preprocess.event_range
-    - data.events_to_keep
+    - preprocess
+    - data
     deps:
     - data/raw_data/baseline.feather
     - data/raw_data/events.feather
@@ -45,11 +43,41 @@ stages:
     - data/clean_data/train_data.feather
     - data/clean_data/val_data.feather
     - data/clean_data/test_data.feather
-    - data/auditing
+    - data/auditing/impute_inr_and_dose.feather
+    - data/auditing/merge_inr_baseline.feather
+    - data/auditing/merge_inr_events.feather
+    - data/auditing/merge_trials_and_remove_outlying_doses.feather
+    - data/auditing/preprocess_all_baseline.feather
+    - data/auditing/preprocess_all_events.feather
+    - data/auditing/preprocess_all_inr.feather
+    - data/auditing/preprocess_aristotle.feather
+    - data/auditing/preprocess_engage_rocket.feather
+    - data/auditing/preprocess_rely.feather
+    - data/auditing/remove_short_trajectories.feather
+    - data/auditing/split_data_test.feather
+    - data/auditing/split_data_train.feather
+    - data/auditing/split_data_val.feather
+    - data/auditing/split_trajectories_at_events.feather
+    - data/auditing/split_trajectories_at_gaps.feather
   audit_preprocess:
     cmd: python3 scripts/audit_combine_preprocessing.py > output/combine_preprocess_audit.txt
     deps:
-    - data/auditing
+    - data/auditing/impute_inr_and_dose.feather
+    - data/auditing/merge_inr_baseline.feather
+    - data/auditing/merge_inr_events.feather
+    - data/auditing/merge_trials_and_remove_outlying_doses.feather
+    - data/auditing/preprocess_all_baseline.feather
+    - data/auditing/preprocess_all_events.feather
+    - data/auditing/preprocess_all_inr.feather
+    - data/auditing/preprocess_aristotle.feather
+    - data/auditing/preprocess_engage_rocket.feather
+    - data/auditing/preprocess_rely.feather
+    - data/auditing/remove_short_trajectories.feather
+    - data/auditing/split_data_test.feather
+    - data/auditing/split_data_train.feather
+    - data/auditing/split_data_val.feather
+    - data/auditing/split_trajectories_at_events.feather
+    - data/auditing/split_trajectories_at_gaps.feather
     - data/clean_data/baseline.feather
     - data/clean_data/inr.feather
     - data/clean_data/events.feather
@@ -59,8 +87,15 @@ stages:
     - data/clean_data/test_data.feather
     - scripts/audit_combine_preprocessing.py
     params:
-    - preprocess.static_state_columns
-    - data.events_to_keep
+    - preprocess
+    - data
+    outs:
+    - output/combine_preprocess_audit.txt:
+        cache: false
+    - data/auditing/inr_dose_change_tile.png:
+        cache: false
+    - data/auditing/dose_change_inr_change_tile.png:
+        cache: false
   tune_behavior_cloner:
     cmd: python3 scripts/tune_bc.py --tune_smoke_test
     deps:
@@ -68,8 +103,12 @@ stages:
     - data/clean_data/val_data.feather
     - scripts/tune_bc.py
     params:
+    - data.events_to_keep
+    - data.events_to_split
     - data.min_train_trajectory_length
-    - replay_buffer.include_dose_time_varying
+    - data.state_columns
+    - replay_buffer.init.time_varying
+    - replay_buffer.init.include_dose_time_varying
     - behavior_cloner
     outs:
     - ray_logs/bc

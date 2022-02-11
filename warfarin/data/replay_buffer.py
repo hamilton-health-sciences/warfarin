@@ -42,6 +42,8 @@ class WarfarinReplayBuffer(TensorDataset):
                  weight_option_frequency: bool = False,
                  time_varying: str = "within",
                  include_dose_time_varying: bool = False,
+                 inr_reward: float = 1.,
+                 event_reward: float = 0.,
                  device: str = "cpu",
                  seed: int = 42) -> None:
         """
@@ -72,6 +74,8 @@ class WarfarinReplayBuffer(TensorDataset):
                                        varying features. Potentially sub-optimal
                                        as it represents a violation of standard
                                        Markov assumptions.
+            inr_reward: The reward for each in-range INR.
+            event_reward: The reward when an adverse event occurs.
             device: The device to store the data on.
             seed: The seed for randomly sampling batches.
         """
@@ -82,6 +86,9 @@ class WarfarinReplayBuffer(TensorDataset):
 
         self.time_varying = "within" if time_varying is None else time_varying
         self.include_dose_time_varying = include_dose_time_varying
+
+        self.inr_reward = inr_reward
+        self.event_reward = event_reward
 
         self._option_means = None
 
@@ -190,7 +197,10 @@ class WarfarinReplayBuffer(TensorDataset):
         ).shift(-1).copy()
         option = extract_observed_decision(self.df.copy())
         k = compute_k(self.df.copy())
-        reward = compute_reward(self.df.copy(), self.discount_factor)
+        reward = compute_reward(self.df.copy(),
+                                self.discount_factor,
+                                self.inr_reward,
+                                self.event_reward)
         done = compute_done(self.df.copy())
         sample_prob = compute_sample_probability(self.df.copy(),
                                                  option.copy(),

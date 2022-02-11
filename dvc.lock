@@ -61,34 +61,117 @@ stages:
       size: 5322
     params:
       params.yaml:
-        data.events_to_keep:
-          DEATH: Death
-          STROKE: Ischemic Stroke
-          MAJOR_BLEED: Major Bleeding
-          MINOR_BLEED: Minor Bleeding
-          HEM_STROKE: Hemorrhagic Stroke
-          HOSP: Hospitalization
-          SYS_EMB: Systemic Embolism
-        preprocess.dose_outlier_threshold: 140
-        preprocess.event_range: 90
-        preprocess.static_state_columns:
-        - SEX
-        - RACE2
-        - SMOKE
-        - BMED_ASPIRIN
-        - BMED_AMIOD
-        - DIABETES
-        - HX_CHF
-        - HYPERTENSION
-        - HX_MI
-        - BMED_THIENO
-        - AGE_DEIDENTIFIED
-        - WEIGHT
+        data:
+          events_to_keep:
+            DEATH: Death
+            STROKE: Ischemic Stroke
+            MAJOR_BLEED: Major Bleeding
+            MINOR_BLEED: Minor Bleeding
+            HEM_STROKE: Hemorrhagic Stroke
+            HOSP: Hospitalization
+            SYS_EMB: Systemic Embolism
+          events_to_split:
+          - DEATH
+          - STROKE
+          - MAJOR_BLEED
+          - HEM_STROKE
+          - HOSP
+          events_to_evaluate:
+          - STROKE
+          - HEM_STROKE
+          - MAJOR_BLEED
+          min_train_trajectory_length: 5
+          state_columns:
+          - AGE_DEIDENTIFIED
+          - SEX
+          - WEIGHT
+          - RACE2
+          - CONTINENT
+          - SMOKE
+          - BMED_ASPIRIN
+          - BMED_AMIOD
+          - BMED_THIENO
+          - DIABETES
+          - HX_CHF
+          - HYPERTENSION
+          - HX_MI
+          - INR_VALUE
+          - WARFARIN_DOSE
+          - STROKE_FLAG
+          - MAJOR_BLEED_FLAG
+          - MINOR_BLEED_FLAG
+          - HEM_STROKE_FLAG
+          - HOSP_FLAG
+          - WARFARIN_DOSE_BIN
+          - AGE_BIN
+          - WEIGHT_BIN
+        preprocess:
+          static_state_columns:
+          - SEX
+          - RACE2
+          - CONTINENT
+          - SMOKE
+          - BMED_ASPIRIN
+          - BMED_AMIOD
+          - DIABETES
+          - HX_CHF
+          - HYPERTENSION
+          - HX_MI
+          - BMED_THIENO
+          - AGE_DEIDENTIFIED
+          - WEIGHT
+          dose_outlier_threshold: 140
+          event_range: 90
+          max_time_elapsed: 90
     outs:
-    - path: data/auditing
-      md5: 7a4e8e21e1dc4817f86de0b8bbd71ff1.dir
-      size: 386038904
-      nfiles: 16
+    - path: data/auditing/impute_inr_and_dose.feather
+      md5: 4f06604d8a1ae29925dc24d632c362ec
+      size: 15234546
+    - path: data/auditing/merge_inr_baseline.feather
+      md5: 6497b33095e06260bcd8a4e545efee05
+      size: 12762898
+    - path: data/auditing/merge_inr_events.feather
+      md5: 408f7888d17399618a877464b80c4842
+      size: 15123922
+    - path: data/auditing/merge_trials_and_remove_outlying_doses.feather
+      md5: 5f3387e46ef6fb5ea6c4c39621de406f
+      size: 17820970
+    - path: data/auditing/preprocess_all_baseline.feather
+      md5: b27ac9ae4ba65010084eadd4b68715b0
+      size: 12117674
+    - path: data/auditing/preprocess_all_events.feather
+      md5: 8f638d845371ad7e8905f0de7f1e87a0
+      size: 3097738
+    - path: data/auditing/preprocess_all_inr.feather
+      md5: a229bbb3b6f2aedfb4d35f10acb0fb73
+      size: 242435994
+    - path: data/auditing/preprocess_aristotle.feather
+      md5: 2d8df7120c54046eda7e036e9d842cca
+      size: 4185610
+    - path: data/auditing/preprocess_engage_rocket.feather
+      md5: 2529bd33df6c46b1264295dfe10a060e
+      size: 7383994
+    - path: data/auditing/preprocess_rely.feather
+      md5: ae11985f6df89936e27d3767fb7337c3
+      size: 3461946
+    - path: data/auditing/remove_short_trajectories.feather
+      md5: 44c3319dbfefdc1a1fe370e1423154e1
+      size: 12720922
+    - path: data/auditing/split_data_test.feather
+      md5: e808f78f4f2baa12ae21504ca757fa27
+      size: 3241290
+    - path: data/auditing/split_data_train.feather
+      md5: c5c68d54316f4e89779ddc22c738b7c9
+      size: 12123682
+    - path: data/auditing/split_data_val.feather
+      md5: 01b39db50818afa7974b95690c3d0f3b
+      size: 970026
+    - path: data/auditing/split_trajectories_at_events.feather
+      md5: 7e3f44c7ce83bf5129a1c16eaa8aa86e
+      size: 11709962
+    - path: data/auditing/split_trajectories_at_gaps.feather
+      md5: a6ec6aea94d7afe9932fb8cefd3cbf5b
+      size: 11679978
     - path: data/clean_data/baseline.feather
       md5: 9befc0bfa703ad2065c768f78083b056
       size: 12002450
@@ -99,24 +182,68 @@ stages:
       md5: 093e2fc30038bdfe560471fde6b98de1
       size: 14296778
     - path: data/clean_data/merged.feather
-      md5: 00ffb420d54bfe34f1a7b3f3e397ec31
-      size: 12711474
+      md5: 44c3319dbfefdc1a1fe370e1423154e1
+      size: 12720922
     - path: data/clean_data/test_data.feather
-      md5: 3f3c4650aae6a665b3cc260ca7c627d6
-      size: 2552386
+      md5: aba23f8346c7d9c95c4da32a19275c36
+      size: 2555010
     - path: data/clean_data/train_data.feather
-      md5: 1c37c43b9b451ca67eab9384eedefe41
-      size: 9437298
+      md5: b0cebd846c9e4a2334c2499d457a56a6
+      size: 9444722
     - path: data/clean_data/val_data.feather
-      md5: 20da198ead04ed5d248bb5eb0b0c7126
-      size: 756706
+      md5: e259a7268cf759b8ab70c48e4de9e429
+      size: 759970
   audit_preprocess:
     cmd: python3 scripts/audit_combine_preprocessing.py > output/combine_preprocess_audit.txt
     deps:
-    - path: data/auditing
-      md5: 8dd99135e4707f371e7fd86f32469be2.dir
-      size: 386239518
-      nfiles: 18
+    - path: data/auditing/impute_inr_and_dose.feather
+      md5: 4f06604d8a1ae29925dc24d632c362ec
+      size: 15234546
+    - path: data/auditing/merge_inr_baseline.feather
+      md5: 6497b33095e06260bcd8a4e545efee05
+      size: 12762898
+    - path: data/auditing/merge_inr_events.feather
+      md5: 408f7888d17399618a877464b80c4842
+      size: 15123922
+    - path: data/auditing/merge_trials_and_remove_outlying_doses.feather
+      md5: 5f3387e46ef6fb5ea6c4c39621de406f
+      size: 17820970
+    - path: data/auditing/preprocess_all_baseline.feather
+      md5: b27ac9ae4ba65010084eadd4b68715b0
+      size: 12117674
+    - path: data/auditing/preprocess_all_events.feather
+      md5: 8f638d845371ad7e8905f0de7f1e87a0
+      size: 3097738
+    - path: data/auditing/preprocess_all_inr.feather
+      md5: a229bbb3b6f2aedfb4d35f10acb0fb73
+      size: 242435994
+    - path: data/auditing/preprocess_aristotle.feather
+      md5: 2d8df7120c54046eda7e036e9d842cca
+      size: 4185610
+    - path: data/auditing/preprocess_engage_rocket.feather
+      md5: 2529bd33df6c46b1264295dfe10a060e
+      size: 7383994
+    - path: data/auditing/preprocess_rely.feather
+      md5: ae11985f6df89936e27d3767fb7337c3
+      size: 3461946
+    - path: data/auditing/remove_short_trajectories.feather
+      md5: 44c3319dbfefdc1a1fe370e1423154e1
+      size: 12720922
+    - path: data/auditing/split_data_test.feather
+      md5: e808f78f4f2baa12ae21504ca757fa27
+      size: 3241290
+    - path: data/auditing/split_data_train.feather
+      md5: c5c68d54316f4e89779ddc22c738b7c9
+      size: 12123682
+    - path: data/auditing/split_data_val.feather
+      md5: 01b39db50818afa7974b95690c3d0f3b
+      size: 970026
+    - path: data/auditing/split_trajectories_at_events.feather
+      md5: 7e3f44c7ce83bf5129a1c16eaa8aa86e
+      size: 11709962
+    - path: data/auditing/split_trajectories_at_gaps.feather
+      md5: a6ec6aea94d7afe9932fb8cefd3cbf5b
+      size: 11679978
     - path: data/clean_data/baseline.feather
       md5: 9befc0bfa703ad2065c768f78083b056
       size: 12002450
@@ -127,40 +254,101 @@ stages:
       md5: 093e2fc30038bdfe560471fde6b98de1
       size: 14296778
     - path: data/clean_data/merged.feather
-      md5: 00ffb420d54bfe34f1a7b3f3e397ec31
-      size: 12711474
+      md5: 44c3319dbfefdc1a1fe370e1423154e1
+      size: 12720922
     - path: data/clean_data/test_data.feather
-      md5: 3f3c4650aae6a665b3cc260ca7c627d6
-      size: 2552386
+      md5: aba23f8346c7d9c95c4da32a19275c36
+      size: 2555010
     - path: data/clean_data/train_data.feather
-      md5: 1c37c43b9b451ca67eab9384eedefe41
-      size: 9437298
+      md5: b0cebd846c9e4a2334c2499d457a56a6
+      size: 9444722
     - path: data/clean_data/val_data.feather
-      md5: 20da198ead04ed5d248bb5eb0b0c7126
-      size: 756706
+      md5: e259a7268cf759b8ab70c48e4de9e429
+      size: 759970
     - path: scripts/audit_combine_preprocessing.py
       md5: b0d4bc6ff636f54ed09f9b39544e7121
       size: 17748
     params:
       params.yaml:
-        data.events_to_keep:
-          DEATH: Death
-          STROKE: Ischemic Stroke
-          MAJOR_BLEED: Major Bleeding
-          MINOR_BLEED: Minor Bleeding
-          HEM_STROKE: Hemorrhagic Stroke
-          HOSP: Hospitalization
-          SYS_EMB: Systemic Embolism
-        preprocess.static_state_columns:
-        - SEX
-        - RACE2
-        - SMOKE
-        - BMED_ASPIRIN
-        - BMED_AMIOD
-        - DIABETES
-        - HX_CHF
-        - HYPERTENSION
-        - HX_MI
-        - BMED_THIENO
-        - AGE_DEIDENTIFIED
-        - WEIGHT
+        data:
+          events_to_keep:
+            DEATH: Death
+            STROKE: Ischemic Stroke
+            MAJOR_BLEED: Major Bleeding
+            MINOR_BLEED: Minor Bleeding
+            HEM_STROKE: Hemorrhagic Stroke
+            HOSP: Hospitalization
+            SYS_EMB: Systemic Embolism
+          events_to_split:
+          - DEATH
+          - STROKE
+          - MAJOR_BLEED
+          - HEM_STROKE
+          - HOSP
+          events_to_evaluate:
+          - STROKE
+          - HEM_STROKE
+          - MAJOR_BLEED
+          min_train_trajectory_length: 5
+          state_columns:
+          - AGE_DEIDENTIFIED
+          - SEX
+          - WEIGHT
+          - RACE2
+          - CONTINENT
+          - SMOKE
+          - BMED_ASPIRIN
+          - BMED_AMIOD
+          - BMED_THIENO
+          - DIABETES
+          - HX_CHF
+          - HYPERTENSION
+          - HX_MI
+          - INR_VALUE
+          - WARFARIN_DOSE
+          - STROKE_FLAG
+          - MAJOR_BLEED_FLAG
+          - MINOR_BLEED_FLAG
+          - HEM_STROKE_FLAG
+          - HOSP_FLAG
+          - WARFARIN_DOSE_BIN
+          - AGE_BIN
+          - WEIGHT_BIN
+        preprocess:
+          static_state_columns:
+          - SEX
+          - RACE2
+          - CONTINENT
+          - SMOKE
+          - BMED_ASPIRIN
+          - BMED_AMIOD
+          - DIABETES
+          - HX_CHF
+          - HYPERTENSION
+          - HX_MI
+          - BMED_THIENO
+          - AGE_DEIDENTIFIED
+          - WEIGHT
+          dose_outlier_threshold: 140
+          event_range: 90
+          max_time_elapsed: 90
+    outs:
+    - path: data/auditing/dose_change_inr_change_tile.png
+      md5: 93fa0d7d1c6bb8738c8dece8f8b35638
+      size: 105784
+    - path: data/auditing/inr_dose_change_tile.png
+      md5: e758f4cfb9e8918895358f1f38942a1c
+      size: 94830
+    - path: output/combine_preprocess_audit.txt
+      md5: 45cbdd68cd062afc1fafbf46c7d3127e
+      size: 16953
+  testing:
+    cmd: echo hello > mygittrackedfile
+    deps:
+    - path: warfarin/config.py
+      md5: 13ceb20ff89d3e17ab705888aa6a4eb5
+      size: 4859
+    outs:
+    - path: mygittrackedfile
+      md5: b1946ac92492d2347c6235b4d2611184
+      size: 6

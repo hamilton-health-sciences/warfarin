@@ -413,6 +413,7 @@ Auditing results of `merge_inr_baseline`...
 	Missing values in baseline columns:
 		SEX                 0
 		RACE2               0
+		CONTINENT           0
 		SMOKE               0
 		BMED_ASPIRIN        0
 		BMED_AMIOD          0

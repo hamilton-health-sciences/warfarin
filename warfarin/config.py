@@ -23,6 +23,14 @@ EVENT_RANGE = params["preprocess"]["event_range"]
 ## excluded.
 STATIC_STATE_COLS = params["preprocess"]["static_state_columns"]
 
+## Clinical visits that are more than MAX_TIME_ELAPSED are put into separate
+## trajectories
+MAX_TIME_ELAPSED = params["preprocess"]["max_time_elapsed"]
+
+## Remove trajectories that are not useful for RL modeling because they contain
+## < 1 valid transition.
+MIN_INR_COUNTS = 2
+
 # Data-related parameters shared throughout the code.
 
 ## These are the adverse events that are extracted from the events data and
@@ -30,6 +38,16 @@ STATIC_STATE_COLS = params["preprocess"]["static_state_columns"]
 EVENTS_TO_KEEP = list(params["data"]["events_to_keep"].keys())
 EVENTS_TO_KEEP_NAMES = [params["data"]["events_to_keep"][event_code]
                         for event_code in EVENTS_TO_KEEP]
+
+## Events to split trajectories on.
+EVENTS_TO_SPLIT = params["data"]["events_to_split"]
+
+## The adverse events we want to consider when defining rewards based on events
+## and upsampling trajectories with events.
+ADV_EVENTS = params["data"]["events_to_evaluate"]
+
+## Processed static columns of the state space.
+STATE_COLS = params["data"]["state_columns"]
 
 # Replay buffer parameters.
 
@@ -40,7 +58,7 @@ MIN_TRAIN_TRAJECTORY_LENGTH = (
 )
 
 ## General parameters for feature engineering in the replay buffers.
-REPLAY_BUFFER_PARAMS = params["replay_buffer"]
+REPLAY_BUFFER_PARAMS = params["replay_buffer"]["init"]
 
 # Behavior cloner parameters.
 
@@ -64,29 +82,6 @@ AUDIT_PLOT_PATH = "./data/auditing"
 # Path to cache things.
 CACHE_PATH = "./cache"
 
-# Clinical visits that are more than MAX_TIME_ELAPSED are put into separate
-# trajectories
-MAX_TIME_ELAPSED = 90
-
-# Remove trajectories that are not useful for RL modeling because they contain
-# < 1 valid transition.
-MIN_INR_COUNTS = 2
-
-# The reward associated with INRs that are in therapeutic range
-INR_REWARD = 1
-
-# The reward associated with adverse events (ADV_EVENTS)
-EVENT_REWARD = 0
-
-# Events to split on. We don't split on minor bleeds as this would create way
-# too many short trajectories, particularly in RE-LY where the per-patient
-# rate of minor bleeding is >90%.
-EVENTS_TO_SPLIT = ["DEATH", "STROKE", "MAJOR_BLEED", "HEM_STROKE", "HOSP"]
-
-# The adverse events we want to consider when defining rewards based on events
-# and upsampling trajectories with events.
-ADV_EVENTS = ["STROKE", "HEM_STROKE", "MAJOR_BLEED"]
-
 # Raw warfarin dose bins
 WARFARIN_DOSE_BOUNDS = [-0.001, 5, 12.5, 17.5, 22.5, 27.5, 30, 32.5, 35, 45,
                         1000]
@@ -103,14 +98,6 @@ AGE_BIN_LABELS = ["<=50", "(50, 60]", "(60, 65]", "(65, 70]", "(70, 75]",
 WEIGHT_BOUNDS = [-0.001, 55, 70, 80, 90, 100, 250]
 WEIGHT_BIN_LABELS = ["<=55", "(55, 70]", "(70, 80]", "(80, 90]", "(90, 100]",
                      ">100"]
-
-# Raw columns of the state space.
-STATE_COLS = ["AGE_DEIDENTIFIED", "SEX", "WEIGHT", "RACE2", "SMOKE",
-              "BMED_ASPIRIN", "BMED_AMIOD", "BMED_THIENO", "DIABETES", "HX_CHF",
-              "HYPERTENSION", "HX_MI", "INR_VALUE", "WARFARIN_DOSE",
-              "STROKE_FLAG", "MAJOR_BLEED_FLAG", "MINOR_BLEED_FLAG",
-              "HEM_STROKE_FLAG", "HOSP_FLAG", "WARFARIN_DOSE_BIN", "AGE_BIN",
-              "WEIGHT_BIN"]
 
 # Hyperparameter search options for the BCQ algo
 

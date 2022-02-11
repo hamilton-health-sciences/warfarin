@@ -185,12 +185,18 @@ def compute_k(df):
     return k
 
 
-def compute_reward(df, discount_factor):
+def compute_reward(df,
+                   discount_factor,
+                   inr_reward,
+                   event_reward):
     """
     Compute the reward associated with each SMDP transition.
 
     Args:
         df: The merged longitudinal data.
+        discount_factor: The discount factor.
+        inr_reward: The reward for in-range INRs.
+        event_reward: The reward for adverse events.
 
     Returns:
         reward: The cumulative discounted reward.
@@ -210,8 +216,8 @@ def compute_reward(df, discount_factor):
 
     # Compute daily rewards
     is_event = (df_interp[config.ADV_EVENTS].sum(axis=1) > 0).fillna(0)
-    df_interp["REWARD"] = (df_interp["IN_RANGE"] * config.INR_REWARD +
-                           is_event * config.EVENT_REWARD)
+    df_interp["REWARD"] = (df_interp["IN_RANGE"] * inr_reward +
+                           is_event * event_reward)
 
     # Compute intermediate time index between visits
     df_interp.loc[df.index, "IS_OBSERVED"] = 1
