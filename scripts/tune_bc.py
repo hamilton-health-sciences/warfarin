@@ -22,17 +22,16 @@ from warfarin.utils.ordinal import compute_cutpoints
 from warfarin.evaluation import evaluate_behavioral_cloning
 
 
-def train_run(config, train_data_path, val_data_path, init_seed, smoke_test=False):
+def train_run(config, train_data_path, val_data_path, smoke_test=False):
     # Generate data buffers
     train_data, train_loader, val_data, val_loader = get_dataloaders(
         train_data_path,
         val_data_path,
         config["batch_size"],
-        config["discount"],
         min_train_trajectory_length=global_config.MIN_TRAIN_TRAJECTORY_LENGTH,
         weight_option_frequency_train=config["weight_option_frequency"],
         use_random_train=True,
-        include_dose_time_varying=config["include_dose_time_varying"]
+        **global_config.REPLAY_BUFFER_PARAMS
     )
 
     trial_dir = tune.get_trial_dir()
@@ -62,7 +61,7 @@ def train_run(config, train_data_path, val_data_path, init_seed, smoke_test=Fals
 
     # Train the model
     writer = tf.summary.create_file_writer(trial_dir)
-    for epoch in range(global_config.MAX_BC_TRAINING_EPOCHS):
+    for epoch in range(global_config.BC_MAX_TRAINING_EPOCHS):
         epoch_loss = 0.
         for batch_idx, batch in enumerate(train_loader):
             loss = model.train(batch)
@@ -72,7 +71,8 @@ def train_run(config, train_data_path, val_data_path, init_seed, smoke_test=Fals
         epoch_loss /= (batch_idx + 1)
 
         # Get metrics of interest
-        train_metrics, train_plots = evaluate_behavioral_cloning(model, train_data)
+        train_metrics, train_plots = evaluate_behavioral_cloning(model,
+                                                                 train_data)
         val_metrics, val_plots = evaluate_behavioral_cloning(model, val_data)
         metrics = {**{f"train/{k}": v for k, v in train_metrics.items()},
                    **{f"val/{k}": v for k, v in val_metrics.items()}}
@@ -95,35 +95,19 @@ def trial_namer(trial):
     return name
 
 
-def tune_run(num_samples: int,
-             tune_seed: int,
-             init_seed: int,
+def tune_run(tune_seed: int,
              output_dir: str,
              train_data_path: str,
              val_data_path: str,
-             include_dose_time_varying: bool,
              target_metric: str,
              mode: str,
              smoke_test: bool,
              tune_smoke_test: bool,
              experiment_name: str = "bc"):
-    tune_config = {
-        "likelihood": tune.grid_search(["discrete", "ordered"]),
-        "learning_rate": 1e-4,
-        "batch_size": tune.grid_search([16, 128]),
-        "num_layers": 2,
-        "hidden_dim": 64,
-        # Inverse-weighting by option frequency seems to result in worse models
-        # without post-hoc probability calibration, so we don't do it.
-        "weight_option_frequency": False,
-        # Replay buffer params that affect state generation
-        "include_dose_time_varying": include_dose_time_varying,
-        # Ignored, as we do not use the rewards for BC training.
-        "discount": 0.99
-    }
+    tune_config = global_config.BC_GRID_SEARCH
     if smoke_test or tune_smoke_test:
-        global_config.MIN_BC_TRAINING_EPOCHS = 1
-        global_config.MAX_BC_TRAINING_EPOCHS = 1
+        global_config.BC_MIN_TRAINING_EPOCHS = 1
+        global_config.BC_MAX_TRAINING_EPOCHS = 1
 
     if smoke_test:
         train_conf = tune_config
@@ -153,12 +137,10 @@ def tune_run(num_samples: int,
             train_run,
             train_data_path=train_data_path,
             val_data_path=val_data_path,
-            init_seed=init_seed,
             smoke_test=tune_smoke_test
         ),
         resources_per_trial={"cpu": 8, "gpu": 1},
         config=tune_config,
-        # num_samples=num_samples,
         progress_reporter=reporter,
         local_dir=output_dir,
         name=experiment_name,
@@ -169,38 +151,31 @@ def tune_run(num_samples: int,
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--train_data", type=str, required=True)
-    parser.add_argument("--val_data", type=str, required=True)
-    parser.add_argument("--include_dose_time_varying", action="store_true",
-                        default=False)
-    parser.add_argument("--target_metric", type=str, default="val/accuracy")
-    parser.add_argument("--mode", type=str, choices=["min", "max"],
-                        default="max")
-    parser.add_argument("--tune_seed", type=int, default=0)
-    parser.add_argument("--init_seed", type=int, default=1)
+    parser.add_argument(
+        "--train_data",
+        type=str,
+        default=os.path.join(os.getcwd(), "data/clean_data/train_data.feather")
+    )
+    parser.add_argument(
+        "--val_data",
+        type=str,
+        default=os.path.join(os.getcwd(), "data/clean_data/val_data.feather")
+    )
     parser.add_argument("--output_dir", type=str, default="./ray_logs")
     parser.add_argument("--experiment_name", type=str, default="bc")
     parser.add_argument("--smoke_test", action="store_true", default=False)
     parser.add_argument("--tune_smoke_test", action="store_true", default=False)
     args = parser.parse_args()
 
-    if args.tune_smoke_test:
-        num_samples = 1
-    else:
-        num_samples = global_config.NUM_BC_HYPERPARAMETER_SAMPLES
-
     tune_run(
         # Hyperparameter optimizer parameters
-        num_samples=num_samples,
-        tune_seed=args.tune_seed,
-        init_seed=args.init_seed,
+        tune_seed=global_config.BC_TUNE_SEED,
         output_dir=args.output_dir,
-        target_metric=args.target_metric,
-        mode=args.mode,
+        target_metric=global_config.BC_TARGET_METRIC,
+        mode=global_config.BC_TARGET_MODE,
         # Model/data parameters
         train_data_path=args.train_data,
         val_data_path=args.val_data,
-        include_dose_time_varying=args.include_dose_time_varying,
         # Smoke tests for faster iteration on tuning procedure
         smoke_test=args.smoke_test,
         tune_smoke_test=args.tune_smoke_test,

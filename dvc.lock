@@ -117,10 +117,30 @@ stages:
       md5: 8dd99135e4707f371e7fd86f32469be2.dir
       size: 386239518
       nfiles: 18
-    - path: data/clean_data
-      md5: 2f44c4301ae4783902514bbc71cda4d2.dir
-      size: 54599214
-      nfiles: 7
+    - path: data/clean_data/baseline.feather
+      md5: 9befc0bfa703ad2065c768f78083b056
+      size: 12002450
+    - path: data/clean_data/events.feather
+      md5: 58fe757b812ad14754e029c38f4771c5
+      size: 2842122
+    - path: data/clean_data/inr.feather
+      md5: 093e2fc30038bdfe560471fde6b98de1
+      size: 14296778
+    - path: data/clean_data/merged.feather
+      md5: 00ffb420d54bfe34f1a7b3f3e397ec31
+      size: 12711474
+    - path: data/clean_data/test_data.feather
+      md5: 3f3c4650aae6a665b3cc260ca7c627d6
+      size: 2552386
+    - path: data/clean_data/train_data.feather
+      md5: 1c37c43b9b451ca67eab9384eedefe41
+      size: 9437298
+    - path: data/clean_data/val_data.feather
+      md5: 20da198ead04ed5d248bb5eb0b0c7126
+      size: 756706
+    - path: scripts/audit_combine_preprocessing.py
+      md5: b0d4bc6ff636f54ed09f9b39544e7121
+      size: 17748
     params:
       params.yaml:
         data.events_to_keep:

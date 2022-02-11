@@ -1,10 +1,59 @@
-"""Defining constants."""
+"""Defining constants and modifiable hyperparameters managed by `dvc`."""
 
 import yaml
 
+from ray import tune
 
+
+# Load dvc-managed params.
 with open("params.yaml", "r") as f:
     params = yaml.safe_load(f)
+
+# COMBINE-AF preprocessing parameters.
+
+## Patients with weekly mg doses above this will be removed
+DOSE_OUTLIER_THRESHOLD = params["preprocess"]["dose_outlier_threshold"]
+
+## If an event occurs more than this many days away from the last entry,
+## ignore it.
+EVENT_RANGE = params["preprocess"]["event_range"]
+
+## These are the patient features that are extracted from the baseline data and
+## merged with the rest of the data. Patients without these columns will be
+## excluded.
+STATIC_STATE_COLS = params["preprocess"]["static_state_columns"]
+
+# Data-related parameters shared throughout the code.
+
+## These are the adverse events that are extracted from the events data and
+## merged with the rest of the data. Note that STROKE indicates ischemic stroke.
+EVENTS_TO_KEEP = list(params["data"]["events_to_keep"].keys())
+EVENTS_TO_KEEP_NAMES = [params["data"]["events_to_keep"][event_code]
+                        for event_code in EVENTS_TO_KEEP]
+
+# Replay buffer parameters.
+
+## Trajectories with fewer than MIN_TRAINING_TRAJECTORY_LENGTH transitions will
+## be removed
+MIN_TRAIN_TRAJECTORY_LENGTH = (
+    params["data"]["min_train_trajectory_length"]
+)
+
+## General parameters for feature engineering in the replay buffers.
+REPLAY_BUFFER_PARAMS = params["replay_buffer"]
+
+# Behavior cloner parameters.
+
+## Hyperparameter search options for the BC algo
+BC_TUNE_SEED = params["behavior_cloner"]["tune_seed"]
+BC_MIN_TRAINING_EPOCHS = params["behavior_cloner"]["min_training_epochs"]
+BC_MAX_TRAINING_EPOCHS = params["behavior_cloner"]["max_training_epochs"]
+BC_TARGET_METRIC = params["behavior_cloner"]["target_metric"]
+BC_TARGET_MODE = params["behavior_cloner"]["target_mode"]
+BC_GRID_SEARCH = {
+    name: tune.grid_search(values)
+    for name, values in params["behavior_cloner"]["hyperparams"].items()
+}
 
 # If set to anything other than `None`, will write dataframes from each
 # individual step of the preprocessing pipeline to this path, named by the
@@ -15,9 +64,6 @@ AUDIT_PLOT_PATH = "./data/auditing"
 # Path to cache things.
 CACHE_PATH = "./cache"
 
-# Patients with weekly mg doses above this will be removed
-DOSE_OUTLIER_THRESHOLD = params["preprocess"]["dose_outlier_threshold"]
-
 # Clinical visits that are more than MAX_TIME_ELAPSED are put into separate
 # trajectories
 MAX_TIME_ELAPSED = 90
@@ -26,35 +72,16 @@ MAX_TIME_ELAPSED = 90
 # < 1 valid transition.
 MIN_INR_COUNTS = 2
 
-# Trajectories with fewer than MIN_TRAINING_TRAJECTORY_LENGTH transitions will
-# be removed
-MIN_TRAIN_TRAJECTORY_LENGTH = 5
-
 # The reward associated with INRs that are in therapeutic range
 INR_REWARD = 1
 
 # The reward associated with adverse events (ADV_EVENTS)
 EVENT_REWARD = 0
 
-# These are the adverse events that are extracted from the events data and
-# merged with the rest of the data. Note that STROKE indicates ischemic stroke.
-EVENTS_TO_KEEP = list(params["data"]["events_to_keep"].keys())
-EVENTS_TO_KEEP_NAMES = [params["data"]["events_to_keep"][event_code]
-                        for event_code in EVENTS_TO_KEEP]
-
 # Events to split on. We don't split on minor bleeds as this would create way
 # too many short trajectories, particularly in RE-LY where the per-patient
 # rate of minor bleeding is >90%.
 EVENTS_TO_SPLIT = ["DEATH", "STROKE", "MAJOR_BLEED", "HEM_STROKE", "HOSP"]
-
-# If an event occurs more than this many days away from the last entry,
-# ignore it.
-EVENT_RANGE = params["preprocess"]["event_range"]
-
-# These are the patient features that are extracted from the baseline data and
-# merged with the rest of the data. Patients without these columns will be
-# excluded.
-STATIC_STATE_COLS = params["preprocess"]["static_state_columns"]
 
 # The adverse events we want to consider when defining rewards based on events
 # and upsampling trajectories with events.
@@ -98,14 +125,6 @@ MAX_TRAINING_EPOCHS = 2_500
 
 # How often to plot in epochs.
 PLOT_EVERY = 100
-
-# Hyperparameter search options for the BC algo
-
-NUM_BC_HYPERPARAMETER_SAMPLES = 25
-
-MIN_BC_TRAINING_EPOCHS = 50
-
-MAX_BC_TRAINING_EPOCHS = 500
 
 # Evaluation constants
 

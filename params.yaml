@@ -24,27 +24,34 @@ data:
     HEM_STROKE: Hemorrhagic Stroke
     HOSP: Hospitalization
     SYS_EMB: Systemic Embolism
+  min_train_trajectory_length: 5
 
 replay_buffer:
-  discount: 0.99
-  min_train_trajectory_length: 5
-  state:
-    include_dose_time_varying: false
+  discount_factor: 0.99
+  include_dose_time_varying: false
 
 behavior_cloner:
   tune_seed: 42
-  init_seeds:
-  - 0
-  - 1
-  - 2
-  - 3
-  likelihood: discrete
-  learning_rate: 1e-4
-  batch_size:
-  - 16
-  - 128
-  num_layers: 2
-  hidden_dim: 64
-  weight_option_frequency: false
   min_training_epochs: 100
   max_training_epochs: 500
+  target_metric: val/auroc
+  target_mode: max
+  hyperparams:
+    init_seed:
+    - 0
+    - 1
+    - 2
+    likelihood:
+    - discrete
+    learning_rate:
+    - 1.e-4
+    batch_size:
+    - 16
+    num_layers:
+    - 2
+    - 3
+    hidden_dim:
+    - 16
+    - 128
+    weight_option_frequency:
+    - false
