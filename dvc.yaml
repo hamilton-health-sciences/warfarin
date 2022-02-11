@@ -38,7 +38,13 @@ stages:
     - data/raw_data/inr.feather
     - scripts/preprocess_combine_af.py
     outs:
-    - data/clean_data
+    - data/clean_data/baseline.feather
+    - data/clean_data/inr.feather
+    - data/clean_data/events.feather
+    - data/clean_data/merged.feather
+    - data/clean_data/train_data.feather
+    - data/clean_data/val_data.feather
+    - data/clean_data/test_data.feather
     - data/auditing
   audit_preprocess:
     cmd: python3 scripts/audit_combine_preprocessing.py > output/combine_preprocess_audit.txt
@@ -48,3 +54,12 @@ stages:
     params:
     - preprocess.static_state_columns
     - data.events_to_keep
+  tune_behavior_cloner:
+    cmd: python3 scripts/tune_bc.py --smoke_test
+    deps:
+    - data/clean_data/train_data.feather
+    - data/clean_data/val_data.feather
+    params:
+    - replay_buffer.min_train_trajectory_length
+    - replay_buffer.state.include_dose_time_varying
+    - behavior_cloner
