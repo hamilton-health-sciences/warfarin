@@ -99,12 +99,12 @@ def preprocess_rely(inr, baseline):
     # Convert average daily doses to weekly doses
     rely_data["WARFARIN_DOSE"] = rely_data["WARFARIN_DOSE"] * 7
 
-    # Subset to observed INRs
-    rely_data = rely_data[rely_data["INR_TYPE"] == "Y"].copy()
-
-    # TODO: What is this interrupts data doing?
+    # Use trial interruptions data to interrupt trajectories
     rely_data["INTERRUPT"] = rely_data["INTERRUPT_FLAG"].fillna(0.).astype(bool)
     rely_data = split_traj(rely_data, reason="TRIAL_INTERRUPTION")
+
+    # Subset to observed INRs
+    rely_data = rely_data[rely_data["INR_TYPE"] == "Y"].copy()
 
     return rely_data
 
