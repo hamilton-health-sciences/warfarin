@@ -1,0 +1,5 @@
+outs:
+- md5: 2f44c4301ae4783902514bbc71cda4d2.dir
+  size: 54599214
+  nfiles: 7
+  path: clean_data
