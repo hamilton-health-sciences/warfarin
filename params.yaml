@@ -18,6 +18,7 @@ preprocess:
   max_time_elapsed: 90
 
 data:
+  min_train_trajectory_length: 5
   events_to_keep:
     DEATH: Death
     STROKE: Ischemic Stroke
@@ -32,12 +33,11 @@ data:
   - MAJOR_BLEED
   - HEM_STROKE
   - HOSP
-  # TODO add sys_emb?
+  - SYS_EMB
   events_to_evaluate:
   - STROKE
   - HEM_STROKE
   - MAJOR_BLEED
-  min_train_trajectory_length: 5
   state_columns:
   - AGE_DEIDENTIFIED
   - SEX
@@ -65,8 +65,8 @@ data:
 
 replay_buffer:
   init:
-    time_varying: within
-    include_dose_time_varying: false
+    time_varying: across
+    include_dose_time_varying: true
     discount_factor: 0.99
     inr_reward: 1
     event_reward: 0

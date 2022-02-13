@@ -295,25 +295,25 @@ Auditing results of `split_trajectories_at_events`...
 		Name: SUBJID, dtype: int64
 	Number of trajectories:
 		TRIAL
-		ARISTOTLE    11245
-		ENGAGE       11852
-		RELY         11487
-		ROCKET_AF     8368
+		ARISTOTLE    11248
+		ENGAGE       11853
+		RELY         11489
+		ROCKET_AF     8379
 		Name: TRAJID, dtype: int64
 	Trajectory length (# entries):
 		           min   25%   50%       mean   75%    max
 		TRIAL                                             
-		ARISTOTLE  0.0  11.0  22.0  22.779013  32.0  102.0
-		ENGAGE     0.0   7.0  18.0  22.578299  37.0  100.0
-		RELY       0.0   5.0  11.0  14.513276  21.0   94.0
-		ROCKET_AF  0.0  11.0  22.0  22.250359  32.0  109.0
+		ARISTOTLE  0.0  11.0  22.0  22.772937  32.0  102.0
+		ENGAGE     0.0   7.0  18.0  22.576394  37.0  100.0
+		RELY       0.0   5.0  11.0  14.510749  21.0   94.0
+		ROCKET_AF  0.0  11.0  22.0  22.221148  32.0  109.0
 	Trajectory length (days):
-		           min    25%    50%        mean     75%     max
-		TRIAL                                                   
-		ARISTOTLE  0.0  174.0  447.0  456.972699  672.00  1467.0
-		ENGAGE     0.0  121.0  399.0  501.982450  872.00  1543.0
-		RELY       0.0   66.0  226.0  306.381823  486.00  1099.0
-		ROCKET_AF  0.0  204.0  477.0  481.777247  727.25  1249.0
+		           min    25%    50%        mean    75%     max
+		TRIAL                                                  
+		ARISTOTLE  0.0  174.0  447.0  456.842016  672.0  1467.0
+		ENGAGE     0.0  121.0  399.0  501.939509  871.0  1543.0
+		RELY       0.0   66.0  226.0  306.326747  486.0  1099.0
+		ROCKET_AF  0.0  202.5  476.0  481.133548  727.0  1249.0
 	Maximum number of splittable events in a transition (should be 1):
 		1
 	Missing doses by trial:
@@ -362,25 +362,25 @@ Auditing results of `split_trajectories_at_gaps`...
 		Name: SUBJID, dtype: int64
 	Number of trajectories:
 		TRIAL
-		ARISTOTLE    11349
-		ENGAGE       11812
-		RELY         12459
-		ROCKET_AF     8393
+		ARISTOTLE    11352
+		ENGAGE       11813
+		RELY         12461
+		ROCKET_AF     8404
 		Name: TRAJID, dtype: int64
 	Trajectory length (# entries):
 		           min   25%   50%       mean   75%    max
 		TRIAL                                             
-		ARISTOTLE  1.0  10.0  22.0  22.570271  32.0  102.0
-		ENGAGE     1.0   7.0  18.0  22.503556  36.0  100.0
-		RELY       1.0   4.0  10.0  13.378281  20.0   94.0
-		ROCKET_AF  1.0  11.0  22.0  22.184082  32.0  109.0
+		ARISTOTLE  1.0  10.0  22.0  22.564306  32.0  102.0
+		ENGAGE     1.0   7.0  18.0  22.501651  36.0  100.0
+		RELY       1.0   4.0  10.0  13.376134  20.0   94.0
+		ROCKET_AF  1.0  11.0  22.0  22.155045  32.0  109.0
 	Trajectory length (days):
 		           min    25%    50%        mean    75%     max
 		TRIAL                                                  
-		ARISTOTLE  0.0  167.0  443.0  451.014274  663.0  1467.0
-		ENGAGE     0.0  117.0  374.5  486.315103  843.0  1543.0
-		RELY       0.0   56.0  189.0  272.152982  435.0  1099.0
-		ROCKET_AF  0.0  201.0  473.0  479.583582  725.0  1249.0
+		ARISTOTLE  0.0  167.0  442.5  450.886364  663.0  1467.0
+		ENGAGE     0.0  117.0  375.0  486.273343  842.0  1543.0
+		RELY       0.0   56.0  189.0  272.107696  435.0  1099.0
+		ROCKET_AF  0.0  200.0  473.0  478.944669  725.0  1249.0
 Auditing results of `merge_inr_baseline`...
 	Number of patients:
 		TRIAL
@@ -391,25 +391,25 @@ Auditing results of `merge_inr_baseline`...
 		Name: SUBJID, dtype: int64
 	Number of trajectories:
 		TRIAL
-		ARISTOTLE    11349
-		ENGAGE       11812
-		RELY         12459
-		ROCKET_AF     8393
+		ARISTOTLE    11352
+		ENGAGE       11813
+		RELY         12461
+		ROCKET_AF     8404
 		Name: TRAJID, dtype: int64
 	Trajectory length (# entries):
 		           min   25%   50%       mean   75%    max
 		TRIAL                                             
-		ARISTOTLE  1.0  10.0  22.0  22.570271  32.0  102.0
-		ENGAGE     1.0   7.0  18.0  22.503556  36.0  100.0
-		RELY       1.0   4.0  10.0  13.378281  20.0   94.0
-		ROCKET_AF  1.0  11.0  22.0  22.184082  32.0  109.0
+		ARISTOTLE  1.0  10.0  22.0  22.564306  32.0  102.0
+		ENGAGE     1.0   7.0  18.0  22.501651  36.0  100.0
+		RELY       1.0   4.0  10.0  13.376134  20.0   94.0
+		ROCKET_AF  1.0  11.0  22.0  22.155045  32.0  109.0
 	Trajectory length (days):
 		           min    25%    50%        mean    75%     max
 		TRIAL                                                  
-		ARISTOTLE  0.0  167.0  443.0  451.014274  663.0  1467.0
-		ENGAGE     0.0  117.0  374.5  486.315103  843.0  1543.0
-		RELY       0.0   56.0  189.0  272.152982  435.0  1099.0
-		ROCKET_AF  0.0  201.0  473.0  479.583582  725.0  1249.0
+		ARISTOTLE  0.0  167.0  442.5  450.886364  663.0  1467.0
+		ENGAGE     0.0  117.0  375.0  486.273343  842.0  1543.0
+		RELY       0.0   56.0  189.0  272.107696  435.0  1099.0
+		ROCKET_AF  0.0  200.0  473.0  478.944669  725.0  1249.0
 	Missing values in baseline columns:
 		SEX                 0
 		RACE2               0
@@ -435,22 +435,22 @@ Auditing results of `remove_short_trajectories`...
 		Name: SUBJID, dtype: int64
 	Number of trajectories:
 		TRIAL
-		ARISTOTLE    11131
-		ENGAGE       11424
-		RELY         11570
-		ROCKET_AF     8250
+		ARISTOTLE    11133
+		ENGAGE       11425
+		RELY         11572
+		ROCKET_AF     8254
 		Name: TRAJID, dtype: int64
 	Trajectory length (# entries):
 		           min   25%   50%       mean   75%    max
 		TRIAL                                             
-		ARISTOTLE  1.0  11.0  22.0  22.992723  32.0  102.0
-		ENGAGE     1.0   8.0  19.0  23.233894  37.0  100.0
-		RELY       1.0   5.0  11.0  14.329386  21.0   94.0
-		ROCKET_AF  1.0  11.0  22.0  22.551273  32.0  109.0
+		ARISTOTLE  1.0  11.0  22.0  22.988503  32.0  102.0
+		ENGAGE     1.0   8.0  19.0  23.231860  37.0  100.0
+		RELY       1.0   5.0  11.0  14.326910  21.0   94.0
+		ROCKET_AF  1.0  11.0  22.0  22.539496  32.0  109.0
 	Trajectory length (days):
-		           min    25%    50%        mean     75%     max
-		TRIAL                                                   
-		ARISTOTLE  1.0  182.0  447.0  459.847363  670.00  1467.0
-		ENGAGE     1.0  134.0  400.0  502.832108  853.00  1543.0
-		RELY       1.0   77.0  218.0  293.064304  455.00  1099.0
-		ROCKET_AF  1.0  219.0  483.0  487.896364  729.75  1249.0
+		           min    25%    50%        mean    75%     max
+		TRIAL                                                  
+		ARISTOTLE  1.0  182.0  447.0  459.755861  670.0  1467.0
+		ENGAGE     1.0  134.0  400.0  502.787484  852.0  1543.0
+		RELY       1.0   77.0  218.0  293.011925  455.0  1099.0
+		ROCKET_AF  1.0  218.0  482.0  487.648534  729.0  1249.0

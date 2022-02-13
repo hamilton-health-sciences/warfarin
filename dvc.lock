@@ -62,6 +62,7 @@ stages:
     params:
       params.yaml:
         data:
+          min_train_trajectory_length: 5
           events_to_keep:
             DEATH: Death
             STROKE: Ischemic Stroke
@@ -76,11 +77,11 @@ stages:
           - MAJOR_BLEED
           - HEM_STROKE
           - HOSP
+          - SYS_EMB
           events_to_evaluate:
           - STROKE
           - HEM_STROKE
           - MAJOR_BLEED
-          min_train_trajectory_length: 5
           state_columns:
           - AGE_DEIDENTIFIED
           - SEX
@@ -125,11 +126,11 @@ stages:
           max_time_elapsed: 90
     outs:
     - path: data/auditing/impute_inr_and_dose.feather
-      md5: 4f06604d8a1ae29925dc24d632c362ec
-      size: 15234546
+      md5: 6223e235d2114d38cb31e2003029277a
+      size: 15234810
     - path: data/auditing/merge_inr_baseline.feather
-      md5: 6497b33095e06260bcd8a4e545efee05
-      size: 12762898
+      md5: 8ccb16262299199107165339a384d2ad
+      size: 12763138
     - path: data/auditing/merge_inr_events.feather
       md5: 408f7888d17399618a877464b80c4842
       size: 15123922
@@ -155,23 +156,23 @@ stages:
       md5: ae11985f6df89936e27d3767fb7337c3
       size: 3461946
     - path: data/auditing/remove_short_trajectories.feather
-      md5: 44c3319dbfefdc1a1fe370e1423154e1
-      size: 12720922
+      md5: f57279ddf0f4568e85daa22f0c03e404
+      size: 12720754
     - path: data/auditing/split_data_test.feather
-      md5: e808f78f4f2baa12ae21504ca757fa27
-      size: 3241290
+      md5: 2fe8daa1bea1f121af063f7078453110
+      size: 3241330
     - path: data/auditing/split_data_train.feather
-      md5: c5c68d54316f4e89779ddc22c738b7c9
-      size: 12123682
+      md5: 28f657f5698da59f6a85e98ffe213234
+      size: 12123626
     - path: data/auditing/split_data_val.feather
-      md5: 01b39db50818afa7974b95690c3d0f3b
-      size: 970026
+      md5: 1261ea69704efb58e73f903ce211e162
+      size: 969994
     - path: data/auditing/split_trajectories_at_events.feather
-      md5: 7e3f44c7ce83bf5129a1c16eaa8aa86e
-      size: 11709962
+      md5: 3d247699882b107e9f6d865ddf42dac8
+      size: 11710138
     - path: data/auditing/split_trajectories_at_gaps.feather
-      md5: a6ec6aea94d7afe9932fb8cefd3cbf5b
-      size: 11679978
+      md5: 2e90dbb2f19a7ceffc92508d34ed9a4b
+      size: 11680218
     - path: data/clean_data/baseline.feather
       md5: 9befc0bfa703ad2065c768f78083b056
       size: 12002450
@@ -182,26 +183,26 @@ stages:
       md5: 093e2fc30038bdfe560471fde6b98de1
       size: 14296778
     - path: data/clean_data/merged.feather
-      md5: 44c3319dbfefdc1a1fe370e1423154e1
-      size: 12720922
+      md5: f57279ddf0f4568e85daa22f0c03e404
+      size: 12720754
     - path: data/clean_data/test_data.feather
-      md5: aba23f8346c7d9c95c4da32a19275c36
-      size: 2555010
+      md5: a7250755b725d93b1bcd40c5005e2c59
+      size: 2555050
     - path: data/clean_data/train_data.feather
-      md5: b0cebd846c9e4a2334c2499d457a56a6
-      size: 9444722
+      md5: 512b80a2695d33b0a91c80d0c5c58365
+      size: 9444698
     - path: data/clean_data/val_data.feather
-      md5: e259a7268cf759b8ab70c48e4de9e429
-      size: 759970
+      md5: a06428e354e3801114edc2a7f2746b20
+      size: 759946
   audit_preprocess:
     cmd: python3 scripts/audit_combine_preprocessing.py > output/combine_preprocess_audit.txt
     deps:
     - path: data/auditing/impute_inr_and_dose.feather
-      md5: 4f06604d8a1ae29925dc24d632c362ec
-      size: 15234546
+      md5: 6223e235d2114d38cb31e2003029277a
+      size: 15234810
     - path: data/auditing/merge_inr_baseline.feather
-      md5: 6497b33095e06260bcd8a4e545efee05
-      size: 12762898
+      md5: 8ccb16262299199107165339a384d2ad
+      size: 12763138
     - path: data/auditing/merge_inr_events.feather
       md5: 408f7888d17399618a877464b80c4842
       size: 15123922
@@ -227,23 +228,23 @@ stages:
       md5: ae11985f6df89936e27d3767fb7337c3
       size: 3461946
     - path: data/auditing/remove_short_trajectories.feather
-      md5: 44c3319dbfefdc1a1fe370e1423154e1
-      size: 12720922
+      md5: f57279ddf0f4568e85daa22f0c03e404
+      size: 12720754
     - path: data/auditing/split_data_test.feather
-      md5: e808f78f4f2baa12ae21504ca757fa27
-      size: 3241290
+      md5: 2fe8daa1bea1f121af063f7078453110
+      size: 3241330
     - path: data/auditing/split_data_train.feather
-      md5: c5c68d54316f4e89779ddc22c738b7c9
-      size: 12123682
+      md5: 28f657f5698da59f6a85e98ffe213234
+      size: 12123626
     - path: data/auditing/split_data_val.feather
-      md5: 01b39db50818afa7974b95690c3d0f3b
-      size: 970026
+      md5: 1261ea69704efb58e73f903ce211e162
+      size: 969994
     - path: data/auditing/split_trajectories_at_events.feather
-      md5: 7e3f44c7ce83bf5129a1c16eaa8aa86e
-      size: 11709962
+      md5: 3d247699882b107e9f6d865ddf42dac8
+      size: 11710138
     - path: data/auditing/split_trajectories_at_gaps.feather
-      md5: a6ec6aea94d7afe9932fb8cefd3cbf5b
-      size: 11679978
+      md5: 2e90dbb2f19a7ceffc92508d34ed9a4b
+      size: 11680218
     - path: data/clean_data/baseline.feather
       md5: 9befc0bfa703ad2065c768f78083b056
       size: 12002450
@@ -254,23 +255,24 @@ stages:
       md5: 093e2fc30038bdfe560471fde6b98de1
       size: 14296778
     - path: data/clean_data/merged.feather
-      md5: 44c3319dbfefdc1a1fe370e1423154e1
-      size: 12720922
+      md5: f57279ddf0f4568e85daa22f0c03e404
+      size: 12720754
     - path: data/clean_data/test_data.feather
-      md5: aba23f8346c7d9c95c4da32a19275c36
-      size: 2555010
+      md5: a7250755b725d93b1bcd40c5005e2c59
+      size: 2555050
     - path: data/clean_data/train_data.feather
-      md5: b0cebd846c9e4a2334c2499d457a56a6
-      size: 9444722
+      md5: 512b80a2695d33b0a91c80d0c5c58365
+      size: 9444698
     - path: data/clean_data/val_data.feather
-      md5: e259a7268cf759b8ab70c48e4de9e429
-      size: 759970
+      md5: a06428e354e3801114edc2a7f2746b20
+      size: 759946
     - path: scripts/audit_combine_preprocessing.py
       md5: b0d4bc6ff636f54ed09f9b39544e7121
       size: 17748
     params:
       params.yaml:
         data:
+          min_train_trajectory_length: 5
           events_to_keep:
             DEATH: Death
             STROKE: Ischemic Stroke
@@ -285,11 +287,11 @@ stages:
           - MAJOR_BLEED
           - HEM_STROKE
           - HOSP
+          - SYS_EMB
           events_to_evaluate:
           - STROKE
           - HEM_STROKE
           - MAJOR_BLEED
-          min_train_trajectory_length: 5
           state_columns:
           - AGE_DEIDENTIFIED
           - SEX
@@ -334,14 +336,14 @@ stages:
           max_time_elapsed: 90
     outs:
     - path: data/auditing/dose_change_inr_change_tile.png
-      md5: 93fa0d7d1c6bb8738c8dece8f8b35638
-      size: 105784
+      md5: fe8680b9fd4b406a271ede73f3f4f561
+      size: 105793
     - path: data/auditing/inr_dose_change_tile.png
-      md5: e758f4cfb9e8918895358f1f38942a1c
-      size: 94830
+      md5: acbd7f4a80610939e6cc143d76a7a8fb
+      size: 94738
     - path: output/combine_preprocess_audit.txt
-      md5: 45cbdd68cd062afc1fafbf46c7d3127e
-      size: 16953
+      md5: f4a12e69c4b63c291da6de0d734a2a15
+      size: 16941
   testing:
     cmd: echo hello > mygittrackedfile
     deps:
@@ -352,3 +354,87 @@ stages:
     - path: mygittrackedfile
       md5: b1946ac92492d2347c6235b4d2611184
       size: 6
+  tune_behavior_cloner:
+    cmd: python3 scripts/tune_bc.py
+    deps:
+    - path: data/clean_data/train_data.feather
+      md5: 512b80a2695d33b0a91c80d0c5c58365
+      size: 9444698
+    - path: data/clean_data/val_data.feather
+      md5: a06428e354e3801114edc2a7f2746b20
+      size: 759946
+    - path: scripts/tune_bc.py
+      md5: a847d9e2784f7c603322bbed974f274d
+      size: 6272
+    params:
+      params.yaml:
+        behavior_cloner:
+          tune_seed: 42
+          min_training_epochs: 100
+          max_training_epochs: 500
+          target_metric: val/auroc
+          target_mode: max
+          hyperparams:
+            init_seed:
+            - 0
+            likelihood:
+            - discrete
+            learning_rate:
+            - 0.0001
+            batch_size:
+            - 16
+            num_layers:
+            - 2
+            - 3
+            hidden_dim:
+            - 16
+            - 128
+            weight_option_frequency:
+            - false
+        data.events_to_keep:
+          DEATH: Death
+          STROKE: Ischemic Stroke
+          MAJOR_BLEED: Major Bleeding
+          MINOR_BLEED: Minor Bleeding
+          HEM_STROKE: Hemorrhagic Stroke
+          HOSP: Hospitalization
+          SYS_EMB: Systemic Embolism
+        data.events_to_split:
+        - DEATH
+        - STROKE
+        - MAJOR_BLEED
+        - HEM_STROKE
+        - HOSP
+        - SYS_EMB
+        data.min_train_trajectory_length: 5
+        data.state_columns:
+        - AGE_DEIDENTIFIED
+        - SEX
+        - WEIGHT
+        - RACE2
+        - CONTINENT
+        - SMOKE
+        - BMED_ASPIRIN
+        - BMED_AMIOD
+        - BMED_THIENO
+        - DIABETES
+        - HX_CHF
+        - HYPERTENSION
+        - HX_MI
+        - INR_VALUE
+        - WARFARIN_DOSE
+        - STROKE_FLAG
+        - MAJOR_BLEED_FLAG
+        - MINOR_BLEED_FLAG
+        - HEM_STROKE_FLAG
+        - HOSP_FLAG
+        - WARFARIN_DOSE_BIN
+        - AGE_BIN
+        - WEIGHT_BIN
+        replay_buffer.init.include_dose_time_varying: true
+        replay_buffer.init.time_varying: across
+    outs:
+    - path: ray_logs/bc
+      md5: 75dac90ade96687403c2137c5506976a.dir
+      size: 6767764781
+      nfiles: 6038

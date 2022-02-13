@@ -97,7 +97,7 @@ stages:
     - data/auditing/dose_change_inr_change_tile.png:
         cache: false
   tune_behavior_cloner:
-    cmd: python3 scripts/tune_bc.py --tune_smoke_test
+    cmd: python3 scripts/tune_bc.py
     deps:
     - data/clean_data/train_data.feather
     - data/clean_data/val_data.feather
