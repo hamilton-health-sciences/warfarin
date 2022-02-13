@@ -11,6 +11,7 @@ mlm.in <- args[1]
 cox.in <- args[2]
 wls.in <- args[3]
 wls_plot.out <- args[4]
+method.name <- args[5]
 
 data = read.csv(mlm.in)
 data_cox = read.csv(cox.in)
@@ -31,7 +32,7 @@ p <- (
     ggplot(data_wls_cent, aes(x = algorithm_consistency.mean, y = TTR.mean, size = Count)) + 
     geom_point(shape = 21) + 
     geom_smooth(method = "lm", mapping = aes(weight = TTR.count), color = "black", show.legend = FALSE) + 
-    ggtitle("Weighted Least Square Model (Threshold Method)") + 
+    ggtitle(paste("Weighted Least Square Model (", method.name, " Method)", sep="")) +
     xlab("Mean centre algorithm-consistency") + 
     ylab("Mean centre TTR")
 )
