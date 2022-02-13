@@ -12,8 +12,8 @@ from warfarin.utils import interpolate_inr, code_quantitative_decision
 
 
 def engineer_state_features(df,
-                            time_varying_cross=True,
-                            include_dose_time_varying=False,
+                            time_varying_cross,
+                            include_dose_time_varying,
                             transforms=None):
     """
     Construct the state vectors.
@@ -25,7 +25,9 @@ def engineer_state_features(df,
         df: Merged longitudinal data, indexed by "TRIAL", "SUBJID", "TRAJID",
             and "STUDY_DAY".
         time_varying_cross: Whether to cross trajectory boundaries with time-
-                            varying state features (like INR).
+                            varying state features (like INR). If True, an
+                            indicator is added for each previous INR which is 1
+                            if an interruption has occurred since that INR.
         include_dose_time_varying: Whether to include the warfarin dose in the
                                    time varying state features.
         transforms: Transform objects. If left to None, the parameters of the
@@ -134,6 +136,17 @@ def engineer_state_features(df,
             df[f"{varname}_PREV_{i}"] = df.groupby(
                 group_vars
             )[varname].shift(i).fillna(df[f"{varname}_PREV_{i - 1}"])
+
+    # Add time-varying "cross-trajectory" indicator to each previous INR
+    if time_varying_cross:
+        for i in range(1, 5):
+            df["TRAJNUM"] = df.index.get_level_values("TRAJID")
+            df[f"PREV_{i}_CROSSED"] = (
+                df.groupby(
+                    "SUBJID"
+                )["TRAJNUM"].shift(i).fillna(0) != df["TRAJNUM"]
+            ).astype(int).fillna(0)
+            df = df.drop("TRAJNUM", axis=1)
 
     return df, transforms
 
