@@ -34,7 +34,8 @@ p <- (
     geom_smooth(method = "lm", mapping = aes(weight = TTR.count), color = "black", show.legend = FALSE) + 
     ggtitle(paste("Weighted Least Square Model (", method.name, " Method)", sep="")) +
     xlab("Mean centre algorithm-consistency") + 
-    ylab("Mean centre TTR")
+    ylab("Mean centre TTR") +
+    xlim(c(0, 1))
 )
 
 ggsave(wls_plot.out)

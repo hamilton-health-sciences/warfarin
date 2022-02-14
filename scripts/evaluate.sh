@@ -54,6 +54,7 @@ Rscript scripts/estimate_agreement_models.R \
     $OUTPUT_PREFIX/coxMLM_threshold.csv \
     $OUTPUT_PREFIX/WLS_cent_threshold.csv \
     $OUTPUT_PREFIX/wls_plot_benchmark.pdf \
+    Benchmark \
     > $OUTPUT_PREFIX/agreement_models_benchmark.txt
 
 Rscript scripts/estimate_agreement_models.R \
@@ -61,4 +62,5 @@ Rscript scripts/estimate_agreement_models.R \
     $OUTPUT_PREFIX/coxMLM_RL.csv \
     $OUTPUT_PREFIX/WLS_cent_RL.csv \
     $OUTPUT_PREFIX/wls_plot_policy.pdf \
+    RL \
     > $OUTPUT_PREFIX/agreement_models_policy.txt
