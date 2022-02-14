@@ -438,3 +438,45 @@ stages:
       md5: 75dac90ade96687403c2137c5506976a.dir
       size: 6767764781
       nfiles: 6038
+  select_behavior_cloner:
+    cmd: python3 scripts/choose_bc.py
+    deps:
+    - path: data/clean_data/train_data.feather
+      md5: 512b80a2695d33b0a91c80d0c5c58365
+      size: 9444698
+    - path: data/clean_data/val_data.feather
+      md5: a06428e354e3801114edc2a7f2746b20
+      size: 759946
+    - path: scripts/choose_bc.py
+      md5: b95381a99ccc7b6c823927c6d83a19b8
+      size: 5416
+    params:
+      params.yaml:
+        behavior_cloner:
+          tune_seed: 42
+          min_training_epochs: 100
+          max_training_epochs: 500
+          target_metric: val/auroc
+          target_mode: max
+          hyperparams:
+            init_seed:
+            - 0
+            likelihood:
+            - discrete
+            learning_rate:
+            - 0.0001
+            batch_size:
+            - 16
+            num_layers:
+            - 2
+            - 3
+            hidden_dim:
+            - 16
+            - 128
+            weight_option_frequency:
+            - false
+    outs:
+    - path: output/behavior_cloner_wis
+      md5: 0a04c267cdc8206cb3944a1db0c14f54.dir
+      size: 340863
+      nfiles: 4

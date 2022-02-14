@@ -39,28 +39,28 @@ def main(args):
     # the hyperparameter sweep
     else:
         # Get best model according to the chosen metric
-        if args.mode == "max":
+        if config.BC_TARGET_MODE == "max":
             max_metric = lambda k: dfs[k].loc[
-                dfs[k]["training_iteration"] >= (config.MIN_BC_TRAINING_EPOCHS - 1),
-                args.target_metric
+                dfs[k]["training_iteration"] >= (config.BC_MIN_TRAINING_EPOCHS - 1),
+                config.BC_TARGET_METRIC
             ].max()
             best_trial_name = max(dfs, key=max_metric)
-        elif args.mode == "min":
+        elif config.BC_TARGET_MODE == "min":
             min_metric = lambda k: dfs[k].loc[
-                dfs[k]["training_iteration"] >= (config.MIN_BC_TRAINING_EPOCHS - 1),
-                args.target_metric
+                dfs[k]["training_iteration"] >= (config.BC_MIN_TRAINING_EPOCHS - 1),
+                config.BC_TARGET_METRIC
             ].min()
             best_trial_name = min(dfs, key=min_metric)
         df = dfs[best_trial_name]
-        if args.mode == "max":
+        if config.BC_TARGET_MODE == "max":
             idx = df.loc[
-                df["training_iteration"] >= (config.MIN_BC_TRAINING_EPOCHS - 1),
-                args.target_metric
+                df["training_iteration"] >= (config.BC_MIN_TRAINING_EPOCHS - 1),
+                config.BC_TARGET_METRIC
             ].idxmax()
-        elif args.mode == "min":
+        elif config.BC_TARGET_MODE == "min":
             idx = df.loc[
-                df["training_iteration"] >= (config.MIN_BC_TRAINING_EPOCHS - 1),
-                args.target_metric
+                df["training_iteration"] >= (config.BC_MIN_TRAINING_EPOCHS - 1),
+                config.BC_TARGET_METRIC
             ].idxmin()
         best_trial_iter = df.iloc[idx]["training_iteration"]
 
@@ -72,16 +72,14 @@ def main(args):
         data_path=args.train_data_path,
         cache_name="train_buffer.pkl",
         batch_size=trial_config["batch_size"],
-        discount_factor=trial_config["discount"],
-        include_dose_time_varying=trial_config["include_dose_time_varying"]
+        **config.REPLAY_BUFFER_PARAMS
     )
     data, _ = get_dataloader(
         data_path=args.data_path,
         cache_name="eval_buffer.pkl",
         batch_size=trial_config["batch_size"],
-        discount_factor=trial_config["discount"],
         option_means=train_data.option_means,
-        include_dose_time_varying=trial_config["include_dose_time_varying"]
+        **config.REPLAY_BUFFER_PARAMS
     )
 
     # Construct the model and load it
@@ -147,32 +145,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--train_data_path",
         type=str,
-        required=True,
+        default="./data/clean_data/train_data.feather",
         help="Path to data used to train the model"
     )
     parser.add_argument(
         "--data_path",
         type=str,
-        required=True,
+        default="./data/clean_data/val_data.feather",
         help="Path to the data to evaluate on"
-    )
-    parser.add_argument(
-        "--target_metric",
-        type=str,
-        required=False,
-        help="The metric on the basis of which to select the model"
-    )
-    parser.add_argument(
-        "--mode",
-        type=str,
-        required=False,
-        choices=["min", "max"],
-        help="Whether to maximize or minimize the target metric"
     )
     parser.add_argument(
         "--output_prefix",
         type=str,
-        required=True,
+        default="./output/behavior_cloner_wis",
         help="The output directory for metrics and plots, need not exist"
     )
     parsed_args = parser.parse_args()

@@ -112,3 +112,13 @@ stages:
     - behavior_cloner
     outs:
     - ray_logs/bc
+  select_behavior_cloner:
+    cmd: python3 scripts/choose_bc.py
+    deps:
+    - data/clean_data/train_data.feather
+    - data/clean_data/val_data.feather
+    - scripts/choose_bc.py
+    params:
+    - behavior_cloner
+    outs:
+    - output/behavior_cloner_wis
