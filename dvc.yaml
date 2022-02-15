@@ -122,3 +122,19 @@ stages:
     - behavior_cloner
     outs:
     - output/behavior_cloner_wis
+  tune_dsbcq:
+    cmd: python3 scripts/tune_smdp_dbcq.py
+    deps:
+    - data/clean_data/train_data.feather
+    - data/clean_data/val_data.feather
+    - scripts/tune_smdp_dbcq.py
+    params:
+    - data.events_to_keep
+    - data.events_to_split
+    - data.min_train_trajectory_length
+    - data.state_columns
+    - replay_buffer.init.time_varying
+    - replay_buffer.init.include_dose_time_varying
+    - dsbcq
+    outs:
+    - ray_logs/dbcq

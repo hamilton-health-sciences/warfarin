@@ -73,6 +73,21 @@ BC_GRID_SEARCH = {
     for name, values in params["behavior_cloner"]["hyperparams"].items()
 }
 
+# BCQ parameters.
+
+## Hyperparameter search options.
+BCQ_TUNE_SEED = params["dsbcq"]["tune_seed"]
+BCQ_MIN_TRAINING_EPOCHS = params["dsbcq"]["min_training_epochs"]
+BCQ_MAX_TRAINING_EPOCHS = params["dsbcq"]["max_training_epochs"]
+BCQ_TARGET_METRIC = params["dsbcq"]["target_metric"]
+BCQ_TARGET_MODE = params["dsbcq"]["target_mode"]
+BCQ_GRID_SEARCH = {
+    name: tune.grid_search(values)
+    for name, values in params["dsbcq"]["hyperparams"].items()
+}
+
+BCQ_PLOT_EVERY = params["dsbcq"]["plot_every"]
+
 # If set to anything other than `None`, will write dataframes from each
 # individual step of the preprocessing pipeline to this path, named by the
 # preprocessing function.
@@ -110,8 +125,6 @@ MIN_TRAINING_EPOCHS = 0
 # Maximum number of training epochs for each combination of hyperparameters.
 MAX_TRAINING_EPOCHS = 2_500
 
-# How often to plot in epochs.
-PLOT_EVERY = 100
 
 # Evaluation constants
 

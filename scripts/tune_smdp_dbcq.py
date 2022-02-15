@@ -41,9 +41,8 @@ def train_run(config: dict,
               train_data_path: str,
               val_data_path: str,
               feasibility_behavior_policy_path: str,
-              no_freeze_feasibility_init: str,
+              freeze_feasibility_init: str,
               wis_behavior_policy_path: str,
-              init_seed: int,
               smoke_test: bool = False):
     """
     Train a model with a given set of hyperparameters.
@@ -55,30 +54,21 @@ def train_run(config: dict,
         val_data_path: The path to the validation buffer.
         feasibility_behavior_policy_path: The path to the behavior policy (for
                                           generative network init) savefile.
-        no_freeze_feasibility_init: If False, and
-                                    `feasibility_behavior_policy_path` is given,
-                                    the generative network will be frozen.
+        freeze_feasibility_init: If True, and
+                                 `feasibility_behavior_policy_path` is given,
+                                 the generative network will be frozen at init.
         wis_behavior_policy_path: The path to the behavior policy (for WIS)
                                   savefile.
-        init_seed: Random seed for reproducibility within a set of
-                   hyperparameters.
     """
-    # Random seed from trial name to initialize weights differently within each
-    # trial but reproducibly. If smoke testing, leave the `init_seed` as-is
-    # (fixed to a constant).
-    if not smoke_test:
-        trial_name_noid = tune.get_trial_name()[8:]
-        init_seed = init_seed + int.from_bytes(trial_name_noid.encode(), "little")
-        torch.manual_seed(init_seed % (2**32 - 1))
+    torch.manual_seed(config["init_seed"])
 
     # Load the data
     train_data, train_loader, val_data, _ = get_dataloaders(
         train_data_path,
         val_data_path,
         config["batch_size"],
-        config["discount"],
         min_train_trajectory_length=global_config.MIN_TRAIN_TRAJECTORY_LENGTH,
-        include_dose_time_varying=config["include_dose_time_varying"]
+        **global_config.REPLAY_BUFFER_PARAMS
     )
 
     # Get the trial directory
@@ -104,16 +94,14 @@ def train_run(config: dict,
         state_dim=train_data.state_dim,
         device="cuda",
         BCQ_threshold=config["bcq_threshold"],
-        discount=config["discount"],
-        optimizer=config["optimizer"],
+        discount=train_data.discount_factor,
         optimizer_parameters={"lr": config["learning_rate"]},
-        polyak_target_update=config["polyak_target_update"],
-        target_update_frequency=config["target_update_freq"],
+        polyak_target_update=True,
         tau=config["tau"],
         hidden_states=config["hidden_dim"],
         num_layers=config["num_layers"],
         generative_network_init=gen_network_init,
-        freeze_generative_network=(not no_freeze_feasibility_init)
+        freeze_generative_network=freeze_feasibility_init
     )
 
     # Load the behavior policy for WIS
@@ -122,7 +110,7 @@ def train_run(config: dict,
     # Train the model. Epochs refer to approximate batch coverage.
     running_state = {"train": {}, "val": {}}
     writer = tf.summary.create_file_writer(trial_dir)
-    for epoch in range(global_config.MAX_TRAINING_EPOCHS):
+    for epoch in range(global_config.BCQ_MAX_TRAINING_EPOCHS):
         # Train over approximately the full buffer (approximately because we
         # randomly sample from the buffer to create each batch).
         batch_qloss = 0.
@@ -156,14 +144,13 @@ def trial_namer(trial):
               hyperparameters.
     """
     trial_id = trial.trial_id
-    discount = trial.config["discount"]
     bs = trial.config["batch_size"]
     lr = trial.config["learning_rate"]
     tau = trial.config["tau"]
     num_layers = trial.config["num_layers"]
     hidden_dim = trial.config["hidden_dim"]
     bcq_t = trial.config["bcq_threshold"]
-    name = (f"{trial_id}_discount={discount}_bs={bs}_lr={lr:.2e}_tau={tau:.2e}_"
+    name = (f"{trial_id}_bs={bs}_lr={lr:.2e}_tau={tau:.2e}_"
             f"num_layers={num_layers}_hidden_dim={hidden_dim}_"
             f"threshold={bcq_t:.1f}")
 
@@ -172,20 +159,16 @@ def trial_namer(trial):
 
 def tune_run(num_samples: int,
              tune_seed: int,
-             init_seed: int,
              output_dir: str,
-             resume_errored: bool,
              train_data_path: str,
              val_data_path: str,
-             include_dose_time_varying: bool,
              feasibility_behavior_policy_path: Optional[str],
-             no_freeze_feasibility_init: bool,
+             freeze_feasibility_init: bool,
              wis_behavior_policy_path: str,
-             target_metric: str,
-             mode: str,
              smoke_test: bool,
+             target_metric: str,
              tune_smoke_test: bool,
-             experiment_name: str = "dbcq"):
+             experiment_name: str):
     """
     Run the hyperparameter tuning procedure.
 
@@ -193,52 +176,29 @@ def tune_run(num_samples: int,
         num_samples: The number of hyperparameter combinations to try.
         tune_seed: The seed for the hyperparameter selection process, used when
                    any parameter employs random search.
-        init_seed: The seed to use within a given hyperparameter setting.
         output_dir: The output directory for the `ray` logs.
-        resume_errored: Whether to resume errored trials or start from scratch.
         train_data_path: The path to the training data.
         val_data_path: The path to the validation data.
-        include_dose_time_varying: Whether to include dose as time-varying
-                                   covariate.
         feasibility_behavior_policy_path: The path to the behavior policy, for
                                           initializing the generative network of
                                           the BCQ model.
-        no_freeze_feasibility_init: If False, and the
-                                    feasibility_behavior_policy_path is given,
-                                    then the generative network will be frozen
-                                    after initialization. Otherwise ignored.
+        freeze_feasibility_init: If True, and the
+                                 feasibility_behavior_policy_path is given,
+                                 then the generative network will be frozen
+                                 after initialization. Otherwise ignored.
         wis_behavior_policy_path: The path to the behavior policy, for WIS estimates
                                   of performance.
-        target_metric: The metric to optimize over the space of possible
-                       hyperparameters.
-        mode: Whether to "max" or "min" the target metric.
-        smoke_test: Whether to conduct a "smoke test" where hyperparameters are
-                    not tuned but the training loop is run once to ensure code
-                    validity.
+        target_metric: The metric to output as primary.
+        smoke_test: Whether to conduct a "smoke test" of the training loop.
         tune_smoke_test: Whether to conduct a "smoke test" where hyperparameters
                          are tuned with one hyperparameter sample and the
                          training loop run once to ensure code validity.
     """
-    tune_config = {
-        # Fixed no-ops
-        "polyak_target_update": True,
-        "target_update_freq": 100,
-        # Fixed hyperparams
-        "optimizer": "Adam",
-        "discount": 0.99,
-        "num_layers": 2,
-        "hidden_dim": 64,
-        "bcq_threshold": 0.3,
-        "include_dose_time_varying": include_dose_time_varying,
-        # Searchable hyperparams
-        "batch_size": tune.grid_search([32, 128]),
-        "tau": tune.grid_search([5e-3, 1e-2]),
-        "learning_rate": tune.grid_search([1e-5, 1e-6])
-    }
+    tune_config = global_config.BCQ_GRID_SEARCH
 
     if smoke_test or tune_smoke_test:
-        global_config.MIN_TRAINING_EPOCHS = 1
-        global_config.MAX_TRAINING_EPOCHS = 1
+        global_config.BCQ_MIN_TRAINING_EPOCHS = 1
+        global_config.BCQ_MAX_TRAINING_EPOCHS = 1
 
     if smoke_test:
         train_conf = tune_config
@@ -254,17 +214,11 @@ def tune_run(num_samples: int,
             train_data_path=train_data_path,
             val_data_path=val_data_path,
             feasibility_behavior_policy_path=feasibility_behavior_policy_path,
-            no_freeze_feasibility_init=no_freeze_feasibility_init,
+            freeze_feasibility_init=freeze_feasibility_init,
             wis_behavior_policy_path=wis_behavior_policy_path,
-            init_seed=init_seed,
             smoke_test=True
         )
         exit()
-
-    if resume_errored:
-        resume = "ERRORED_ONLY"
-    else:
-        resume = None
 
     # How progress will be reported to the CLI
     par_cols = ["discount", "batch_size", "learning_rate", "tau", "num_layers",
@@ -281,9 +235,8 @@ def tune_run(num_samples: int,
             train_data_path=train_data_path,
             val_data_path=val_data_path,
             feasibility_behavior_policy_path=feasibility_behavior_policy_path,
-            no_freeze_feasibility_init=no_freeze_feasibility_init,
+            freeze_feasibility_init=freeze_feasibility_init,
             wis_behavior_policy_path=wis_behavior_policy_path,
-            init_seed=init_seed,
             smoke_test=tune_smoke_test
         ),
         resources_per_trial={
@@ -295,8 +248,7 @@ def tune_run(num_samples: int,
         progress_reporter=reporter,
         local_dir=output_dir,
         name=experiment_name,
-        trial_name_creator=trial_namer,
-        resume=resume
+        trial_name_creator=trial_namer
     )
 
 
@@ -305,27 +257,14 @@ def main():
     parser.add_argument(
         "--train_data",
         type=str,
-        required=True,
+        default="data/clean_data/train_data.feather",
         help="Path to training data or buffer"
     )
     parser.add_argument(
         "--val_data",
         type=str,
-        required=True,
+        default="data/clean_data/val_data.feather",
         help="Path to validation data or buffer"
-    )
-    parser.add_argument(
-        "--target_metric",
-        type=str,
-        required=True,
-        help="Which metric to perform model selection on"
-    )
-    parser.add_argument(
-        "--mode",
-        type=str,
-        required=True,
-        choices=["min", "max"],
-        help="Whether to minimize or maximize the target metric"
     )
     parser.add_argument(
         "--feasibility_behavior_policy",
@@ -336,7 +275,7 @@ def main():
              "network of the BCQ model"
     )
     parser.add_argument(
-        "--no_freeze_initialized_feasibility",
+        "--freeze_initialized_feasibility",
         default=False,
         action="store_true",
         help="If set, does not freeze the initialized generative network when "
@@ -345,26 +284,14 @@ def main():
     parser.add_argument(
         "--wis_behavior_policy",
         type=str,
-        required=True,
+        default="output/behavior_cloner_wis/checkpoint.pt",
         help="Path to the behavior policy savefile for WIS estimates"
-    )
-    parser.add_argument(
-        "--resume_errored",
-        action="store_true",
-        default=False
     )
     parser.add_argument(
         "--tune_seed",
         type=int,
         default=0,
         help="The seed for the hyperparameter optimizer"
-    )
-    parser.add_argument(
-        "--init_seed",
-        type=int,
-        default=1,
-        help=("The seed for reproducibility within a given set of "
-              "hyperparameters")
     )
     parser.add_argument(
         "--output_dir",
@@ -376,7 +303,7 @@ def main():
         "--smoke_test",
         default=False,
         action="store_true",
-        help="Perform a smoke test of the `train` call and exit"
+        help="Preform a smoke test of the training procedure and exit"
     )
     parser.add_argument(
         "--tune_smoke_test",
@@ -391,36 +318,26 @@ def main():
         default="dbcq",
         help="The name of the experiment, used for directory naming"
     )
-    parser.add_argument(
-        "--include_dose_time_varying",
-        action="store_true",
-        default=False,
-        help="Whether to include dose as time-varying covariate"
-    )
     args = parser.parse_args()
 
     tune_run(
         # Hyperparameter optimizer parameters
         num_samples=1,
-        tune_seed=args.tune_seed,
-        init_seed=args.init_seed,
-        output_dir=args.output_dir,
-        resume_errored=args.resume_errored,
-        target_metric=args.target_metric,
-        mode=args.mode,
-        # Initialization of generative network
+        tune_seed=global_config.BCQ_TUNE_SEED,
+        target_metric=global_config.BCQ_TARGET_METRIC,
         feasibility_behavior_policy_path=args.feasibility_behavior_policy,
-        no_freeze_feasibility_init=args.no_freeze_initialized_feasibility,
+        freeze_feasibility_init=args.freeze_initialized_feasibility,
         # WIS behavior cloner
-        wis_behavior_policy_path=args.wis_behavior_policy,
+        wis_behavior_policy_path=os.path.join(os.getcwd(),
+                                              args.wis_behavior_policy),
         # Model/data parameters
-        train_data_path=args.train_data,
-        val_data_path=args.val_data,
-        include_dose_time_varying=args.include_dose_time_varying,
+        train_data_path=os.path.join(os.getcwd(), args.train_data),
+        val_data_path=os.path.join(os.getcwd(), args.val_data),
         # Smoke tests for faster iteration on tuning procedure
         smoke_test=args.smoke_test,
         tune_smoke_test=args.tune_smoke_test,
         # Experiment name for differentiating between runs
+        output_dir=args.output_dir,
         experiment_name=args.experiment_name
     )
 

@@ -94,3 +94,29 @@ behavior_cloner:
     - 128
     weight_option_frequency:
     - false
+
+dsbcq:
+  tune_seed: 43
+  min_training_epochs: 50
+  max_training_epochs: 500
+  plot_every: 50
+  target_metric: val/wis/policy_value
+  target_mode: max
+  hyperparams:
+    init_seed:
+    - 1
+    - 2
+    - 3
+    bcq_threshold:
+    - 0.2
+    - 0.3
+    batch_size:
+    - 32
+    num_layers:
+    - 3
+    hidden_dim:
+    - 128
+    learning_rate:
+    - 1.e-6
+    tau:
+    - 5.e-3
