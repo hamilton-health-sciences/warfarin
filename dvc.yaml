@@ -138,3 +138,18 @@ stages:
     - dsbcq
     outs:
     - ray_logs/dbcq
+  evaluate:
+    cmd: bash scripts/evaluate.sh
+    deps:
+    - data/raw_data/rely_subjids.sas7bdat
+    - data/raw_data/ittr_baseline.csv
+    - data/raw_data/sas_libs
+    - data/raw_data/drugs_rely.csv
+    - data/clean_data/train_data.feather
+    - data/clean_data/test_data.feather
+    - data/clean_data/events.feather
+    - ray_logs/dbcq
+    params:
+    - replay_buffer.init.time_varying
+    - replay_buffer.init.include_dose_time_varying
+    - dsbcq

@@ -72,18 +72,16 @@ def main(args):
         data_path=args.train_data_path,
         cache_name="train_buffer.pkl",
         batch_size=trial_config["batch_size"],
-        discount_factor=trial_config["discount"],
         min_trajectory_length=config.MIN_TRAIN_TRAJECTORY_LENGTH,
-        include_dose_time_varying=trial_config["include_dose_time_varying"]
+        **config.REPLAY_BUFFER_PARAMS
     )
     data, _ = get_dataloader(
         data_path=args.data_path,
         cache_name="eval_buffer.pkl",
         batch_size=trial_config["batch_size"],
-        discount_factor=trial_config["discount"],
         state_transforms=train_data.state_transforms,
         option_means=train_data.option_means,
-        include_dose_time_varying=trial_config["include_dose_time_varying"]
+        **config.REPLAY_BUFFER_PARAMS
     )
 
     # TODO probably refactor this as it's duplicated from the tuning script rn
@@ -94,11 +92,9 @@ def main(args):
         state_dim=data.state_dim,
         device="cuda",
         BCQ_threshold=trial_config["bcq_threshold"],
-        discount=trial_config["discount"],
-        optimizer=trial_config["optimizer"],
+        discount=data.discount_factor,
         optimizer_parameters={"lr": trial_config["learning_rate"]},
-        polyak_target_update=trial_config["polyak_target_update"],
-        target_update_frequency=trial_config["target_update_freq"],
+        polyak_target_update=True,
         tau=trial_config["tau"],
         hidden_states=trial_config["hidden_dim"],
         num_layers=trial_config["num_layers"]
@@ -186,13 +182,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--target_metric",
         type=str,
-        required=False,
+        default="val/wis/policy_value",
         help="The metric on the basis of which to select the model"
     )
     parser.add_argument(
         "--mode",
         type=str,
-        required=False,
+        default="max",
         choices=["min", "max"],
         help="Whether to maximize or minimize the target metric"
     )

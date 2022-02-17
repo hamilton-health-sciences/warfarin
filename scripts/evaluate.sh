@@ -1,17 +1,15 @@
 #!/bin/bash
 
-LOGS_PATH=$1
-TRAIN_DATA_PATH=$2
-TEST_DATA_PATH=$3
-BEHAVIOR_POLICY_PATH=$4
-OUTPUT_PREFIX=$5
-TARGET_METRIC=$6
-TARGET_MODE=$7
-RELY_SUBJIDS_FILENAME=$8
-BASELINE_FILENAME=$9
-RELY_SASLIBS_PATH=${10}
-RELY_DRUGS_PATH=${11}
-CLEAN_EVENTS_PATH=${12}
+LOGS_PATH=ray_logs/dbcq
+TRAIN_DATA_PATH=data/clean_data/train_data.feather
+TEST_DATA_PATH=data/clean_data/test_data.feather
+BEHAVIOR_POLICY_PATH=output/behavior_cloner_wis/checkpoint.pt
+OUTPUT_PREFIX=output/rely_test_evaluation
+RELY_SUBJIDS_FILENAME=data/raw_data/rely_subjids.sas7bdat
+BASELINE_FILENAME=data/raw_data/ittr_baseline.csv
+RELY_SASLIBS_PATH=data/raw_data/sas_libs
+RELY_DRUGS_PATH=data/raw_data/drugs_rely.csv
+CLEAN_EVENTS_PATH=data/clean_data/events.feather
 
 # Check if output prefix already exists, and if so, do not re-process the model
 # outputs.
@@ -25,8 +23,7 @@ else
         --train_data_path $TRAIN_DATA_PATH \
         --data_path $TEST_DATA_PATH \
         --behavior_policy_path $BEHAVIOR_POLICY_PATH \
-        --output_prefix $OUTPUT_PREFIX \
-        --target_metric $TARGET_METRIC --mode $TARGET_MODE
+        --output_prefix $OUTPUT_PREFIX
 fi
 
 # Format the output metrics.

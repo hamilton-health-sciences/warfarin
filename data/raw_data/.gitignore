@@ -7,3 +7,5 @@
 /merged_events.sas7bdat
 /drugs_rely.csv
 /rely_subjids.sas7bdat
+/ittr_baseline.csv
+/sas_libs

@@ -566,3 +566,61 @@ stages:
       md5: 9812a592475a8f747b4beb05b31be3e5.dir
       size: 11758488440
       nfiles: 9056
+  evaluate:
+    cmd: bash scripts/evaluate.sh
+    deps:
+    - path: data/clean_data/events.feather
+      md5: 58fe757b812ad14754e029c38f4771c5
+      size: 2842122
+    - path: data/clean_data/test_data.feather
+      md5: a7250755b725d93b1bcd40c5005e2c59
+      size: 2555050
+    - path: data/clean_data/train_data.feather
+      md5: 512b80a2695d33b0a91c80d0c5c58365
+      size: 9444698
+    - path: data/raw_data/drugs_rely.csv
+      md5: 9d8088afd39fdf44d6c54d49fa7e5851
+      size: 1738287
+    - path: data/raw_data/ittr_baseline.csv
+      md5: 35b53b71724cb92501546bb62e8f098f
+      size: 14072003
+    - path: data/raw_data/rely_subjids.sas7bdat
+      md5: adf0ee5c7ee062df7971cf955549f043
+      size: 1245184
+    - path: data/raw_data/sas_libs
+      md5: d790633fbd24af8d5fc4ad5d988e2dd0.dir
+      size: 4068230230
+      nfiles: 717
+    - path: ray_logs/dbcq
+      md5: 9812a592475a8f747b4beb05b31be3e5.dir
+      size: 11758488440
+      nfiles: 9056
+    params:
+      params.yaml:
+        dsbcq:
+          tune_seed: 43
+          min_training_epochs: 50
+          max_training_epochs: 500
+          plot_every: 50
+          target_metric: val/wis/policy_value
+          target_mode: max
+          hyperparams:
+            init_seed:
+            - 1
+            - 2
+            - 3
+            bcq_threshold:
+            - 0.2
+            - 0.3
+            batch_size:
+            - 32
+            num_layers:
+            - 3
+            hidden_dim:
+            - 128
+            learning_rate:
+            - 1e-06
+            tau:
+            - 0.005
+        replay_buffer.init.include_dose_time_varying: true
+        replay_buffer.init.time_varying: across
