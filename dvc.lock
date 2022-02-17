@@ -480,3 +480,89 @@ stages:
       md5: 0a04c267cdc8206cb3944a1db0c14f54.dir
       size: 340863
       nfiles: 4
+  tune_dsbcq:
+    cmd: python3 scripts/tune_smdp_dbcq.py
+    deps:
+    - path: data/clean_data/train_data.feather
+      md5: 512b80a2695d33b0a91c80d0c5c58365
+      size: 9444698
+    - path: data/clean_data/val_data.feather
+      md5: a06428e354e3801114edc2a7f2746b20
+      size: 759946
+    - path: scripts/tune_smdp_dbcq.py
+      md5: ea4feca36be2263ff2f729a52179c749
+      size: 12167
+    params:
+      params.yaml:
+        data.events_to_keep:
+          DEATH: Death
+          STROKE: Ischemic Stroke
+          MAJOR_BLEED: Major Bleeding
+          MINOR_BLEED: Minor Bleeding
+          HEM_STROKE: Hemorrhagic Stroke
+          HOSP: Hospitalization
+          SYS_EMB: Systemic Embolism
+        data.events_to_split:
+        - DEATH
+        - STROKE
+        - MAJOR_BLEED
+        - HEM_STROKE
+        - HOSP
+        - SYS_EMB
+        data.min_train_trajectory_length: 5
+        data.state_columns:
+        - AGE_DEIDENTIFIED
+        - SEX
+        - WEIGHT
+        - RACE2
+        - CONTINENT
+        - SMOKE
+        - BMED_ASPIRIN
+        - BMED_AMIOD
+        - BMED_THIENO
+        - DIABETES
+        - HX_CHF
+        - HYPERTENSION
+        - HX_MI
+        - INR_VALUE
+        - WARFARIN_DOSE
+        - STROKE_FLAG
+        - MAJOR_BLEED_FLAG
+        - MINOR_BLEED_FLAG
+        - HEM_STROKE_FLAG
+        - HOSP_FLAG
+        - WARFARIN_DOSE_BIN
+        - AGE_BIN
+        - WEIGHT_BIN
+        dsbcq:
+          tune_seed: 43
+          min_training_epochs: 50
+          max_training_epochs: 500
+          plot_every: 50
+          target_metric: val/wis/policy_value
+          target_mode: max
+          hyperparams:
+            init_seed:
+            - 1
+            - 2
+            - 3
+            bcq_threshold:
+            - 0.2
+            - 0.3
+            batch_size:
+            - 32
+            num_layers:
+            - 3
+            hidden_dim:
+            - 128
+            learning_rate:
+            - 1e-06
+            tau:
+            - 0.005
+        replay_buffer.init.include_dose_time_varying: true
+        replay_buffer.init.time_varying: across
+    outs:
+    - path: ray_logs/dbcq
+      md5: 9812a592475a8f747b4beb05b31be3e5.dir
+      size: 11758488440
+      nfiles: 9056
