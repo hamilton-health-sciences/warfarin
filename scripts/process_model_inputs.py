@@ -88,7 +88,7 @@ def load_data(args):
     centre["acclinic"] = np.where(centre["aantc"]==1, 1, 0)
 
     # Patient characteristics
-    bases = baseline.merge(basco, on = "pid").merge(bascocm, on = "pid").merge(nomogram, on = "pid").merge(folup, on = "pid").merge(both, on = "pid")
+    bases = baseline.merge(basco, on = "pid").merge(bascocm, on = "pid").merge(nomogram, on = "pid").merge(folup, on = "pid").merge(both, on = "pid").copy()
 
     bases["male"] = np.where(bases["SEX"]==1, 1, 0)
     bases["white"] = np.where(bases["BETHNIC"].isin([6, 9]), 1, 0)
@@ -229,10 +229,22 @@ def main(args):
                summary_medication,
                summary,
                method="RL")
+    coxph_data(data_RELY,
+               data_characteristics,
+               summary_medication,
+               summary,
+               method="random")
+    coxph_data(data_RELY,
+               data_characteristics,
+               summary_medication,
+               summary,
+               method="maintain")
 
     # Prepare output data for WLS and hierarchical TTR models.
     mlm_data(data_RELY, data_characteristics, method = "threshold")
     mlm_data(data_RELY, data_characteristics, method = "RL")
+    mlm_data(data_RELY, data_characteristics, method = "random")
+    mlm_data(data_RELY, data_characteristics, method = "maintain")
 
 
 # ## 3. Prepare data for the Cox PH model
@@ -278,6 +290,10 @@ def coxph_data (data, data_characteristics, summary_medication, summary, method 
         quant_diff = "THRESHOLD_ACTION_DIFF"
     elif method == "RL":
         quant_diff = "POLICY_ACTION_DIFF"
+    elif method == "random":
+        quant_diff = "RANDOM_ACTION_DIFF"
+    elif method == "maintain":
+        quant_diff = "MAINTAIN_ACTION_DIFF"
     
     # Remove rows with missing/invalid values.
     data[[quant_diff]] = data[[quant_diff]].replace([np.inf, -np.inf], np.nan)
@@ -345,6 +361,10 @@ def mlm_data(data, data_characteristics, method = "threshold"):
         quant_diff = "THRESHOLD_ACTION_DIFF"
     elif method == "RL":
         quant_diff = "POLICY_ACTION_DIFF"
+    elif method == "random":
+        quant_diff = "RANDOM_ACTION_DIFF"
+    elif method == "maintain":
+        quant_diff = "MAINTAIN_ACTION_DIFF"
     
     # Remove rows with missing/invalid values.
     data[[quant_diff]] = data[[quant_diff]].replace([np.inf, -np.inf], np.nan)

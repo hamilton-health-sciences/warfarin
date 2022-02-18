@@ -51,6 +51,8 @@ Rscript scripts/estimate_agreement_models.R \
     $OUTPUT_PREFIX/coxMLM_threshold.csv \
     $OUTPUT_PREFIX/WLS_cent_threshold.csv \
     $OUTPUT_PREFIX/wls_plot_benchmark.pdf \
+    $OUTPUT_PREFIX/ttr_table_benchmark.csv \
+    $OUTPUT_PREFIX/events_table_benchmark.csv \
     Benchmark \
     > $OUTPUT_PREFIX/agreement_models_benchmark.txt
 
@@ -59,5 +61,27 @@ Rscript scripts/estimate_agreement_models.R \
     $OUTPUT_PREFIX/coxMLM_RL.csv \
     $OUTPUT_PREFIX/WLS_cent_RL.csv \
     $OUTPUT_PREFIX/wls_plot_policy.pdf \
+    $OUTPUT_PREFIX/ttr_table_rl.csv \
+    $OUTPUT_PREFIX/events_table_rl.csv \
     RL \
     > $OUTPUT_PREFIX/agreement_models_policy.txt
+
+Rscript scripts/estimate_agreement_models.R \
+    $OUTPUT_PREFIX/MLM_maintain.csv \
+    $OUTPUT_PREFIX/coxMLM_maintain.csv \
+    $OUTPUT_PREFIX/WLS_cent_maintain.csv \
+    $OUTPUT_PREFIX/wls_plot_maintain.pdf \
+    $OUTPUT_PREFIX/ttr_table_maintain.csv \
+    $OUTPUT_PREFIX/events_table_maintain.csv \
+    "Always Maintain" \
+    > $OUTPUT_PREFIX/agreement_models_maintain.txt
+
+Rscript scripts/estimate_agreement_models.R \
+    $OUTPUT_PREFIX/MLM_random.csv \
+    $OUTPUT_PREFIX/coxMLM_random.csv \
+    $OUTPUT_PREFIX/WLS_cent_random.csv \
+    $OUTPUT_PREFIX/wls_plot_random.pdf \
+    $OUTPUT_PREFIX/ttr_table_random.csv \
+    $OUTPUT_PREFIX/events_table_random.csv \
+    Random \
+    > $OUTPUT_PREFIX/agreement_models_random.txt

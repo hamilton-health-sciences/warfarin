@@ -149,6 +149,12 @@ stages:
     - data/clean_data/test_data.feather
     - data/clean_data/events.feather
     - ray_logs/dbcq
+    - scripts/evaluate.sh
+    - scripts/evaluate_best_model.py
+    - scripts/format_metrics.py
+    - scripts/link_rely_subj_ids.py
+    - scripts/process_model_inputs.py
+    - scripts/estimate_agreement_models.R
     params:
     - replay_buffer.init.time_varying
     - replay_buffer.init.include_dose_time_varying

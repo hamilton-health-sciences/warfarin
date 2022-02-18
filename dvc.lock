@@ -589,12 +589,30 @@ stages:
       size: 1245184
     - path: data/raw_data/sas_libs
       md5: d790633fbd24af8d5fc4ad5d988e2dd0.dir
-      size: 4068230230
+      size: 4068222208
       nfiles: 717
     - path: ray_logs/dbcq
       md5: 9812a592475a8f747b4beb05b31be3e5.dir
       size: 11758488440
       nfiles: 9056
+    - path: scripts/estimate_agreement_models.R
+      md5: 8e508c8afedd021e63e98e17187dc2ef
+      size: 2622
+    - path: scripts/evaluate.sh
+      md5: bef890953a26852c16f983b27490c0e8
+      size: 2832
+    - path: scripts/evaluate_best_model.py
+      md5: df71e87f054c88442e8821176e6dd825
+      size: 6808
+    - path: scripts/format_metrics.py
+      md5: a1e0132a2726ba923b6b15ee8941be79
+      size: 1656
+    - path: scripts/link_rely_subj_ids.py
+      md5: 2471ef2f818d99e563db7610eed13e2a
+      size: 1223
+    - path: scripts/process_model_inputs.py
+      md5: 060ad3422200e82b34b4ff37e3710181
+      size: 19044
     params:
       params.yaml:
         dsbcq:
