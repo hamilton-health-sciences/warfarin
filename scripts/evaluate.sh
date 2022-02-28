@@ -11,20 +11,13 @@ RELY_SASLIBS_PATH=data/raw_data/sas_libs
 RELY_DRUGS_PATH=data/raw_data/drugs_rely.csv
 CLEAN_EVENTS_PATH=data/clean_data/events.feather
 
-# Check if output prefix already exists, and if so, do not re-process the model
-# outputs.
-if [ -d $OUTPUT_PREFIX ]; then
-    echo $OUTPUT_PREFIX already exists. Will not reproduce model decisions, \
-         but will re-run RELY evaluation pipeline.
-else
-    # Pick the best RL model.
-    python3 scripts/evaluate_best_model.py \
-        --logs_path $LOGS_PATH \
-        --train_data_path $TRAIN_DATA_PATH \
-        --data_path $TEST_DATA_PATH \
-        --behavior_policy_path $BEHAVIOR_POLICY_PATH \
-        --output_prefix $OUTPUT_PREFIX
-fi
+# Pick the best RL model.
+python3 scripts/evaluate_best_model.py \
+    --logs_path $LOGS_PATH \
+    --train_data_path $TRAIN_DATA_PATH \
+    --data_path $TEST_DATA_PATH \
+    --behavior_policy_path $BEHAVIOR_POLICY_PATH \
+    --output_prefix $OUTPUT_PREFIX
 
 # Format the output metrics.
 python3 scripts/format_metrics.py \
@@ -45,7 +38,7 @@ python3 scripts/process_model_inputs.py \
     --drugs_path $RELY_DRUGS_PATH \
     --events_path $CLEAN_EVENTS_PATH
 
-# Model results.
+# Model results
 Rscript scripts/estimate_agreement_models.R \
     $OUTPUT_PREFIX/MLM_threshold.csv \
     $OUTPUT_PREFIX/coxMLM_threshold.csv \
