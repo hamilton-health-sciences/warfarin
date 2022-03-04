@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Execute the evaluation pipeline on the test set. Links the test set (as
+# processed for RL modeling) back to some original baseline covariates, and
+# runs the evaluation pipeline using the model that performs best on the
+# tuning set.
+
 LOGS_PATH=ray_logs/dbcq
 TRAIN_DATA_PATH=data/clean_data/train_data.feather
 TEST_DATA_PATH=data/clean_data/test_data.feather

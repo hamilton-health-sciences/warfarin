@@ -611,8 +611,8 @@ stages:
       md5: 961420d14da1d7589233c9ed2cb42c5c
       size: 4516
     - path: scripts/evaluate.sh
-      md5: ba3a9b86d2350e8c4e47f589c270da64
-      size: 2894
+      md5: 9ec344b6c4ef0e7b9f7725001ea52c3b
+      size: 3132
     - path: scripts/evaluate_best_model.py
       md5: 35e3575154ef1f23990fcc98dac616f8
       size: 6824
@@ -654,6 +654,11 @@ stages:
             - 0.005
         replay_buffer.init.include_dose_time_varying: true
         replay_buffer.init.time_varying: across
+    outs:
+    - path: output/rely_test_evaluation
+      md5: b555d010986900bc9d847f70b54a8e2e.dir
+      size: 73670364
+      nfiles: 46
   select_behavior_cloner_wis:
     cmd: python3 scripts/choose_bc.py --target_metric "val/calibration_error" --target_mode
       min

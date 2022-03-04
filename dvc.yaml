@@ -173,3 +173,5 @@ stages:
     - replay_buffer.init.time_varying
     - replay_buffer.init.include_dose_time_varying
     - dsbcq
+    outs:
+    - output/rely_test_evaluation

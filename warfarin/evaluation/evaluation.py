@@ -14,6 +14,7 @@ from warfarin.models.baselines import ThresholdModel, RandomModel, MaintainModel
 from warfarin.evaluation.metrics import (eval_reasonable_actions,
                                          eval_classification,
                                          eval_at_agreement,
+                                         eval_agreement_associations,
                                          compute_performance_tests,
                                          wis_returns)
 from warfarin.evaluation.plotting import (plot_policy_heatmap,
@@ -149,6 +150,13 @@ def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
                                   df["OBSERVED_ACTION_QUANT"])
     action_diff_cols = [c for c in df.columns if "ACTION_DIFF" in c]
 
+    # Compute equality of action
+    df["POLICY_ACTION_EQ"] = np.abs(df["POLICY_ACTION_DIFF"]) <= 0.05
+    df["THRESHOLD_ACTION_EQ"] = np.abs(df["THRESHOLD_ACTION_DIFF"]) <= 0.05
+    df["RANDOM_ACTION_EQ"] = np.abs(df["RANDOM_ACTION_DIFF"]) <= 0.05
+    df["MAINTAIN_ACTION_EQ"] = np.abs(df["MAINTAIN_ACTION_DIFF"]) <= 0.05
+    action_eq_cols = [c for c in df.columns if "ACTION_EQ" in c]
+
     # Use linearly interpolated INR to compute TTR
     if "inr_interp" in eval_state:
         inr_interp = eval_state["inr_interp"]
@@ -169,8 +177,9 @@ def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
         )["STUDY_DAY"].min()
     )
     traj_length.name = "TRAJECTORY_LENGTH"
-    disagreement = np.abs(df[action_diff_cols])
-    disagreement_ttr = disagreement.join(ttr)
+    quant_disagreement = np.abs(df[action_diff_cols])
+    disagreement = df[action_eq_cols]
+    disagreement_ttr = disagreement.join(quant_disagreement).join(ttr)
     disagreement_ttr = disagreement_ttr.groupby(
         ["TRIAL", "SUBJID", "TRAJID"]
     ).mean()
@@ -180,8 +189,9 @@ def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
     )
 
     # Extract event info
+    raw_df = replay_buffer._raw_df.copy()
     events = (
-        replay_buffer._raw_df[config.ADV_EVENTS].groupby(
+        raw_df[config.ADV_EVENTS].groupby(
             ["TRIAL", "SUBJID", "TRAJID"]
         ).sum() > 0
     ).astype(int)
@@ -253,6 +263,10 @@ def compute_metrics(df, disagreement_ttr, eval_state, include_tests,
     if include_tests:
         performance_tests = compute_performance_tests(disagreement_ttr)
         stats = {**stats, **performance_tests}
+
+    # Agreement/TTR + events associations
+    association_stats = eval_agreement_associations(disagreement_ttr)
+    stats = {**stats, **association_stats}
 
     # Ensure integer types are correct
     for k, v in stats.items():

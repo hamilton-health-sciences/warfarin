@@ -146,7 +146,7 @@ def eval_classification(df, policy_col, prefix):
 
 def eval_at_agreement(disagreement_ttr):
     """
-    Estimate the TTR and event rate n the trajectories which agree with the
+    Estimate the TTR and event rate in the trajectories which agree with the
     policy decisions.
 
     Args:
@@ -194,6 +194,52 @@ def eval_at_agreement(disagreement_ttr):
     return stats
 
 
+def eval_agreement_associations(disagreement_ttr):
+    """
+    Estimate the association between algorithm consistency/agreement and TTR/
+    events.
+
+    Unlike in the test set, we have no centre designations for patients, so
+    we do not use a hierarchical model here. Accordingly, the causal
+    link between algorithm consistency and TTR is likely much weaker here at
+    the patient level. The contention is that it makes an interesting enough
+    proxy to look at even when this information is not available.
+
+    Args:
+        disagreement_ttr: Dataframe indexed by trajectory containing columns
+                          containing "APPROXIMATE_TTR", "*_ACTION_EQ" for each
+                          algorithm, and event columns.
+
+    Returns:
+        stats: The dictionary of association metrics.
+    """
+    stats = {}
+
+    action_eq_cols = [c for c in disagreement_ttr.columns if "ACTION_EQ" in c]
+    for col in action_eq_cols:
+        algo = col.split("_")[0]
+        df = disagreement_ttr[[col, "APPROXIMATE_TTR", *config.ADV_EVENTS,
+                               "ANY_EVENT", "TRAJECTORY_LENGTH"]]
+
+        # TTR
+        ttr_model = sm.WLS(df["APPROXIMATE_TTR"],
+                           sm.add_constant(df[[col]]),
+                           weights=df["TRAJECTORY_LENGTH"]).fit()
+        stats[f"{algo}/linear_models/associations/ttr"] = ttr_model.params[-1]
+        stats[f"{algo}/linear_models/at_agreement/ttr"] = ttr_model.params.sum()
+
+        # Events
+        for event in config.ADV_EVENTS + ["ANY_EVENT"]:
+            event_model = sm.Logit(df[event],
+                                   sm.add_constant(df[[col]]),
+                                   weights=df["TRAJECTORY_LENGTH"]).fit()
+            stats[
+                f"{algo}/linear_models/associations/{event}"
+            ] = event_model.params[-1]
+
+    return stats
+
+
 def compute_performance_tests(disagreement_ttr):
     performance_tests = {}
 
@@ -225,27 +271,6 @@ def compute_performance_tests(disagreement_ttr):
         pval = float(ttest.iloc[:, 3])
         performance_tests[f"{thresh}_ttr_performance_t"] = tval
         performance_tests[f"{thresh}_ttr_performance_p"] = pval
-
-        # TODO remove
-        # Temporary: output power analysis on test set.
-        N = 11_573
-        beta_diff = ttest["coef"]
-        t_crit = sp.stats.t.ppf(1. - (0.005 / 2), df=(N-4))
-        true_crit = beta_diff / (
-            np.sqrt(
-                np.dot(
-                    # results.cov_params() gives `inv(X^T X)`, use as estimate
-                    # of true covariance
-                    np.matmul(len(_X) * results.cov_params(),
-                              np.array([0.,1.,-1.])),
-                    np.array([0.,1.,-1.])
-                )
-            ) / np.sqrt(N)
-        )
-        power = 1. - sp.stats.t.cdf(t_crit - true_crit, df=(N-4))
-        print(f"At threshold {thresh}, we see an approximate improvement "
-              f"in TTR of {beta_diff}. We have a power of {power} to detect "
-              f"that level of improvement in RE-LY alone.")
 
         # Then for each event
         for event in event_names:
