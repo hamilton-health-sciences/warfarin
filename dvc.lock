@@ -98,6 +98,7 @@ stages:
           - HX_MI
           - INR_VALUE
           - WARFARIN_DOSE
+          - DURATION
           - STROKE_FLAG
           - MAJOR_BLEED_FLAG
           - MINOR_BLEED_FLAG
@@ -308,6 +309,7 @@ stages:
           - HX_MI
           - INR_VALUE
           - WARFARIN_DOSE
+          - DURATION
           - STROKE_FLAG
           - MAJOR_BLEED_FLAG
           - MINOR_BLEED_FLAG
@@ -423,6 +425,7 @@ stages:
         - HX_MI
         - INR_VALUE
         - WARFARIN_DOSE
+        - DURATION
         - STROKE_FLAG
         - MAJOR_BLEED_FLAG
         - MINOR_BLEED_FLAG
@@ -435,8 +438,8 @@ stages:
         replay_buffer.init.time_varying: across
     outs:
     - path: ray_logs/bc
-      md5: 75dac90ade96687403c2137c5506976a.dir
-      size: 6767764781
+      md5: 0320f6c68154ed6f147062fec21746eb.dir
+      size: 7203570039
       nfiles: 6038
   select_behavior_cloner:
     cmd: python3 scripts/choose_bc.py
@@ -481,7 +484,7 @@ stages:
       size: 340863
       nfiles: 4
   tune_dsbcq:
-    cmd: python3 scripts/tune_smdp_dbcq.py
+    cmd: python3 scripts/tune_smdp_dbcq.py --feasibility_behavior_policy `pwd`/output/behavior_cloner_generative_init/checkpoint.pt
     deps:
     - path: data/clean_data/train_data.feather
       md5: 512b80a2695d33b0a91c80d0c5c58365
@@ -489,6 +492,14 @@ stages:
     - path: data/clean_data/val_data.feather
       md5: a06428e354e3801114edc2a7f2746b20
       size: 759946
+    - path: output/behavior_cloner_generative_init
+      md5: 59ec4de34ff58439693fee447e31abf6.dir
+      size: 346760
+      nfiles: 4
+    - path: output/behavior_cloner_wis
+      md5: 18fb0fecff5bce0643c8a7a5157f32df.dir
+      size: 234427
+      nfiles: 4
     - path: scripts/tune_smdp_dbcq.py
       md5: ea4feca36be2263ff2f729a52179c749
       size: 12167
@@ -526,6 +537,7 @@ stages:
         - HX_MI
         - INR_VALUE
         - WARFARIN_DOSE
+        - DURATION
         - STROKE_FLAG
         - MAJOR_BLEED_FLAG
         - MINOR_BLEED_FLAG
@@ -537,7 +549,7 @@ stages:
         dsbcq:
           tune_seed: 43
           min_training_epochs: 50
-          max_training_epochs: 500
+          max_training_epochs: 1000
           plot_every: 50
           target_metric: val/wis/policy_value
           target_mode: max
@@ -563,9 +575,9 @@ stages:
         replay_buffer.init.time_varying: across
     outs:
     - path: ray_logs/dbcq
-      md5: 9812a592475a8f747b4beb05b31be3e5.dir
-      size: 11758488440
-      nfiles: 9056
+      md5: 7936b11d10f4d59c58b849b99ab78d42.dir
+      size: 14459833876
+      nfiles: 18056
   evaluate:
     cmd: bash scripts/evaluate.sh
     deps:
@@ -592,9 +604,9 @@ stages:
       size: 4068222208
       nfiles: 717
     - path: ray_logs/dbcq
-      md5: 9812a592475a8f747b4beb05b31be3e5.dir
-      size: 11758488440
-      nfiles: 9056
+      md5: 7936b11d10f4d59c58b849b99ab78d42.dir
+      size: 14459833876
+      nfiles: 18056
     - path: scripts/estimate_agreement_models.R
       md5: 961420d14da1d7589233c9ed2cb42c5c
       size: 4516
@@ -602,8 +614,8 @@ stages:
       md5: ba3a9b86d2350e8c4e47f589c270da64
       size: 2894
     - path: scripts/evaluate_best_model.py
-      md5: df71e87f054c88442e8821176e6dd825
-      size: 6808
+      md5: 35e3575154ef1f23990fcc98dac616f8
+      size: 6824
     - path: scripts/format_metrics.py
       md5: a1e0132a2726ba923b6b15ee8941be79
       size: 1656
@@ -618,7 +630,7 @@ stages:
         dsbcq:
           tune_seed: 43
           min_training_epochs: 50
-          max_training_epochs: 500
+          max_training_epochs: 1000
           plot_every: 50
           target_metric: val/wis/policy_value
           target_mode: max
@@ -642,3 +654,97 @@ stages:
             - 0.005
         replay_buffer.init.include_dose_time_varying: true
         replay_buffer.init.time_varying: across
+  select_behavior_cloner_wis:
+    cmd: python3 scripts/choose_bc.py --target_metric "val/calibration_error" --target_mode
+      min
+    deps:
+    - path: data/clean_data/train_data.feather
+      md5: 512b80a2695d33b0a91c80d0c5c58365
+      size: 9444698
+    - path: data/clean_data/val_data.feather
+      md5: a06428e354e3801114edc2a7f2746b20
+      size: 759946
+    - path: ray_logs/bc
+      md5: 0320f6c68154ed6f147062fec21746eb.dir
+      size: 7203570039
+      nfiles: 6038
+    - path: scripts/choose_bc.py
+      md5: 773fac78b9546798ab183ba11e8b95e6
+      size: 5717
+    params:
+      params.yaml:
+        behavior_cloner:
+          tune_seed: 42
+          min_training_epochs: 100
+          max_training_epochs: 500
+          target_metric: val/auroc
+          target_mode: max
+          hyperparams:
+            init_seed:
+            - 0
+            likelihood:
+            - discrete
+            learning_rate:
+            - 0.0001
+            batch_size:
+            - 16
+            num_layers:
+            - 2
+            - 3
+            hidden_dim:
+            - 16
+            - 128
+            weight_option_frequency:
+            - false
+    outs:
+    - path: output/behavior_cloner_wis
+      md5: 18fb0fecff5bce0643c8a7a5157f32df.dir
+      size: 234427
+      nfiles: 4
+  select_behavior_cloner_generative_init:
+    cmd: python3 scripts/choose_bc.py --target_metric "val/multi_f1_0.3" --target_mode
+      max --output_prefix ./output/behavior_cloner_generative_init
+    deps:
+    - path: data/clean_data/train_data.feather
+      md5: 512b80a2695d33b0a91c80d0c5c58365
+      size: 9444698
+    - path: data/clean_data/val_data.feather
+      md5: a06428e354e3801114edc2a7f2746b20
+      size: 759946
+    - path: ray_logs/bc
+      md5: 0320f6c68154ed6f147062fec21746eb.dir
+      size: 7203570039
+      nfiles: 6038
+    - path: scripts/choose_bc.py
+      md5: 773fac78b9546798ab183ba11e8b95e6
+      size: 5717
+    params:
+      params.yaml:
+        behavior_cloner:
+          tune_seed: 42
+          min_training_epochs: 100
+          max_training_epochs: 500
+          target_metric: val/auroc
+          target_mode: max
+          hyperparams:
+            init_seed:
+            - 0
+            likelihood:
+            - discrete
+            learning_rate:
+            - 0.0001
+            batch_size:
+            - 16
+            num_layers:
+            - 2
+            - 3
+            hidden_dim:
+            - 16
+            - 128
+            weight_option_frequency:
+            - false
+    outs:
+    - path: output/behavior_cloner_generative_init
+      md5: 59ec4de34ff58439693fee447e31abf6.dir
+      size: 346760
+      nfiles: 4

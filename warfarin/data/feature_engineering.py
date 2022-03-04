@@ -13,6 +13,7 @@ from warfarin.utils import interpolate_inr, code_quantitative_decision
 
 def engineer_state_features(df,
                             time_varying_cross,
+                            include_duration_time_varying,
                             include_dose_time_varying,
                             transforms=None):
     """
@@ -28,6 +29,8 @@ def engineer_state_features(df,
                             varying state features (like INR). If True, an
                             indicator is added for each previous INR which is 1
                             if an interruption has occurred since that INR.
+        include_duration_time_varying: Whether to include the duration on dose
+                                       in the time varying state features.
         include_dose_time_varying: Whether to include the warfarin dose in the
                                    time varying state features.
         transforms: Transform objects. If left to None, the parameters of the
@@ -53,6 +56,21 @@ def engineer_state_features(df,
         inr_qn.fit(df[["INR_VALUE"]])
         transforms["inr_qn"] = inr_qn
     df["INR_VALUE"] = inr_qn.transform(df[["INR_VALUE"]])
+
+    # Dose durations. See comment above, as strategy is identical to INR except
+    # we do not need to round.
+    df["DURATION"] = df.index.get_level_values("STUDY_DAY")
+    df["DURATION"] = df.groupby(["TRIAL", "SUBJID"])["DURATION"].diff().fillna(
+        df["DURATION"]
+    )
+    if "duration_qn" in transforms:
+        duration_qn = transforms["duration_qn"]
+    else:
+        duration_qn = QuantileTransformer(output_distribution="uniform",
+                                          n_quantiles=df["DURATION"].nunique())
+        duration_qn.fit(df[["DURATION"]])
+        transforms["duration_qn"] = duration_qn
+    df["DURATION"] = duration_qn.transform(df[["DURATION"]])
 
     # Adverse event flags. Ensure they're carried over even between trajectories
     # within the same patient.
@@ -119,10 +137,12 @@ def engineer_state_features(df,
     # Join as state cols
     df = df_cat_ohe.join(df_cts_scaled)
 
-    # Provide previous INRs (and optionally doses) in state
+    # Provide previous INRs (and optionally doses, durations) in state
     time_varying = ["INR_VALUE"]
     if include_dose_time_varying:
         time_varying += ["WARFARIN_DOSE"]
+    if include_duration_time_varying:
+        time_varying += ["DURATION"]
     if time_varying_cross:
         group_vars = ["SUBJID"]
     else:

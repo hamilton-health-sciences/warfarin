@@ -41,25 +41,25 @@ def main(args):
         # Get best model according to the chosen metric
         if args.mode == "max":
             max_metric = lambda k: dfs[k].loc[
-                dfs[k]["training_iteration"] >= (config.MIN_TRAINING_EPOCHS - 1),
+                dfs[k]["training_iteration"] >= (config.BCQ_MIN_TRAINING_EPOCHS - 1),
                 args.target_metric
             ].max()
             best_trial_name = max(dfs, key=max_metric)
         elif args.mode == "min":
             min_metric = lambda k: dfs[k].loc[
-                dfs[k]["training_iteration"] >= (config.MIN_TRAINING_EPOCHS - 1),
+                dfs[k]["training_iteration"] >= (config.BCQ_MIN_TRAINING_EPOCHS - 1),
                 args.target_metric
             ].min()
             best_trial_name = min(dfs, key=max_metric)
         df = dfs[best_trial_name]
         if args.mode == "max":
             idx = df.loc[
-                df["training_iteration"] >= (config.MIN_TRAINING_EPOCHS - 1),
+                df["training_iteration"] >= (config.BCQ_MIN_TRAINING_EPOCHS - 1),
                 args.target_metric
             ].idxmax()
         elif args.mode == "min":
             idx = df.loc[
-                df["training_iteration"] >= (config.MIN_TRAINING_EPOCHS - 1),
+                df["training_iteration"] >= (config.BCQ_MIN_TRAINING_EPOCHS - 1),
                 args.target_metric
             ].idxmin()
         best_trial_iter = df.iloc[idx]["training_iteration"]

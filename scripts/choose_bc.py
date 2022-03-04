@@ -39,28 +39,28 @@ def main(args):
     # the hyperparameter sweep
     else:
         # Get best model according to the chosen metric
-        if config.BC_TARGET_MODE == "max":
+        if args.target_mode == "max":
             max_metric = lambda k: dfs[k].loc[
                 dfs[k]["training_iteration"] >= (config.BC_MIN_TRAINING_EPOCHS - 1),
-                config.BC_TARGET_METRIC
+                args.target_metric
             ].max()
             best_trial_name = max(dfs, key=max_metric)
-        elif config.BC_TARGET_MODE == "min":
+        elif args.target_mode == "min":
             min_metric = lambda k: dfs[k].loc[
                 dfs[k]["training_iteration"] >= (config.BC_MIN_TRAINING_EPOCHS - 1),
-                config.BC_TARGET_METRIC
+                args.target_metric
             ].min()
             best_trial_name = min(dfs, key=min_metric)
         df = dfs[best_trial_name]
-        if config.BC_TARGET_MODE == "max":
+        if args.target_mode == "max":
             idx = df.loc[
                 df["training_iteration"] >= (config.BC_MIN_TRAINING_EPOCHS - 1),
-                config.BC_TARGET_METRIC
+                args.target_metric
             ].idxmax()
-        elif config.BC_TARGET_MODE == "min":
+        elif args.target_mode == "min":
             idx = df.loc[
                 df["training_iteration"] >= (config.BC_MIN_TRAINING_EPOCHS - 1),
-                config.BC_TARGET_METRIC
+                args.target_metric
             ].idxmin()
         best_trial_iter = df.iloc[idx]["training_iteration"]
 
@@ -127,6 +127,18 @@ if __name__ == "__main__":
         type=str,
         default="./ray_logs/bc",
         help="The path to the output Ray Tune logs"
+    )
+    parser.add_argument(
+        "--target_metric",
+        type=str,
+        default=config.BC_TARGET_METRIC,
+        help="The target metric to select on"
+    )
+    parser.add_argument(
+        "--target_mode",
+        type=str,
+        default=config.BC_TARGET_MODE,
+        help="Whether to maximize or minimize the target metric"
     )
     parser.add_argument(
         "--trial_name_filter",

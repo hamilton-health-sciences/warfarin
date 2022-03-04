@@ -54,6 +54,7 @@ data:
   - HX_MI
   - INR_VALUE
   - WARFARIN_DOSE
+  - DURATION
   - STROKE_FLAG
   - MAJOR_BLEED_FLAG
   - MINOR_BLEED_FLAG
@@ -67,6 +68,7 @@ replay_buffer:
   init:
     time_varying: across
     include_dose_time_varying: true
+    include_duration_time_varying: true
     discount_factor: 0.99
     inr_reward: 1
     event_reward: 0
@@ -98,7 +100,7 @@ behavior_cloner:
 dsbcq:
   tune_seed: 43
   min_training_epochs: 50
-  max_training_epochs: 500
+  max_training_epochs: 1000
   plot_every: 50
   target_metric: val/wis/policy_value
   target_mode: max

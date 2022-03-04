@@ -41,6 +41,7 @@ class WarfarinReplayBuffer(TensorDataset):
                  rel_event_sample_prob: int = 1,
                  weight_option_frequency: bool = False,
                  time_varying: str = "within",
+                 include_duration_time_varying: bool = False,
                  include_dose_time_varying: bool = False,
                  inr_reward: float = 1.,
                  event_reward: float = 0.,
@@ -70,10 +71,16 @@ class WarfarinReplayBuffer(TensorDataset):
                                      option in the replay buffer.
             time_varying: "across" if across trajectories, "within" or None if
                           within trajectories.
+            include_duration_time_varying: Whether to include the duration the
+                                           patient was on a given dose in the
+                                           time-varying features. Potentially
+                                           sub-optimal as it represents a
+                                           violation of the usual formulation of
+                                           the Markov assumptions.
             include_dose_time_varying: Whether to include the dose in time-
                                        varying features. Potentially sub-optimal
-                                       as it represents a violation of standard
-                                       Markov assumptions.
+                                       as it represents a violation of the usual
+                                       formulation of the Markov assumptions.
             inr_reward: The reward for each in-range INR.
             event_reward: The reward when an adverse event occurs.
             device: The device to store the data on.
@@ -85,6 +92,7 @@ class WarfarinReplayBuffer(TensorDataset):
         self.weight_option_frequency = weight_option_frequency
 
         self.time_varying = "within" if time_varying is None else time_varying
+        self.include_duration_time_varying = include_duration_time_varying
         self.include_dose_time_varying = include_dose_time_varying
 
         self.inr_reward = inr_reward
@@ -189,6 +197,7 @@ class WarfarinReplayBuffer(TensorDataset):
         state, self.state_transforms = engineer_state_features(
             self.df.copy(),
             time_varying_cross=(self.time_varying == "across"),
+            include_duration_time_varying=self.include_duration_time_varying,
             include_dose_time_varying=self.include_dose_time_varying,
             transforms=self.state_transforms
         )

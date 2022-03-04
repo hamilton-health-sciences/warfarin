@@ -112,9 +112,10 @@ stages:
     - behavior_cloner
     outs:
     - ray_logs/bc
-  select_behavior_cloner:
-    cmd: python3 scripts/choose_bc.py
+  select_behavior_cloner_wis:
+    cmd: python3 scripts/choose_bc.py --target_metric "val/calibration_error" --target_mode min
     deps:
+    - ray_logs/bc
     - data/clean_data/train_data.feather
     - data/clean_data/val_data.feather
     - scripts/choose_bc.py
@@ -122,9 +123,22 @@ stages:
     - behavior_cloner
     outs:
     - output/behavior_cloner_wis
-  tune_dsbcq:
-    cmd: python3 scripts/tune_smdp_dbcq.py
+  select_behavior_cloner_generative_init:
+    cmd: python3 scripts/choose_bc.py --target_metric "val/multi_f1_0.3" --target_mode max --output_prefix ./output/behavior_cloner_generative_init
     deps:
+    - ray_logs/bc
+    - data/clean_data/train_data.feather
+    - data/clean_data/val_data.feather
+    - scripts/choose_bc.py
+    params:
+    - behavior_cloner
+    outs:
+    - output/behavior_cloner_generative_init
+  tune_dsbcq:
+    cmd: python3 scripts/tune_smdp_dbcq.py --feasibility_behavior_policy `pwd`/output/behavior_cloner_generative_init/checkpoint.pt
+    deps:
+    - output/behavior_cloner_wis
+    - output/behavior_cloner_generative_init
     - data/clean_data/train_data.feather
     - data/clean_data/val_data.feather
     - scripts/tune_smdp_dbcq.py
