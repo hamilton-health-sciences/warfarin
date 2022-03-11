@@ -15,65 +15,69 @@ ttr_table.out <- args[5]
 events_table.out <- args[6]
 method.name <- args[7]
 
-data = read.csv(mlm.in)
+if (mlm.in != "none") data = read.csv(mlm.in)
 data_cox = read.csv(cox.in)
-data_wls_cent = read.csv(wls.in)
+if (wls.in != "none") data_wls_cent = read.csv(wls.in)
 
 # centre level
-data_wls_cent$Count = data_wls_cent$TTR.count
-head(data_wls_cent)
+if (wls.in != "none") {
+    data_wls_cent$Count = data_wls_cent$TTR.count
+    head(data_wls_cent)
 
-# perform weighted least squares regression
-wls_model_cent = lm(TTR.mean ~ algorithm_consistency.mean,
-                    data = data_wls_cent, weights = data_wls_cent$Count)
+    # perform weighted least squares regression
+    wls_model_cent = lm(TTR.mean ~ algorithm_consistency.mean,
+                        data = data_wls_cent, weights = data_wls_cent$Count)
 
-# view summary of model
-summary(wls_model_cent)
+    # view summary of model
+    summary(wls_model_cent)
 
-p <- (
-    ggplot(data_wls_cent, aes(x = algorithm_consistency.mean, y = TTR.mean, size = Count)) + 
-    geom_point(shape = 21) + 
-    geom_smooth(method = "lm", mapping = aes(weight = TTR.count), color = "black", show.legend = FALSE) + 
-    ggtitle(paste("Weighted Least Square Model (", method.name, " Method)", sep="")) +
-    xlab("Mean centre algorithm-consistency") + 
-    ylab("Mean centre TTR") +
-    xlim(c(0, 1))
-)
+    p <- (
+        ggplot(data_wls_cent, aes(x = algorithm_consistency.mean, y = TTR.mean, size = Count)) + 
+        geom_point(shape = 21) + 
+        geom_smooth(method = "lm", mapping = aes(weight = TTR.count), color = "black", show.legend = FALSE) + 
+        ggtitle(paste("Weighted Least Square Model (", method.name, " Method)", sep="")) +
+        xlab("Mean centre algorithm-consistency") + 
+        ylab("Mean centre TTR") +
+        xlim(c(0, 1))
+    )
 
-ggsave(wls_plot.out)
+    ggsave(wls_plot.out)
+}
 
-data['centre_algorithm_consistency'] = data['centre_algorithm_consistency']*10
-data['TTR'] = data['TTR']*100
+if (mlm.in != "none") {
+    data['centre_algorithm_consistency'] = data['centre_algorithm_consistency']*10
+    data['TTR'] = data['TTR']*100
 
-fit_ac = lmer(TTR ~ 
-              AGE + 
-              WT + 
-              male + 
-              white + 
-              smoker + 
-              hf + 
-              hypt + 
-              diab + 
-              stroke + 
-              warfuse + 
-              amiod + 
-              insulin + 
-              centre_algorithm_consistency + 
-              (1|CENTID) + 
-              sechosp + # centre level
-              acclinic + # centre level
-              (1|CTRYID) + 
-              highincome + # ctry level
-              dale + # ctry level
-              hsp, data = data)
+    fit_ac = lmer(TTR ~ 
+                  AGE + 
+                  WT + 
+                  male + 
+                  white + 
+                  smoker + 
+                  hf + 
+                  hypt + 
+                  diab + 
+                  stroke + 
+                  warfuse + 
+                  amiod + 
+                  insulin + 
+                  centre_algorithm_consistency + 
+                  (1|CENTID) + 
+                  sechosp + # centre level
+                  acclinic + # centre level
+                  (1|CTRYID) + 
+                  highincome + # ctry level
+                  dale + # ctry level
+                  hsp, data = data)
 
-summary(fit_ac)
+    summary(fit_ac)
 
-anova.ttr <- Anova(fit_ac)
-anova.ttr
+    anova.ttr <- Anova(fit_ac)
+    anova.ttr
 
-confint.ttr <- confint(fit_ac, level = 0.95)
-confint.ttr
+    confint.ttr <- confint(fit_ac, level = 0.95)
+    confint.ttr
+}
 
 time = as.numeric(data_cox$time_to_event)
 status = as.numeric(data_cox$composite_outcome)
@@ -113,20 +117,24 @@ cox.summary
 confint.events <- exp(confint(fit_coxme, level = 0.95))
 confint.events
 
-# Format for output
-varnames <- rownames(anova.ttr)
-coef.ttr <- summary(fit_ac)$coef[varnames, "Estimate"]
-coef.ttr.fmt <- format(round(coef.ttr, 2), nsmall=2, trim=TRUE)
-ci.lower <- confint.ttr[names(coef.ttr), 1]
-ci.lower.fmt <- format(round(ci.lower, 2), nsmall=2, trim=TRUE)
-ci.upper <- confint.ttr[names(coef.ttr), 2]
-ci.upper.fmt <- format(round(ci.upper, 2), nsmall=2, trim=TRUE)
-pval.fmt <- format(round(anova.ttr$`Pr(>Chisq)`, 3), nsmall=3, trim=TRUE)
-df.ttr <- data.frame(
-    coefficient=coef.ttr.fmt,
-    ci=paste(ci.lower.fmt, ci.upper.fmt, sep=", "),
-    pval=pval.fmt
-)
+if (mlm.in != "none") {
+    # Format for output
+    varnames <- rownames(anova.ttr)
+    coef.ttr <- summary(fit_ac)$coef[varnames, "Estimate"]
+    coef.ttr.fmt <- format(round(coef.ttr, 2), nsmall=2, trim=TRUE)
+    ci.lower <- confint.ttr[names(coef.ttr), 1]
+    ci.lower.fmt <- format(round(ci.lower, 2), nsmall=2, trim=TRUE)
+    ci.upper <- confint.ttr[names(coef.ttr), 2]
+    ci.upper.fmt <- format(round(ci.upper, 2), nsmall=2, trim=TRUE)
+    pval.fmt <- format(round(anova.ttr$`Pr(>Chisq)`, 3), nsmall=3, trim=TRUE)
+    df.ttr <- data.frame(
+        coefficient=coef.ttr.fmt,
+        ci=paste(ci.lower.fmt, ci.upper.fmt, sep=", "),
+        pval=pval.fmt
+    )
+
+    write.table(df.ttr, file=ttr_table.out, sep=",")
+}
 
 extract_coxme_table <- function(mod) {
     # Taken from: https://stackoverflow.com/questions/43720260/how-to-extract-p-values-from-lmekin-objects-in-coxme-package
@@ -156,5 +164,4 @@ df.events <- data.frame(
     pval=pval.fmt
 )
 
-write.table(df.ttr, file=ttr_table.out, sep=",")
 write.table(df.events, file=events_table.out, sep=",")

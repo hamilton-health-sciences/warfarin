@@ -228,7 +228,7 @@ def main(args):
                data_characteristics,
                summary_medication,
                summary,
-               method="RL")
+               method="policy")
     coxph_data(data_RELY,
                data_characteristics,
                summary_medication,
@@ -242,15 +242,9 @@ def main(args):
 
     # Prepare output data for WLS and hierarchical TTR models.
     mlm_data(data_RELY, data_characteristics, method = "threshold")
-    mlm_data(data_RELY, data_characteristics, method = "RL")
+    mlm_data(data_RELY, data_characteristics, method = "policy")
     mlm_data(data_RELY, data_characteristics, method = "random")
     mlm_data(data_RELY, data_characteristics, method = "maintain")
-
-
-# ## 3. Prepare data for the Cox PH model
-
-# In[31]:
-
 
 
 def coxph_data (data, data_characteristics, summary_medication, summary, method = "threshold"):
@@ -284,11 +278,11 @@ def coxph_data (data, data_characteristics, summary_medication, summary, method 
                             information.
         summary: A data frame containing the adverse event (i.e., composite
                  outcome) and time to event information.
-        method: "threshold" for the threshold method, "RL" for the RL model.
+        method: "threshold" for the threshold method, "policy" for the RL model.
     """
     if method == "threshold":
         quant_diff = "THRESHOLD_ACTION_DIFF"
-    elif method == "RL":
+    elif method == "policy":
         quant_diff = "POLICY_ACTION_DIFF"
     elif method == "random":
         quant_diff = "RANDOM_ACTION_DIFF"
@@ -359,7 +353,7 @@ def mlm_data(data, data_characteristics, method = "threshold"):
     """
     if method == "threshold":
         quant_diff = "THRESHOLD_ACTION_DIFF"
-    elif method == "RL":
+    elif method == "policy":
         quant_diff = "POLICY_ACTION_DIFF"
     elif method == "random":
         quant_diff = "RANDOM_ACTION_DIFF"
