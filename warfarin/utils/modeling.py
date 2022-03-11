@@ -137,19 +137,22 @@ def get_dataloaders(train_data_path,
 def evaluate_policy(epoch, policy, train_data, val_data, behavior_policy,
                     running_state):
     plot_epoch = (epoch % config.BCQ_PLOT_EVERY == 0)
+    all_metrics_epoch = (epoch % config.BCQ_ALL_METRICS_EVERY == 0)
     train_metrics, train_plots, _, running_state["train"] = evaluate_and_plot_policy(
         policy,
         train_data,
         behavior_policy,
         running_state["train"],
-        plot=plot_epoch
+        plot=plot_epoch,
+        compute_all_metrics=all_metrics_epoch
     )
     val_metrics, val_plots, _, running_state["val"] = evaluate_and_plot_policy(
         policy,
         val_data,
         behavior_policy,
         running_state["val"],
-        plot=plot_epoch
+        plot=plot_epoch,
+        compute_all_metrics=all_metrics_epoch
     )
     if "qloss" in running_state["train"]:
         train_metrics["qloss"] = running_state["train"]["batch_qloss"]

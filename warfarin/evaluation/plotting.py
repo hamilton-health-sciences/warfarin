@@ -156,6 +156,10 @@ def plot_agreement_ttr_curve(df, disagreement_ttr):
         subset=["TRIAL", "SUBJID", "TRAJID"]
     ).set_index(["TRIAL", "SUBJID", "TRAJID"])
 
+    disagreement_ttr = disagreement_ttr.drop(
+        [c for c in disagreement_ttr.columns if "_EQ" in c],
+        axis=1
+    )
     plot_df = disagreement_ttr.join(df[["CONTINENT"]])
 
     plot_df = plot_df.melt(id_vars=[*config.ADV_EVENTS,
@@ -183,7 +187,6 @@ def plot_agreement_ttr_curve(df, disagreement_ttr):
                    group="MODEL",
                    color="MODEL")) +
         geom_smooth(method=_loess_predictive_interval) +
-        # geom_point() +
         xlim([0., 50.]) +
         ylim([0., 100.]) +
         xlab(mean_abs_diff_label) +

@@ -23,7 +23,8 @@ from warfarin.evaluation.plotting import (plot_policy_heatmap,
 
 
 def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
-                             eval_state=None, plot=True, include_tests=False):
+                             eval_state=None, plot=True,
+                             compute_all_metrics=False, include_tests=False):
     """
     Evaluate and plot a policy.
 
@@ -61,7 +62,9 @@ def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
         eval_state: A pass-through state var that should be modified and
                     returned.
         plot: Whether or not to generate plots, because plotting is slow.
-        include_tests: Whether or not to generate statistical tests.
+        compute_all_metrics: Whether or not to compute all metrics, or just WIS-
+        include_tests: Whether to include statistical tests of performance.
+                             estimated policy value.
 
     Returns:
         metrics: The dictionary of quantitative metrics, mapping name to value.
@@ -209,8 +212,8 @@ def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
 
     # Compute results
     metrics, wis_bootstrap_df = compute_metrics(
-        df, disagreement_ttr_events, eval_state, include_tests, policy,
-        behavior_policy, replay_buffer
+        df, disagreement_ttr_events, eval_state, compute_all_metrics, policy,
+        behavior_policy, replay_buffer, include_tests
     )
     if plot:
         plots = compute_plots(df, disagreement_ttr_events, metrics,
@@ -235,29 +238,32 @@ def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
     return metrics, plots, hierarchical_ttr, eval_state
 
 
-def compute_metrics(df, disagreement_ttr, eval_state, include_tests,
-                    learned_policy, behavior_policy, replay_buffer):
+def compute_metrics(df, disagreement_ttr, eval_state, compute_all_metrics,
+                    learned_policy, behavior_policy, replay_buffer,
+                    include_tests):
     stats = {}
 
     # WIS estimates of returns
     stats, wis_bootstrap_df = wis_returns(df, replay_buffer, learned_policy,
-                                          behavior_policy, include_tests)
+                                          behavior_policy, compute_all_metrics)
 
     # Reasonable-ness
     prop_reasonable = eval_reasonable_actions(df)
     stats["proportion_reasonable_actions"] = prop_reasonable
 
     # Classification metrics
-    policy_stats = eval_classification(df, "POLICY_ACTION", "POLICY")
-    threshold_stats = eval_classification(df, "THRESHOLD_ACTION", "THRESHOLD")
-    maintain_stats = eval_classification(df, "MAINTAIN_ACTION", "MAINTAIN")
-    random_stats = eval_classification(df, "RANDOM_ACTION", "RANDOM")
-    stats = {**policy_stats, **threshold_stats, **maintain_stats, **random_stats,
-             **stats}
+    if compute_all_metrics:
+        policy_stats = eval_classification(df, "POLICY_ACTION", "POLICY")
+        threshold_stats = eval_classification(df, "THRESHOLD_ACTION", "THRESHOLD")
+        maintain_stats = eval_classification(df, "MAINTAIN_ACTION", "MAINTAIN")
+        random_stats = eval_classification(df, "RANDOM_ACTION", "RANDOM")
+        stats = {**policy_stats, **threshold_stats, **maintain_stats, **random_stats,
+                 **stats}
 
     # TTR at agreement
-    agreement_stats = eval_at_agreement(disagreement_ttr)
-    stats = {**stats, **agreement_stats}
+    if compute_all_metrics:
+        agreement_stats = eval_at_agreement(disagreement_ttr)
+        stats = {**stats, **agreement_stats}
 
     # Statistical tests
     if include_tests:
@@ -265,8 +271,9 @@ def compute_metrics(df, disagreement_ttr, eval_state, include_tests,
         stats = {**stats, **performance_tests}
 
     # Agreement/TTR + events associations
-    association_stats = eval_agreement_associations(disagreement_ttr)
-    stats = {**stats, **association_stats}
+    if compute_all_metrics:
+        association_stats = eval_agreement_associations(disagreement_ttr)
+        stats = {**stats, **association_stats}
 
     # Ensure integer types are correct
     for k, v in stats.items():

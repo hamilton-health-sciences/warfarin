@@ -41,25 +41,25 @@ def main(args):
         # Get best model according to the chosen metric
         if args.mode == "max":
             max_metric = lambda k: dfs[k].loc[
-                dfs[k]["training_iteration"] >= (config.BCQ_MIN_TRAINING_EPOCHS - 1),
+                dfs[k]["training_iteration"] >= (config.BCQ_EVAL_MIN_TRAINING_EPOCHS - 1),
                 args.target_metric
             ].max()
             best_trial_name = max(dfs, key=max_metric)
         elif args.mode == "min":
             min_metric = lambda k: dfs[k].loc[
-                dfs[k]["training_iteration"] >= (config.BCQ_MIN_TRAINING_EPOCHS - 1),
+                dfs[k]["training_iteration"] >= (config.BCQ_EVAL_MIN_TRAINING_EPOCHS - 1),
                 args.target_metric
             ].min()
             best_trial_name = min(dfs, key=max_metric)
         df = dfs[best_trial_name]
         if args.mode == "max":
             idx = df.loc[
-                df["training_iteration"] >= (config.BCQ_MIN_TRAINING_EPOCHS - 1),
+                df["training_iteration"] >= (config.BCQ_EVAL_MIN_TRAINING_EPOCHS - 1),
                 args.target_metric
             ].idxmax()
         elif args.mode == "min":
             idx = df.loc[
-                df["training_iteration"] >= (config.BCQ_MIN_TRAINING_EPOCHS - 1),
+                df["training_iteration"] >= (config.BCQ_EVAL_MIN_TRAINING_EPOCHS - 1),
                 args.target_metric
             ].idxmin()
         best_trial_iter = df.iloc[idx]["training_iteration"]
@@ -112,7 +112,8 @@ def main(args):
 
     # Compute evaluation metrics on the buffer
     metrics, plots, hierarchical_ttr, _ = evaluate_and_plot_policy(
-        policy, data, include_tests=True, behavior_policy=behavior_policy
+        policy, data, compute_all_metrics=True, include_tests=True,
+        behavior_policy=behavior_policy
     )
 
     # Create output directories
@@ -182,13 +183,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--target_metric",
         type=str,
-        default="val/wis/policy_value",
+        default=config.BCQ_EVAL_TARGET_METRIC,
         help="The metric on the basis of which to select the model"
     )
     parser.add_argument(
         "--mode",
         type=str,
-        default="max",
+        default=config.BCQ_EVAL_TARGET_MODE,
         choices=["min", "max"],
         help="Whether to maximize or minimize the target metric"
     )
