@@ -98,11 +98,6 @@ class SMDBCQ(object):
             self.q.i.load_state_dict(
                 generative_network_init.backbone.state_dict()
             )
-            # Heuristically, makes sense to also intiialize the q-network from
-            # the same net for faster convergence
-            self.q.q.load_state_dict(
-                generative_network_init.backbone.state_dict()
-            )
             # If freezing the generative network in this well-initialized state
             if freeze_generative_network:
                 for param in self.q.i.parameters():
