@@ -84,7 +84,8 @@ def main(args):
     rely_events["COMPOSITE"] = (
         (rely_events["EVENT_NAME"] == "Major Bleeding") |
         (rely_events["EVENT_NAME"] == "Ischemic Stroke") |
-        (rely_events["EVENT_NAME"] == "Systemic Embolism")
+        (rely_events["EVENT_NAME"] == "Systemic Embolism") |
+        (rely_events["EVENT_NAME"] == "Cardiovascular Death")
     )
     rely_events = rely_events[rely_events["COMPOSITE"]]
     other = other.join(linker.set_index("SUBJID"))

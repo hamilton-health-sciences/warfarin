@@ -86,6 +86,9 @@ def preprocess_all(inr, events, baseline):
     events.loc[:, "SYS_EMB"] = (
         events["EVENT_NAME"] == "Systemic Embolism"
     ).astype(int)
+    events.loc[:, "CARDIO_DEATH"] = (
+        events["EVENT_NAME"] == "Cardiovascular Death"
+    ).astype(int)
     events = events.drop("EVENT_NAME", axis=1)
 
     # Drop negative days, which appear in most ENGAGE patients. It seems that
