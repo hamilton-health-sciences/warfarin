@@ -39,36 +39,13 @@ data:
   - HEM_STROKE
   - MAJOR_BLEED
   state_columns:
-  - AGE_DEIDENTIFIED
-  - SEX
-  - WEIGHT
-  - RACE2
-  - CONTINENT
-  - SMOKE
-  - BMED_ASPIRIN
-  - BMED_AMIOD
-  - BMED_THIENO
-  - DIABETES
-  - HX_CHF
-  - HYPERTENSION
-  - HX_MI
   - INR_VALUE
-  - WARFARIN_DOSE
-  - DURATION
-  - STROKE_FLAG
-  - MAJOR_BLEED_FLAG
-  - MINOR_BLEED_FLAG
-  - HEM_STROKE_FLAG
-  - HOSP_FLAG
-  - WARFARIN_DOSE_BIN
-  - AGE_BIN
-  - WEIGHT_BIN
 
 replay_buffer:
   init:
     time_varying: across
-    include_dose_time_varying: true
-    include_duration_time_varying: true
+    include_dose_time_varying: false
+    include_duration_time_varying: false
     discount_factor: 0.99
     inr_reward: 1
     event_reward: 0

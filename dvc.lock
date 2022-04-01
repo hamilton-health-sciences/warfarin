@@ -83,30 +83,7 @@ stages:
           - HEM_STROKE
           - MAJOR_BLEED
           state_columns:
-          - AGE_DEIDENTIFIED
-          - SEX
-          - WEIGHT
-          - RACE2
-          - CONTINENT
-          - SMOKE
-          - BMED_ASPIRIN
-          - BMED_AMIOD
-          - BMED_THIENO
-          - DIABETES
-          - HX_CHF
-          - HYPERTENSION
-          - HX_MI
           - INR_VALUE
-          - WARFARIN_DOSE
-          - DURATION
-          - STROKE_FLAG
-          - MAJOR_BLEED_FLAG
-          - MINOR_BLEED_FLAG
-          - HEM_STROKE_FLAG
-          - HOSP_FLAG
-          - WARFARIN_DOSE_BIN
-          - AGE_BIN
-          - WEIGHT_BIN
         preprocess:
           static_state_columns:
           - SEX
@@ -142,8 +119,8 @@ stages:
       md5: b27ac9ae4ba65010084eadd4b68715b0
       size: 12117674
     - path: data/auditing/preprocess_all_events.feather
-      md5: 8f638d845371ad7e8905f0de7f1e87a0
-      size: 3097738
+      md5: 4241679e1aa391d9742297f511ecf816
+      size: 3108738
     - path: data/auditing/preprocess_all_inr.feather
       md5: a229bbb3b6f2aedfb4d35f10acb0fb73
       size: 242435994
@@ -178,8 +155,8 @@ stages:
       md5: 9befc0bfa703ad2065c768f78083b056
       size: 12002450
     - path: data/clean_data/events.feather
-      md5: 58fe757b812ad14754e029c38f4771c5
-      size: 2842122
+      md5: 6b804c76917e4cf5692c5b2986688749
+      size: 2853114
     - path: data/clean_data/inr.feather
       md5: 093e2fc30038bdfe560471fde6b98de1
       size: 14296778
@@ -214,8 +191,8 @@ stages:
       md5: b27ac9ae4ba65010084eadd4b68715b0
       size: 12117674
     - path: data/auditing/preprocess_all_events.feather
-      md5: 8f638d845371ad7e8905f0de7f1e87a0
-      size: 3097738
+      md5: 4241679e1aa391d9742297f511ecf816
+      size: 3108738
     - path: data/auditing/preprocess_all_inr.feather
       md5: a229bbb3b6f2aedfb4d35f10acb0fb73
       size: 242435994
@@ -250,8 +227,8 @@ stages:
       md5: 9befc0bfa703ad2065c768f78083b056
       size: 12002450
     - path: data/clean_data/events.feather
-      md5: 58fe757b812ad14754e029c38f4771c5
-      size: 2842122
+      md5: 6b804c76917e4cf5692c5b2986688749
+      size: 2853114
     - path: data/clean_data/inr.feather
       md5: 093e2fc30038bdfe560471fde6b98de1
       size: 14296778
@@ -294,30 +271,7 @@ stages:
           - HEM_STROKE
           - MAJOR_BLEED
           state_columns:
-          - AGE_DEIDENTIFIED
-          - SEX
-          - WEIGHT
-          - RACE2
-          - CONTINENT
-          - SMOKE
-          - BMED_ASPIRIN
-          - BMED_AMIOD
-          - BMED_THIENO
-          - DIABETES
-          - HX_CHF
-          - HYPERTENSION
-          - HX_MI
           - INR_VALUE
-          - WARFARIN_DOSE
-          - DURATION
-          - STROKE_FLAG
-          - MAJOR_BLEED_FLAG
-          - MINOR_BLEED_FLAG
-          - HEM_STROKE_FLAG
-          - HOSP_FLAG
-          - WARFARIN_DOSE_BIN
-          - AGE_BIN
-          - WEIGHT_BIN
         preprocess:
           static_state_columns:
           - SEX
@@ -411,36 +365,13 @@ stages:
         - SYS_EMB
         data.min_train_trajectory_length: 5
         data.state_columns:
-        - AGE_DEIDENTIFIED
-        - SEX
-        - WEIGHT
-        - RACE2
-        - CONTINENT
-        - SMOKE
-        - BMED_ASPIRIN
-        - BMED_AMIOD
-        - BMED_THIENO
-        - DIABETES
-        - HX_CHF
-        - HYPERTENSION
-        - HX_MI
         - INR_VALUE
-        - WARFARIN_DOSE
-        - DURATION
-        - STROKE_FLAG
-        - MAJOR_BLEED_FLAG
-        - MINOR_BLEED_FLAG
-        - HEM_STROKE_FLAG
-        - HOSP_FLAG
-        - WARFARIN_DOSE_BIN
-        - AGE_BIN
-        - WEIGHT_BIN
-        replay_buffer.init.include_dose_time_varying: true
+        replay_buffer.init.include_dose_time_varying: false
         replay_buffer.init.time_varying: across
     outs:
     - path: ray_logs/bc
-      md5: e7b65cece7f934d62e16993452874da0.dir
-      size: 10748425959
+      md5: 38f5026e375bc02bbcfaade421149451.dir
+      size: 3484672020
       nfiles: 9056
   select_behavior_cloner:
     cmd: python3 scripts/choose_bc.py
@@ -494,12 +425,12 @@ stages:
       md5: a06428e354e3801114edc2a7f2746b20
       size: 759946
     - path: output/behavior_cloner_generative_init
-      md5: 4cca6a24baac9f03662b69fc2a1afc1a.dir
-      size: 252951
+      md5: 43db950bff333e162fa6704f55a842dd.dir
+      size: 172145
       nfiles: 4
     - path: output/behavior_cloner_wis
-      md5: c100e197685810f08168d99817f995ad.dir
-      size: 256792
+      md5: 89509a180c595aaa44037d3da6fddd56.dir
+      size: 171355
       nfiles: 4
     - path: scripts/tune_smdp_dbcq.py
       md5: ea4feca36be2263ff2f729a52179c749
@@ -523,30 +454,7 @@ stages:
         - SYS_EMB
         data.min_train_trajectory_length: 5
         data.state_columns:
-        - AGE_DEIDENTIFIED
-        - SEX
-        - WEIGHT
-        - RACE2
-        - CONTINENT
-        - SMOKE
-        - BMED_ASPIRIN
-        - BMED_AMIOD
-        - BMED_THIENO
-        - DIABETES
-        - HX_CHF
-        - HYPERTENSION
-        - HX_MI
         - INR_VALUE
-        - WARFARIN_DOSE
-        - DURATION
-        - STROKE_FLAG
-        - MAJOR_BLEED_FLAG
-        - MINOR_BLEED_FLAG
-        - HEM_STROKE_FLAG
-        - HOSP_FLAG
-        - WARFARIN_DOSE_BIN
-        - AGE_BIN
-        - WEIGHT_BIN
         dsbcq:
           tune_seed: 43
           min_training_epochs: 50
@@ -572,19 +480,19 @@ stages:
             - 1e-05
             tau:
             - 0.005
-        replay_buffer.init.include_dose_time_varying: true
+        replay_buffer.init.include_dose_time_varying: false
         replay_buffer.init.time_varying: across
     outs:
     - path: ray_logs/dbcq
-      md5: 0f5849f9031ac87d2c9f8ea56f4a5533.dir
-      size: 8459113353
+      md5: 6fbe45a957a712c3f7e1d773d15eb0ec.dir
+      size: 2982529371
       nfiles: 30038
   evaluate:
     cmd: bash scripts/evaluate.sh
     deps:
     - path: data/clean_data/events.feather
-      md5: 58fe757b812ad14754e029c38f4771c5
-      size: 2842122
+      md5: 6b804c76917e4cf5692c5b2986688749
+      size: 2853114
     - path: data/clean_data/test_data.feather
       md5: a7250755b725d93b1bcd40c5005e2c59
       size: 2555050
@@ -605,8 +513,8 @@ stages:
       size: 4068222208
       nfiles: 717
     - path: ray_logs/dbcq
-      md5: 0f5849f9031ac87d2c9f8ea56f4a5533.dir
-      size: 8459113353
+      md5: 6fbe45a957a712c3f7e1d773d15eb0ec.dir
+      size: 2982529371
       nfiles: 30038
     - path: scripts/estimate_agreement_models.R
       md5: 462ed864b45023510a961d63c4f8b4ba
@@ -653,13 +561,13 @@ stages:
             - 1e-05
             tau:
             - 0.005
-        replay_buffer.init.include_dose_time_varying: true
+        replay_buffer.init.include_dose_time_varying: false
         replay_buffer.init.time_varying: across
     outs:
     - path: output/rely_test_evaluation
-      md5: a7349c71594e3a956db639b6d50b3d52.dir
-      size: 94483956
-      nfiles: 78
+      md5: 6737505cd1d00ff750d7a2f38957d169.dir
+      size: 96094933
+      nfiles: 72
   select_behavior_cloner_wis:
     cmd: python3 scripts/choose_bc.py --target_metric "val/calibration_error" --target_mode
       min
@@ -671,8 +579,8 @@ stages:
       md5: a06428e354e3801114edc2a7f2746b20
       size: 759946
     - path: ray_logs/bc
-      md5: e7b65cece7f934d62e16993452874da0.dir
-      size: 10748425959
+      md5: 38f5026e375bc02bbcfaade421149451.dir
+      size: 3484672020
       nfiles: 9056
     - path: scripts/choose_bc.py
       md5: 773fac78b9546798ab183ba11e8b95e6
@@ -705,8 +613,8 @@ stages:
             - false
     outs:
     - path: output/behavior_cloner_wis
-      md5: c100e197685810f08168d99817f995ad.dir
-      size: 256792
+      md5: 89509a180c595aaa44037d3da6fddd56.dir
+      size: 171355
       nfiles: 4
   select_behavior_cloner_generative_init:
     cmd: python3 scripts/choose_bc.py --target_metric "val/multi_f1_0.3" --target_mode
@@ -719,8 +627,8 @@ stages:
       md5: a06428e354e3801114edc2a7f2746b20
       size: 759946
     - path: ray_logs/bc
-      md5: e7b65cece7f934d62e16993452874da0.dir
-      size: 10748425959
+      md5: 38f5026e375bc02bbcfaade421149451.dir
+      size: 3484672020
       nfiles: 9056
     - path: scripts/choose_bc.py
       md5: 773fac78b9546798ab183ba11e8b95e6
@@ -753,6 +661,6 @@ stages:
             - false
     outs:
     - path: output/behavior_cloner_generative_init
-      md5: 4cca6a24baac9f03662b69fc2a1afc1a.dir
-      size: 252951
+      md5: 43db950bff333e162fa6704f55a842dd.dir
+      size: 172145
       nfiles: 4
