@@ -160,7 +160,7 @@ def main(args):
 
     # Extract patients that developed the composite outcome
     data["composite_outcome"] = data[
-        ["STROKE", "MAJOR_BLEED", "SYS_EMB", "CARDIO_DEATH"]
+        ["STROKE", "MAJOR_BLEED", "SYS_EMB"]
     ].sum(axis = 1)
     summary_event = data.loc[data["composite_outcome"] >= 1][
         ["RELY_SUBJID", "STUDY_DAY", "composite_outcome"]
