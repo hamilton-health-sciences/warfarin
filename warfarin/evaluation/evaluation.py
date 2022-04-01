@@ -94,14 +94,17 @@ def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
     else:
         continent_or_race = replay_buffer.df["RACE2"]
 
-    df = pd.DataFrame(
-        {"OBSERVED_ACTION": obs_action,
-         "OBSERVED_ACTION_QUANT": obs_action_quant,
-         "POLICY_ACTION": policy_action,
-         "INR_VALUE": replay_buffer.df["INR_VALUE"],
-         "CONTINENT": continent_or_race},
-        index=replay_buffer.df.index
-    )
+    _eval_data = {
+        "OBSERVED_ACTION": obs_action,
+        "OBSERVED_ACTION_QUANT": obs_action_quant,
+        "POLICY_ACTION": policy_action,
+        "INR_VALUE": replay_buffer.df["INR_VALUE"]
+    }
+    if "CONTINENT" in replay_buffer.df.columns:
+        _eval_data["CONTINENT"] = replay_buffer.df["CONTINENT"]
+    if "RACE2" in replay_buffer.df.columns:
+        _eval_data["RACE"] = replay_buffer.df["RACE2"]
+    df = pd.DataFrame(_eval_data, index=replay_buffer.df.index)
 
     # TODO subset to `.state` index (not e.g. `.observed_state`)?
     # Although this may drop terminal trnasitions needed for TTR computation.
@@ -304,10 +307,10 @@ def compute_plots(df, disagreement_ttr, metrics, wis_bootstrap_df):
         plot_policy_heatmap(obs_df.copy()) +
         ggtitle("Observed Policy")
     )
-    plots["heatmap/observed/continent"] = (
-        plot_policy_heatmap(obs_df.copy(), group_vars=["CONTINENT"]) +
-        ggtitle("Observed Policy by Continent")
-    )
+    # plots["heatmap/observed/continent"] = (
+    #     plot_policy_heatmap(obs_df.copy(), group_vars=["CONTINENT"]) +
+    #     ggtitle("Observed Policy by Continent")
+    # )
 
     # RL policy heatmap
     rl_df = df[["POLICY_ACTION", "INR_VALUE", "CONTINENT"]].copy()
@@ -316,10 +319,10 @@ def compute_plots(df, disagreement_ttr, metrics, wis_bootstrap_df):
         plot_policy_heatmap(rl_df.copy()) +
         ggtitle("RL Policy")
     )
-    plots["heatmap/learned/continent"] = (
-        plot_policy_heatmap(rl_df.copy(), group_vars=["CONTINENT"]) +
-        ggtitle("RL Policy by Continent")
-    )
+    # plots["heatmap/learned/continent"] = (
+    #     plot_policy_heatmap(rl_df.copy(), group_vars=["CONTINENT"]) +
+    #     ggtitle("RL Policy by Continent")
+    # )
 
     # Threshold policy heatmap
     threshold_df = df[["THRESHOLD_ACTION", "INR_VALUE", "CONTINENT"]].copy()
@@ -328,10 +331,10 @@ def compute_plots(df, disagreement_ttr, metrics, wis_bootstrap_df):
         plot_policy_heatmap(threshold_df.copy()) +
         ggtitle("Benchmark Policy")
     )
-    plots["heatmap/threshold/continent"] = (
-        plot_policy_heatmap(threshold_df.copy(), group_vars=["CONTINENT"]) +
-        ggtitle("Benchmark Policy by Continent")
-    )
+    # plots["heatmap/threshold/continent"] = (
+    #     plot_policy_heatmap(threshold_df.copy(), group_vars=["CONTINENT"]) +
+    #     ggtitle("Benchmark Policy by Continent")
+    # )
 
     # WIS plot
     if wis_bootstrap_df is not None:
@@ -347,7 +350,7 @@ def compute_plots(df, disagreement_ttr, metrics, wis_bootstrap_df):
     plots_all = {}
     for plot_name, plot in plots.items():
         plots_all[plot_name] = plot
-        for subvar in ["CONTINENT"]:
+        for subvar in ["CONTINENT", "RACE"]:
             plots_all[f"{plot_name}/{subvar}"] = plot + facet_wrap(subvar)
 
     return plots_all
