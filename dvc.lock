@@ -84,6 +84,7 @@ stages:
           - MAJOR_BLEED
           state_columns:
           - INR_VALUE
+          - WARFARIN_DOSE
         preprocess:
           static_state_columns:
           - SEX
@@ -272,6 +273,7 @@ stages:
           - MAJOR_BLEED
           state_columns:
           - INR_VALUE
+          - WARFARIN_DOSE
         preprocess:
           static_state_columns:
           - SEX
@@ -366,12 +368,13 @@ stages:
         data.min_train_trajectory_length: 5
         data.state_columns:
         - INR_VALUE
-        replay_buffer.init.include_dose_time_varying: false
+        - WARFARIN_DOSE
+        replay_buffer.init.include_dose_time_varying: true
         replay_buffer.init.time_varying: across
     outs:
     - path: ray_logs/bc
-      md5: 38f5026e375bc02bbcfaade421149451.dir
-      size: 3484672020
+      md5: d36905ce3cc386b23670c22aead8f62b.dir
+      size: 4208202885
       nfiles: 9056
   select_behavior_cloner:
     cmd: python3 scripts/choose_bc.py
@@ -425,12 +428,12 @@ stages:
       md5: a06428e354e3801114edc2a7f2746b20
       size: 759946
     - path: output/behavior_cloner_generative_init
-      md5: 43db950bff333e162fa6704f55a842dd.dir
-      size: 172145
+      md5: e43b7569196b2f1504698f26bf84ea69.dir
+      size: 242882
       nfiles: 4
     - path: output/behavior_cloner_wis
-      md5: 89509a180c595aaa44037d3da6fddd56.dir
-      size: 171355
+      md5: ff1989952df8237a24ae36f3f02ca946.dir
+      size: 242239
       nfiles: 4
     - path: scripts/tune_smdp_dbcq.py
       md5: ea4feca36be2263ff2f729a52179c749
@@ -455,6 +458,7 @@ stages:
         data.min_train_trajectory_length: 5
         data.state_columns:
         - INR_VALUE
+        - WARFARIN_DOSE
         dsbcq:
           tune_seed: 43
           min_training_epochs: 50
@@ -480,12 +484,12 @@ stages:
             - 1e-05
             tau:
             - 0.005
-        replay_buffer.init.include_dose_time_varying: false
+        replay_buffer.init.include_dose_time_varying: true
         replay_buffer.init.time_varying: across
     outs:
     - path: ray_logs/dbcq
-      md5: 6fbe45a957a712c3f7e1d773d15eb0ec.dir
-      size: 2982529371
+      md5: 341c41af2d8e0fe35bbc5d2bf2ed2dd1.dir
+      size: 3470363557
       nfiles: 30038
   evaluate:
     cmd: bash scripts/evaluate.sh
@@ -513,8 +517,8 @@ stages:
       size: 4068222208
       nfiles: 717
     - path: ray_logs/dbcq
-      md5: 6fbe45a957a712c3f7e1d773d15eb0ec.dir
-      size: 2982529371
+      md5: 341c41af2d8e0fe35bbc5d2bf2ed2dd1.dir
+      size: 3470363557
       nfiles: 30038
     - path: scripts/estimate_agreement_models.R
       md5: 462ed864b45023510a961d63c4f8b4ba
@@ -561,12 +565,12 @@ stages:
             - 1e-05
             tau:
             - 0.005
-        replay_buffer.init.include_dose_time_varying: false
+        replay_buffer.init.include_dose_time_varying: true
         replay_buffer.init.time_varying: across
     outs:
     - path: output/rely_test_evaluation
-      md5: 6737505cd1d00ff750d7a2f38957d169.dir
-      size: 96094933
+      md5: d4cf0404f14be7587efc906df66cb2d8.dir
+      size: 96446433
       nfiles: 72
   select_behavior_cloner_wis:
     cmd: python3 scripts/choose_bc.py --target_metric "val/calibration_error" --target_mode
@@ -579,8 +583,8 @@ stages:
       md5: a06428e354e3801114edc2a7f2746b20
       size: 759946
     - path: ray_logs/bc
-      md5: 38f5026e375bc02bbcfaade421149451.dir
-      size: 3484672020
+      md5: d36905ce3cc386b23670c22aead8f62b.dir
+      size: 4208202885
       nfiles: 9056
     - path: scripts/choose_bc.py
       md5: 773fac78b9546798ab183ba11e8b95e6
@@ -613,8 +617,8 @@ stages:
             - false
     outs:
     - path: output/behavior_cloner_wis
-      md5: 89509a180c595aaa44037d3da6fddd56.dir
-      size: 171355
+      md5: ff1989952df8237a24ae36f3f02ca946.dir
+      size: 242239
       nfiles: 4
   select_behavior_cloner_generative_init:
     cmd: python3 scripts/choose_bc.py --target_metric "val/multi_f1_0.3" --target_mode
@@ -627,8 +631,8 @@ stages:
       md5: a06428e354e3801114edc2a7f2746b20
       size: 759946
     - path: ray_logs/bc
-      md5: 38f5026e375bc02bbcfaade421149451.dir
-      size: 3484672020
+      md5: d36905ce3cc386b23670c22aead8f62b.dir
+      size: 4208202885
       nfiles: 9056
     - path: scripts/choose_bc.py
       md5: 773fac78b9546798ab183ba11e8b95e6
@@ -661,6 +665,6 @@ stages:
             - false
     outs:
     - path: output/behavior_cloner_generative_init
-      md5: 43db950bff333e162fa6704f55a842dd.dir
-      size: 172145
+      md5: e43b7569196b2f1504698f26bf84ea69.dir
+      size: 242882
       nfiles: 4

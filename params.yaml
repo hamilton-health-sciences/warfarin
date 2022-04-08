@@ -40,11 +40,12 @@ data:
   - MAJOR_BLEED
   state_columns:
   - INR_VALUE
+  - WARFARIN_DOSE
 
 replay_buffer:
   init:
     time_varying: across
-    include_dose_time_varying: false
+    include_dose_time_varying: true
     include_duration_time_varying: false
     discount_factor: 0.99
     inr_reward: 1
