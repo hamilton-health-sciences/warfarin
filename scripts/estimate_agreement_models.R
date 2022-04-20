@@ -29,7 +29,7 @@ if (wls.in != "none") {
                         data = data_wls_cent, weights = data_wls_cent$Count)
 
     # view summary of model
-    summary(wls_model_cent)
+    print(summary(wls_model_cent))
 
     p <- (
         ggplot(data_wls_cent, aes(x = algorithm_consistency.mean, y = TTR.mean, size = Count)) + 

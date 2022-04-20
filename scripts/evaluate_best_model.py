@@ -6,6 +6,10 @@ from warnings import warn
 
 import json
 
+import random
+
+import numpy as np
+
 import torch
 
 from ray.tune import Analysis
@@ -20,6 +24,10 @@ from warfarin.evaluation import evaluate_and_plot_policy
 
 
 def main(args):
+    torch.manual_seed(0)
+    np.random.seed(0)
+    random.seed(0)
+
     # Set size of plots
     plotnine.options.figure_size = (8, 6)
     plotnine.options.dpi = 300
@@ -104,6 +112,10 @@ def main(args):
                                    "model.pt")
     policy.load(state_dict_path)
 
+    indexed_config = {"trial_config": trial_config,
+                      "trial_name": str(best_trial_name),
+                      "trial_iter": int(best_trial_iter)}
+
     # If using, load up the behavior policy for WIS returns estimates
     if args.behavior_policy_path:
         behavior_policy = BehaviorCloner.load(args.behavior_policy_path)
@@ -122,7 +134,7 @@ def main(args):
 
     # Write config options (best hyperparameters)
     config_output = os.path.join(args.output_prefix, "config.json")
-    json.dump(trial_config, open(config_output, "w"))
+    json.dump(indexed_config, open(config_output, "w"))
 
     # Write quantitative metrics
     metrics_output = os.path.join(args.output_prefix, "metrics.json")
