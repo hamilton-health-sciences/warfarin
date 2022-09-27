@@ -87,8 +87,14 @@ BCQ_GRID_SEARCH = {
 }
 
 BCQ_PLOT_EVERY = params["dsbcq"]["plot_every"]
-BCQ_ALL_METRICS_EVERY = params["dsbcq"]["all_metrics_every"]
+BCQ_ALL_METRICS_EVERY = params["dsbcq"]["all_metrics_every"] if "all_metrics_every" in params["dsbcq"] else None
 
+if "dsbcq_eval" not in params:
+    params["dsbcq_eval"] = {
+        "min_training_epochs": 500,
+        "model_sel_metric": "val/wis/policy_value",
+        "model_sel_mode": "max"
+    }
 BCQ_EVAL_MIN_TRAINING_EPOCHS = params["dsbcq_eval"]["min_training_epochs"]
 BCQ_EVAL_TARGET_METRIC = params["dsbcq_eval"]["model_sel_metric"]
 BCQ_EVAL_TARGET_MODE = params["dsbcq_eval"]["model_sel_mode"]

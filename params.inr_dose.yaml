@@ -1,0 +1,108 @@
+preprocess:
+  static_state_columns:
+  - SEX
+  - RACE2
+  - CONTINENT
+  - SMOKE
+  - BMED_ASPIRIN
+  - BMED_AMIOD
+  - DIABETES
+  - HX_CHF
+  - HYPERTENSION
+  - HX_MI
+  - BMED_THIENO
+  - AGE_DEIDENTIFIED
+  - WEIGHT
+  dose_outlier_threshold: 140
+  event_range: 90
+  max_time_elapsed: 90
+
+data:
+  min_train_trajectory_length: 5
+  events_to_keep:
+    DEATH: Death
+    STROKE: Ischemic Stroke
+    MAJOR_BLEED: Major Bleeding
+    MINOR_BLEED: Minor Bleeding
+    HEM_STROKE: Hemorrhagic Stroke
+    HOSP: Hospitalization
+    SYS_EMB: Systemic Embolism
+  events_to_split:
+  - DEATH
+  - STROKE
+  - MAJOR_BLEED
+  - HEM_STROKE
+  - HOSP
+  - SYS_EMB
+  events_to_evaluate:
+  - STROKE
+  - HEM_STROKE
+  - MAJOR_BLEED
+  state_columns:
+  - INR_VALUE
+  - WARFARIN_DOSE
+
+replay_buffer:
+  init:
+    time_varying: across
+    include_dose_time_varying: true
+    include_duration_time_varying: false
+    discount_factor: 0.99
+    inr_reward: 1
+    event_reward: 0
+
+behavior_cloner:
+  tune_seed: 42
+  min_training_epochs: 100
+  max_training_epochs: 500
+  target_metric: val/auroc
+  target_mode: max
+  hyperparams:
+    init_seed:
+    - 0
+    - 1
+    - 2
+    likelihood:
+    - discrete
+    learning_rate:
+    - 1.e-4
+    - 1.e-3
+    batch_size:
+    - 16
+    num_layers:
+    - 2
+    hidden_dim:
+    - 64
+    weight_option_frequency:
+    - false
+
+dsbcq:
+  tune_seed: 43
+  min_training_epochs: 50
+  max_training_epochs: 2500
+  plot_every: 100
+  all_metrics_every: 100
+  target_metric: val/wis/policy_value
+  target_mode: max
+  hyperparams:
+    init_seed:
+    - 1
+    - 2
+    bcq_threshold:
+    - 0.3
+    - 0.4
+    batch_size:
+    - 32
+    num_layers:
+    - 2
+    hidden_dim:
+    - 64
+    learning_rate:
+    - 1.e-5
+    tau:
+    - 5.e-3
+
+dsbcq_eval:
+  min_training_epochs: 500
+  model_sel_metric: val/wis/policy_value
+  model_sel_mode: max
