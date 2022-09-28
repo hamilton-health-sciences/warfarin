@@ -104,6 +104,7 @@ class WarfarinReplayBuffer(TensorDataset):
         self.device = device
 
         # Seeded RNG for reproducibility
+        self.seed = seed
         self.rng = np.random.default_rng(seed)
 
         # Feature engineering transforms

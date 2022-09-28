@@ -123,9 +123,13 @@ def main(args):
         behavior_policy = None
 
     # Compute evaluation metrics on the buffer
+    if args.subset_ids_path:
+        subset_ids = np.loadtxt(args.subset_ids_path)
+    else:
+        subset_ids = None
     metrics, plots, hierarchical_ttr, _ = evaluate_and_plot_policy(
         policy, data, compute_all_metrics=True, include_tests=True,
-        behavior_policy=behavior_policy
+        behavior_policy=behavior_policy, subset_ids=subset_ids
     )
 
     # Create output directories
@@ -191,6 +195,13 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help="Path to the data to evaluate on"
+    )
+    parser.add_argument(
+        "--subset_ids_path",
+        type=str,
+        required=False,
+        default=None,
+        help="Path to the IDs to subset to"
     )
     parser.add_argument(
         "--target_metric",

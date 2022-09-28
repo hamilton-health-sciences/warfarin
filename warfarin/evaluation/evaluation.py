@@ -10,6 +10,7 @@ from plotnine import ggtitle, facet_wrap
 
 from warfarin import config
 from warfarin.utils import interpolate_inr, code_quantitative_decision
+from warfarin.data import WarfarinReplayBuffer
 from warfarin.models.baselines import ThresholdModel, RandomModel, MaintainModel
 from warfarin.evaluation.metrics import (eval_reasonable_actions,
                                          eval_classification,
@@ -24,7 +25,8 @@ from warfarin.evaluation.plotting import (plot_policy_heatmap,
 
 def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
                              eval_state=None, plot=True,
-                             compute_all_metrics=False, include_tests=False):
+                             compute_all_metrics=False, include_tests=False,
+                             subset_ids=None):
     """
     Evaluate and plot a policy.
 
@@ -64,7 +66,10 @@ def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
         plot: Whether or not to generate plots, because plotting is slow.
         compute_all_metrics: Whether or not to compute all metrics, or just WIS-
         include_tests: Whether to include statistical tests of performance.
-                             estimated policy value.
+                       estimated policy value.
+        subset_ids: List of participant IDs to subset to. Used to ensure that
+                    only patients with necessary baseline covariates make it
+                    into the final evaluation.
 
     Returns:
         metrics: The dictionary of quantitative metrics, mapping name to value.
@@ -205,6 +210,27 @@ def evaluate_and_plot_policy(policy, replay_buffer, behavior_policy=None,
     disagreement_ttr_events["ANY_EVENT"] = (
         disagreement_ttr_events[config.ADV_EVENTS].sum(axis=1) > 0
     ).astype(int)
+
+    # Subset, if necessary
+    if subset_ids is not None:
+        df = df[df.index.get_level_values(1).isin(subset_ids)].copy()
+        rb_df = replay_buffer.df[replay_buffer.df.index.get_level_values(1).isin(subset_ids)].copy()
+        replay_buffer = WarfarinReplayBuffer(
+            rb_df.reset_index(),
+            discount_factor=replay_buffer.discount_factor,
+            option_means=replay_buffer.option_means,
+            min_trajectory_length=replay_buffer.min_trajectory_length,
+            state_transforms=replay_buffer.state_transforms,
+            rel_event_sample_prob=replay_buffer.rel_event_sample_prob,
+            weight_option_frequency=replay_buffer.weight_option_frequency,
+            time_varying=replay_buffer.time_varying,
+            include_duration_time_varying=replay_buffer.include_duration_time_varying,
+            include_dose_time_varying=replay_buffer.include_dose_time_varying,
+            inr_reward=replay_buffer.inr_reward,
+            event_reward=replay_buffer.event_reward,
+            device=replay_buffer.device,
+            seed=replay_buffer.seed
+        )
 
     # Extract dataframe for hierarchical TTR model
     hierarchical_ttr = df.join(

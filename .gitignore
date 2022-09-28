@@ -13,3 +13,4 @@ smoke_test
 cache
 *.pt
 *.pkl
+data/rely_subjids.txt

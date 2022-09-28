@@ -17,6 +17,7 @@ RELY_DRUGS_PATH=data/raw_data/drugs_rely.csv
 RAW_EVENTS_PATH=data/raw_data/events.feather
 OTHER_PATH=data/raw_data/merged_other.sas7bdat
 CLEAN_EVENTS_PATH=data/clean_data/events.feather
+SUBSET_IDS_PATH=data/combine_test_ids.txt
 
 # Pick the best RL model.
 python3 scripts/evaluate_best_model.py \
@@ -24,7 +25,8 @@ python3 scripts/evaluate_best_model.py \
     --train_data_path $TRAIN_DATA_PATH \
     --data_path $TEST_DATA_PATH \
     --behavior_policy_path $BEHAVIOR_POLICY_PATH \
-    --output_prefix $OUTPUT_PREFIX
+    --output_prefix $OUTPUT_PREFIX \
+    --subset_ids_path $SUBSET_IDS_PATH
 
 # Format the output metrics.
 python3 scripts/format_metrics.py \
