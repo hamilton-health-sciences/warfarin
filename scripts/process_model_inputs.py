@@ -81,7 +81,10 @@ def load_data(args):
     health = pd.read_sas(health_path)
     health = health.rename(columns = {"Country": "ctryname"})
 
-    ctry = gdp.merge(health, on = "ctryname")
+    gdp["ctryname"] = gdp["ctryname"].replace(b"Columbia", b"Colombia")
+    gdp["ctryname"] = gdp["ctryname"].replace(b"Korea, South", b"South Korea")
+    health["ctryname"] = health["ctryname"].replace(b"Korea", b"South Korea")
+    ctry = gdp.merge(health, on = "ctryname", how="outer")
 
     # Centre characteristics
     centre["sechosp"] = np.where(centre["alocat"]==2, 1, 0)
@@ -108,8 +111,10 @@ def load_data(args):
 
     # merge pt, centre and ctry level characteristics
     ctrycentpt = bases[["pid", "centre", "ctryname", "AGE", "WT", "male", "white", "warfuse", "smoker", "alcohol", "hf", "stroke", "diab", "hypt", "amiod", "insulin"]].merge(
-        centre[["centre", "sechosp", "acclinic"]], on = "centre").merge(
-        ctry[["ctryname", "highincome", "dale", "hsp"]], on = "ctryname")
+        centre[["centre", "sechosp", "acclinic"]], on = "centre", how="left").merge(
+        ctry[["ctryname", "highincome", "dale", "hsp"]], on = "ctryname", how="left")
+    ctrycentpt["sechosp"] = ctrycentpt["sechosp"].fillna(0)
+    ctrycentpt["acclinic"] = ctrycentpt["acclinic"].fillna(0)
 
     ctrycentpt = ctrycentpt.drop_duplicates()
 
@@ -291,7 +296,7 @@ def coxph_data (data, data_characteristics, summary_medication, summary, method 
     
     # Remove rows with missing/invalid values.
     data[[quant_diff]] = data[[quant_diff]].replace([np.inf, -np.inf], np.nan)
-    data = data[data[quant_diff].notna()]
+    data = data[data[quant_diff].notna()].copy()
     
     # Compute an subject-level algorithm consistency index. This analysis
     # assessed the warfarin dose modification documented in response to each INR
@@ -362,7 +367,7 @@ def mlm_data(data, data_characteristics, method = "threshold"):
     
     # Remove rows with missing/invalid values.
     data[[quant_diff]] = data[[quant_diff]].replace([np.inf, -np.inf], np.nan)
-    data = data[data[quant_diff].notna()]
+    data = data[data[quant_diff].notna()].copy()
     
     # Extract the TTR information for each trajectory and each subject
     data_TTR = data[
