@@ -6,6 +6,8 @@ from warnings import warn
 
 import json
 
+import pickle
+
 import random
 
 import numpy as np
@@ -24,10 +26,6 @@ from warfarin.evaluation import evaluate_and_plot_policy
 
 
 def main(args):
-    torch.manual_seed(0)
-    np.random.seed(0)
-    random.seed(0)
-
     # Set size of plots
     plotnine.options.figure_size = (8, 6)
     plotnine.options.dpi = 300
@@ -76,18 +74,21 @@ def main(args):
     trial_config = analysis.get_all_configs()[best_trial_name]
 
     # Load the data
+    state_transforms_path = os.path.join(best_trial_name, "transforms.pkl")
+    state_transforms = pickle.load(open(state_transforms_path, "rb"))
     train_data, _ = get_dataloader(
         data_path=args.train_data_path,
         cache_name="train_buffer.pkl",
         batch_size=trial_config["batch_size"],
         min_trajectory_length=config.MIN_TRAIN_TRAJECTORY_LENGTH,
+        state_transforms=state_transforms,
         **config.REPLAY_BUFFER_PARAMS
     )
     data, _ = get_dataloader(
         data_path=args.data_path,
         cache_name="eval_buffer.pkl",
         batch_size=trial_config["batch_size"],
-        state_transforms=train_data.state_transforms,
+        state_transforms=state_transforms,
         option_means=train_data.option_means,
         **config.REPLAY_BUFFER_PARAMS
     )
