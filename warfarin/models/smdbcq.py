@@ -1,4 +1,15 @@
-"""Implementation of the SMDP-formulated dBCQ model."""
+"""
+Implementation of the SMDP-formulated dBCQ model.
+
+Based on the original BCQ implementation [1, 2] available at:
+
+    https://github.com/sfujim/BCQ
+
+[1] Fujimoto et al. Policy Deep Reinforcement Learning without Exploration.
+    ICML 2019.
+[2] Fujimoto et al. Benchmarking Batch Deep Reinforcement Learning Algorithms.
+    arXiv preprint arXiv:1910.01708.
+"""
 
 import copy
 
