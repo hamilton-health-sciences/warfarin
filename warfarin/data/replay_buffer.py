@@ -98,7 +98,7 @@ class WarfarinReplayBuffer(TensorDataset):
         self.inr_reward = inr_reward
         self.event_reward = event_reward
 
-        self._option_means = None
+        self._option_means = option_means
 
         # The devices batches will reside on
         self.device = device
