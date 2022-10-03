@@ -38,10 +38,26 @@ def main(args):
     # Load the data
     df_all = pd.read_feather(args.merged_data_path)
     raw_baseline = pd.read_feather(args.raw_baseline_data_path)
+    linker = pd.read_sas(args.rely_subjids_path)
+    linker["RELY_SUBJID"] = linker["USUBJID_O"].str.decode("utf-8").astype(int)
+    linker = linker.drop(["USUBJID_O"], axis=1)
+    linker["SUBJID"] = linker["SUBJID"].astype(int)
+    linker = linker.set_index("SUBJID")
     raw_baseline["SUBJID"] = raw_baseline["SUBJID"].astype(int)
     df_all = df_all.set_index("SUBJID").join(
-        raw_baseline, rsuffix="raw"
-    )
+        raw_baseline.set_index("SUBJID"), rsuffix="raw"
+    ).join(linker, how="left").reset_index()
+
+    # Subset test set to correct IDs
+    test_ids = np.loadtxt(args.combine_test_ids_path).astype(int)
+    df_all = df_all[(df_all["TRIAL"] != "RELY") | df_all["SUBJID"].isin(test_ids)].copy()
+    num_rely_centres = (df_all.loc[df_all["RELY_SUBJID"].notnull(), "RELY_SUBJID"].astype(int) // 1000).nunique()
+
+    # Median follow time across all trials
+    median_follow_time_months = (
+        df_all.groupby(["TRIAL", "SUBJID"])["STUDY_DAY"].max() -
+        df_all.groupby(["TRIAL", "SUBJID"])["STUDY_DAY"].min()
+    ).median() / 30.4375
 
     # Uniquely identify trajectories
     df_all["USUBJID"] = (
@@ -53,6 +69,9 @@ def main(args):
     summary_df = pd.DataFrame(index=trials)
 
     # Patient/trajectory stats
+    summary_df.loc["RELY", "Number of centres"] = num_rely_centres
+    summary_df["Number of dose-response pairs"] = df_all.groupby("TRIAL")["STUDY_DAY"].count()
+    summary_df["Median follow time (all trials, in months)"] = median_follow_time_months
     traj_lengths = (
         df_all.groupby(["TRIAL", "USUBJID"])["STUDY_DAY"].max() -
         df_all.groupby(["TRIAL", "USUBJID"])["STUDY_DAY"].min()
@@ -209,6 +228,8 @@ if __name__  == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--merged_data_path", type=str, required=True)
     parser.add_argument("--raw_baseline_data_path", type=str, required=True)
+    parser.add_argument("--combine_test_ids_path", type=str, required=True)
+    parser.add_argument("--rely_subjids_path", type=str, required=True)
     parser.add_argument("--output_path", type=str, required=True)
     parsed_args = parser.parse_args()
 
