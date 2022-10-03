@@ -503,6 +503,9 @@ stages:
     - path: data/clean_data/train_data.feather
       md5: 512b80a2695d33b0a91c80d0c5c58365
       size: 9444698
+    - path: data/combine_test_ids.txt
+      md5: 223fdbb75201e10e9aa6fdd3323fdb48
+      size: 143825
     - path: data/raw_data/drugs_rely.csv
       md5: 9d8088afd39fdf44d6c54d49fa7e5851
       size: 1738287
@@ -524,11 +527,11 @@ stages:
       md5: 66ae02de123e304fb145e38f548b9863
       size: 4886
     - path: scripts/evaluate.sh
-      md5: b906e94eda9f9e4c688c01c6c73745b7
-      size: 4890
+      md5: 51bd9b5e352f19dfb885a39ef4387924
+      size: 4973
     - path: scripts/evaluate_best_model.py
-      md5: 6f3281341010ee8eb5b0a1bd940cfd39
-      size: 7180
+      md5: 680788be818a278d0f2d46a385af461f
+      size: 7616
     - path: scripts/format_metrics.py
       md5: a1e0132a2726ba923b6b15ee8941be79
       size: 1656
@@ -536,8 +539,8 @@ stages:
       md5: 2471ef2f818d99e563db7610eed13e2a
       size: 1223
     - path: scripts/process_model_inputs.py
-      md5: e6f8597766e47e00a4b3afe2c6297377
-      size: 19015
+      md5: 1355077becd4893e838b9ac514949203
+      size: 23522
     params:
       params.yaml:
         dsbcq:
@@ -569,9 +572,9 @@ stages:
         replay_buffer.init.time_varying: across
     outs:
     - path: output/rely_test_evaluation
-      md5: 0c0f4d01105f816b0884b2ed272e0bbf.dir
-      size: 96467429
-      nfiles: 72
+      md5: af72756438e8f77c105ec7f70433d2da.dir
+      size: 98252646
+      nfiles: 73
   select_behavior_cloner_wis:
     cmd: python3 scripts/choose_bc.py --target_metric "val/calibration_error" --target_mode
       min

@@ -155,6 +155,7 @@ stages:
   evaluate:
     cmd: bash scripts/evaluate.sh
     deps:
+    - data/combine_test_ids.txt
     - data/raw_data/rely_subjids.sas7bdat
     - data/raw_data/ittr_baseline.csv
     - data/raw_data/sas_libs
