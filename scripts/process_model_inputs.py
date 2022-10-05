@@ -1,4 +1,4 @@
-"""Generate associations between algorithm consistency, TTR, and events."""
+"""Generate associations between centre-level algorithm consistency, TTR, and events."""
 
 import os
 
@@ -251,8 +251,6 @@ def main(args):
     mlm_data(data_RELY, data_characteristics, method = "random")
     mlm_data(data_RELY, data_characteristics, method = "maintain")
 
-    mlm_h2h_data(data_RELY, data_characteristics, method1="threshold", method2="policy")
-
 
 def coxph_data (data, data_characteristics, summary_medication, summary, method = "threshold"):
     """
@@ -443,96 +441,6 @@ def mlm_data(data, data_characteristics, method = "threshold"):
         inplace=True
     )
     df_wls_cent.to_csv(output_path, index = False)
-
-
-def mlm_h2h_data(data, data_characteristics, method1="threshold", method2="policy"):
-    """
-    Generate the inputs for the head-to-head multi-level model.
-
-    Args:
-        data: The original copy of the TTR file.
-        data_characteristics: A dataframe containing all the patient-, centre-
-                              and country-level characteristics.
-
-    Returns:
-        df: The processed dataframe.
-    """
-    quant_diff1 = f"{method1.upper()}_ACTION_DIFF"
-    quant_diff2 = f"{method2.upper()}_ACTION_DIFF"
-
-    # Remove rows with missing/invalid values.
-    data[[quant_diff1]] = data[[quant_diff1]].replace([np.inf, -np.inf], np.nan)
-    data = data[data[quant_diff1].notna()].copy()
-    data[[quant_diff2]] = data[[quant_diff2]].replace([np.inf, -np.inf], np.nan)
-    data = data[data[quant_diff2].notna()].copy()
-
-    # Extract the TTR information for each trajectory and each subject
-    data_TTR = data[
-        ["RELY_SUBJID", "TRAJID", "TRAJECTORY_LENGTH", "APPROXIMATE_TTR"]
-    ].groupby(["RELY_SUBJID", "TRAJID"]).agg("mean").reset_index()
-
-    # Compute a TTR for each subject as a weighted average of trajectory-level
-    # TTR, with weights being trajectory length.
-    weighted_mean = lambda x: np.average(
-        x, weights=data_TTR.loc[x.index, "TRAJECTORY_LENGTH"]
-    )
-    TTR = data_TTR[
-        ["RELY_SUBJID", "TRAJECTORY_LENGTH", "APPROXIMATE_TTR"]
-    ].groupby("RELY_SUBJID").agg(TTR = ("APPROXIMATE_TTR", weighted_mean))
-
-    # Compute an subject-level algorithm consistency index. This analysis
-    # assessed the warfarin dose modification documented in response to each
-    # INR result to determine whether it was algorithm-consistent, defined as
-    # within 5% of the dose recommended by the algorithm. Algorithm consistency
-    # was expressed as the percentage (%) of total dose instructions consistent
-    # with the algorithm in each patient.
-    data["algorithm_both_consistency"] = ((abs(data[quant_diff1]) <= 0.05) &
-                                          (abs(data[quant_diff2]) <= 0.05)) * 1
-    data["algorithm_only1_consistency"] = ((abs(data[quant_diff1]) <= 0.05) &
-                                           (abs(data[quant_diff2]) > 0.05)) * 1
-    data["algorithm_only2_consistency"] = ((abs(data[quant_diff2]) <= 0.05) &
-                                           (abs(data[quant_diff1]) > 0.05)) * 1
-
-    algorithm_consistency = data[
-        ["RELY_SUBJID", "algorithm_both_consistency",
-         "algorithm_only1_consistency", "algorithm_only2_consistency"]
-    ].groupby("RELY_SUBJID").agg(
-        algorithm_both_consistency=("algorithm_both_consistency", "mean"),
-        algorithm_only1_consistency=("algorithm_only1_consistency", "mean"),
-        algorithm_only2_consistency=("algorithm_only2_consistency", "mean")
-    )
-
-    # Merge all dataframes together.
-    df = TTR.join(
-        algorithm_consistency,
-        how="left",
-        on="RELY_SUBJID"
-    ).join(
-        data_characteristics,
-        how="left",
-        on="RELY_SUBJID"
-    )
-    df = df.rename(columns={"centre": "CENTID", "ctryname": "CTRYID"})
-
-    # Compute an center-level algorithm consistency index. Algorithm-consistency
-    # was analyzed as a center-level variable because although warfarin dosing
-    # was tracked in individual patients, dosing was performed by healthcare
-    # professionals at centers.
-    df = df.merge(
-        df[["CENTID", "algorithm_both_consistency",
-            "algorithm_only1_consistency", "algorithm_only2_consistency"]].groupby(
-            "CENTID"
-        ).agg(
-            centre_algorithm_both_consistency=("algorithm_both_consistency", "mean"),
-            centre_algorithm_only1_consistency=("algorithm_only1_consistency", "mean"),
-            centre_algorithm_only2_consistency=("algorithm_only2_consistency", "mean")
-        ),
-        on="CENTID"
-    )
-
-    # Save the MLM data.
-    output_path = os.path.join(args.model_results_path, f"MLM_h2h_{method1}_{method2}.csv")
-    df.to_csv(output_path, index = False)
 
 
 if __name__ == "__main__":

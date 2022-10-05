@@ -539,8 +539,8 @@ stages:
       md5: 2471ef2f818d99e563db7610eed13e2a
       size: 1223
     - path: scripts/process_model_inputs.py
-      md5: 1355077becd4893e838b9ac514949203
-      size: 23522
+      md5: 28f3e47da7afd8ca5f716c05399be2c8
+      size: 19430
     params:
       params.yaml:
         dsbcq:
@@ -572,9 +572,9 @@ stages:
         replay_buffer.init.time_varying: across
     outs:
     - path: output/rely_test_evaluation
-      md5: af72756438e8f77c105ec7f70433d2da.dir
-      size: 98252646
-      nfiles: 73
+      md5: 7f8fa99064cb8d1930ae36c6da8ef433.dir
+      size: 97150102
+      nfiles: 72
   select_behavior_cloner_wis:
     cmd: python3 scripts/choose_bc.py --target_metric "val/calibration_error" --target_mode
       min
