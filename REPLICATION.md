@@ -17,96 +17,37 @@ Point Python at the cloned directory:
 
     $ export PYTHONPATH=.
 
-## Preprocessing
+## Preprocessing and modeling
 
-Run the preprocessing steps. This will first convert the input SAS files into
-Feather dataframes and store them, then preprocess the data and ready it for RL
-modeling, splitting off RELY as the test set, and using the remaining three
-trials for training and validation.
+The data preprocessing pipeline and modeling steps are stored in a `dvc`
+repository. They can be replicated with:
 
-    $ bash scripts/preprocess.sh \
-        ./data/raw_data/merged_baseline.sas7bdat \
-        ./data/raw_data/merged_inr.sas7bdat \
-        ./data/raw_data/merged_events.sas7bdat
+    $ dvc repro
 
-This will create an audit log in `output/` that can be comparison-checked for
-correctness.
+This will preprocess the data, train the behavior cloners for model selection,
+train the reinforcement learning model, and produce the evaluation results.
+Component steps can be viewed in `dvc.yaml` and relevant parameters in
+`params.yaml`. The command `dvc dag` also provides a visual overview at the
+command line.
 
-## Model training
+## Summary statistics
 
-### Behavioral cloning
+Summary statistics quoted in the tables and throughout the text can be generated
+for the primary dataset with:
 
-When using WIS-estimated value as the model selection metric, a behavioral
-cloning model is necessary. Additionally, the "generative network" of the BCQ
-model can be fixed to a behavioral cloner as well. To tune it:
+    $ python3 scripts/compute_summary_statistics.py \
+        --merged_data_path ./data/clean_data/merged.feather \
+        --raw_baseline_data_path ./data/raw_data/baseline.feather
+        --combine_test_ids_path ./data/combine_test_ids.txt \
+        --rely_subjids_path ./data/raw_data/rely_subjids.sas7bdat \
+        --output_path ./output/summary_statistics
 
-    $ python3 scripts/tune_bc.py \
-        --train_data `pwd`/data/clean_data/train_data.feather \
-        --val_data `pwd`/data/clean_data/val_data.feather \
-        --target_metric "val/auroc" \
-        --mode max
+and for the control (NOAC) set with:
 
-Evaluations and plots can be accessed in real-time during training through
-Tensorboard:
-
-    $ python3 -m tensorboard.main --logdir=./ray_logs/bc
-
-#### Evaluating & choosing the behavior cloner
-
-The behavior cloners for WIS and SMDP-BCQ generative network initialization can
-then be selected and evaluted by doing:
-
-    $ python3 scripts/choose_bc.py \
-        --train_data_path ./data/clean_data/train_data.feather \
-        --data_path ./data/clean_data/val_data.feather \
-        --target_metric "val/calibration_error" \
-        --mode min \
-        --output_prefix ./output/wis_behavior_cloner
-    $ python3 scripts/choose_bc.py \
-        --train_data_path ./data/clean_data/train_data.feather \
-        --data_path ./data/clean_data/val_data.feather \
-        --target_metric "val/multi_f1_0.3" \
-        --mode max \
-        --output_prefix ./output/generative_network_behavior_cloner
-
-### SMDP-dBCQ
-
-With a GPU available, train and tune the dBCQ model on the development set,
-which will attempt to find hyperparameters that maximize the WIS-estimated
-value of the policy:
-
-    $ python3 scripts/tune_smdp_dbcq.py \
-        --train_data `pwd`/data/clean_data/train_data.feather \
-        --val_data `pwd`/data/clean_data/val_data.feather \
-        --feasibility_behavior_policy `pwd`/output/generative_network_behavior_cloner/checkpoint.pt \
-        --wis_behavior_policy `pwd`/output/wis_behavior_cloner/checkpoint.pt \
-        --target_metric "val/wis/policy_value" \
-        --mode max
-
-where `$PATH_TO_BEHAVIOR_POLICY_MODEL_PT` is the path to the `model.pt` for the
-best behavioral cloning checkpoint (TODO: make this easier).
-
-Evaluations and plots can be accessed during training through Tensorboard:
-
-    $ python3 -m tensorboard.main --logdir=./ray_logs/bc
-    Serving TensorBoard on localhost; to expose to the network, use a proxy or pass --bind_all
-    TensorBoard 2.6.0 at http://localhost:6006/ (Press CTRL+C to quit)
-
-# Final model selection, evaluation & figures
-
-To run the model selection, evaluation, and plotting routines (currently on
-validation data - TODO when opening up test set):
-
-    $ python3 scripts/evaluate_best_model.py \
-        --logs_path ./ray_logs/ \
-        --data_path ./data/clean_data/val_data.feather \
-        --behavior_policy_path $PATH_TO_BEHAVIOR_POLICY_MODEL_PT \
-        --output_prefix ./output/val_eval \
-        --target_metric val/wis/policy_value --mode max
-
-where `$PATH_TO_BEHAVIOR_POLICY_MODEL_PT` should be the same as above. And to
-pretty-print the classification metrics afterward:
-
-    $ python3 scripts/format_metrics.py \
-        --metrics_filename ./output/val_eval/metrics.json \
-        --output_filename ./output/val_eval/classification.csv
+    $ python3 scripts/compute_noac_summary_statistics.py \
+        --merged_data_path ./data/clean_data/merged.feather \
+        --raw_baseline_data_path ./data/raw_data/baseline.feather \
+        --raw_events_data_path ./data/raw_data/events.feather \
+        --noac_rely_subjids_path ./data/rely_noac_ids.txt \
+        --rely_subjids_path ./data/raw_data/rely_Subjids.sas7bdat \
+        --output_path ./output/noac_summary_statistics
