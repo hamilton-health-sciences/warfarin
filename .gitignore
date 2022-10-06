@@ -1,0 +1,16 @@
+*.pdf
+*.xlsx
+slurm_logs
+__pycache__
+.ipynb_checkpoints
+*.ipynb
+wandb
+output
+ray_logs*
+*.swp
+new_data
+smoke_test
+cache
+*.pt
+*.pkl
+data/rely_subjids.txt

@@ -1,0 +1,124 @@
+preprocess:
+  static_state_columns:
+  - SEX
+  - RACE2
+  - CONTINENT
+  - SMOKE
+  - BMED_ASPIRIN
+  - BMED_AMIOD
+  - DIABETES
+  - HX_CHF
+  - HYPERTENSION
+  - HX_MI
+  - BMED_THIENO
+  - AGE_DEIDENTIFIED
+  - WEIGHT
+  dose_outlier_threshold: 140
+  event_range: 90
+  max_time_elapsed: 90
+
+data:
+  min_train_trajectory_length: 5
+  events_to_keep:
+    DEATH: Death
+    STROKE: Ischemic Stroke
+    MAJOR_BLEED: Major Bleeding
+    MINOR_BLEED: Minor Bleeding
+    HEM_STROKE: Hemorrhagic Stroke
+    HOSP: Hospitalization
+    SYS_EMB: Systemic Embolism
+  events_to_split:
+  - DEATH
+  - STROKE
+  - MAJOR_BLEED
+  - HEM_STROKE
+  - HOSP
+  - SYS_EMB
+  events_to_evaluate:
+  - STROKE
+  - HEM_STROKE
+  - MAJOR_BLEED
+  state_columns:
+  - AGE_DEIDENTIFIED
+  - SEX
+  - WEIGHT
+  - RACE2
+  - CONTINENT
+  - SMOKE
+  - BMED_ASPIRIN
+  - BMED_AMIOD
+  - BMED_THIENO
+  - DIABETES
+  - HX_CHF
+  - HYPERTENSION
+  - HX_MI
+  - INR_VALUE
+  - WARFARIN_DOSE
+  - DURATION
+  - STROKE_FLAG
+  - MAJOR_BLEED_FLAG
+  - MINOR_BLEED_FLAG
+  - HEM_STROKE_FLAG
+  - HOSP_FLAG
+  - WARFARIN_DOSE_BIN
+  - AGE_BIN
+  - WEIGHT_BIN
+
+replay_buffer:
+  init:
+    time_varying: across
+    include_dose_time_varying: true
+    include_duration_time_varying: true
+    discount_factor: 0.99
+    inr_reward: 1
+    event_reward: 0
+
+behavior_cloner:
+  tune_seed: 42
+  min_training_epochs: 100
+  max_training_epochs: 500
+  target_metric: val/auroc
+  target_mode: max
+  hyperparams:
+    init_seed:
+    - 0
+    likelihood:
+    - discrete
+    learning_rate:
+    - 1.e-4
+    batch_size:
+    - 16
+    num_layers:
+    - 2
+    - 3
+    hidden_dim:
+    - 16
+    - 128
+    weight_option_frequency:
+    - false
+
+dsbcq:
+  tune_seed: 43
+  min_training_epochs: 50
+  max_training_epochs: 1000
+  plot_every: 50
+  target_metric: val/wis/policy_value
+  target_mode: max
+  hyperparams:
+    init_seed:
+    - 1
+    - 2
+    - 3
+    bcq_threshold:
+    - 0.2
+    - 0.3
+    batch_size:
+    - 32
+    num_layers:
+    - 3
+    hidden_dim:
+    - 128
+    learning_rate:
+    - 1.e-6
+    tau:
+    - 5.e-3
