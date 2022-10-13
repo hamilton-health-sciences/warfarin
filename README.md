@@ -2,6 +2,14 @@
 
 See [REPLICATION](REPLICATION.md) for details on how to replicate the study on COMBINE-AF data.
 
+## System requirements
+
+The software has been tested on Ubuntu Linux 20.04, Python 3.9 and PyTorch 1.9, using GPUs. GPUs are not required, but are recommended for performance reasons.
+
+## Installation & demo
+
+Please see [here](https://github.com/hamilton-health-sciences/smdbcq) for instructions on installing the PyTorch model and running it on synthetic CartPole data from D3RLPY. Installation should take less than a minute.
+
 ## Citation
 
 > Optimizing Warfarin Dosing for Patients with Atrial Fibrillation Using Deep Reinforcement Learning
