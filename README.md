@@ -36,3 +36,11 @@ The paper describing the COMBINE-AF data:
 > Anthony P Carnicelli, Hwanhee Hong, Robert P Giugliano, Stuart J Connolly, John Eikelboom, Manesh R Patel, Lars Wallentin, David A Morrow, Daniel Wojdyla, Kaiyuan Hua, Stefan H Hohnloser, Jonas Oldgren, Christian T Ruff, Jonathan P Piccini, Renato D Lopes, John H Alexander, Christopher B Granger, COMBINE AF Investigators
 >
 > American Heart Journal
+
+The original discrete batch-constrained Q-learning paper, upon which the semi-Markov form of the model is based:
+
+> [Benchmarking Batch Deep Reinforcement Learning Algorithms](https://arxiv.org/abs/1910.01708)
+>
+> Scott Fujimoto, Edoardo Conti, Mohammad Ghavamzadeh, Joelle Pineau
+>
+> arXiv preprint
