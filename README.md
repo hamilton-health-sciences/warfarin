@@ -21,6 +21,8 @@ In addition to this repository, which contains all the software needed to reprod
 
 ## See also
 
+The [website](https://warfarin.herokuapp.com), which exposes the learned policy as a human-usable web form. Source code for the website and learned weights are available [here](https://github.com/hamilton-health-sciences/warfarin_web).
+
 Our earlier methodology work:
 
 > [Semi-Markov Offline Reinforcement Learning for Healthcare](https://arxiv.org/abs/2203.09365)
