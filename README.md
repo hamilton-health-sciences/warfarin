@@ -21,9 +21,9 @@ In addition to this repository, which contains all the software needed to reprod
 
 ## See also
 
-The [website](https://warfarin.herokuapp.com), which exposes the learned policy as a human-usable web form. Source code for the website and learned weights are available [here](https://github.com/hamilton-health-sciences/warfarin_web).
+* The [website](https://warfarin.herokuapp.com), which exposes the learned policy as a human-usable web form. Source code for the website and learned weights are available [here](https://github.com/hamilton-health-sciences/warfarin_web).
 
-Our earlier methodology work:
+* Our earlier methodology work:
 
 > [Semi-Markov Offline Reinforcement Learning for Healthcare](https://arxiv.org/abs/2203.09365)
 >
@@ -31,7 +31,7 @@ Our earlier methodology work:
 >
 > Conference on Health, Inference, and Learning 2022
 
-The paper describing the COMBINE-AF data:
+* The paper describing the COMBINE-AF data:
 
 > [Individual Patient Data from the Pivotal Randomized Controlled Trials of Non-Vitamin K Antagonist Oral Anticoagulants in Patients with Atrial Fibrillation (COMBINE AF): Design and Rationale](https://pubmed.ncbi.nlm.nih.gov/33296688/)
 >
@@ -39,7 +39,7 @@ The paper describing the COMBINE-AF data:
 >
 > American Heart Journal
 
-The original discrete batch-constrained Q-learning paper, upon which the semi-Markov form of the model is based:
+* The original discrete batch-constrained Q-learning paper, upon which the semi-Markov form of the model is based:
 
 > [Benchmarking Batch Deep Reinforcement Learning Algorithms](https://arxiv.org/abs/1910.01708)
 >
